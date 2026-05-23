@@ -4,9 +4,11 @@ import { initializeProject } from "./commands/initializeProject";
 import { runQuickAction } from "./commands/quickActions";
 import { setupWorkspace, openPatchloomReleases, openPatchloomSettings } from "./commands/setupWorkspace";
 import { showStatus } from "./commands/showStatus";
+import { setManagedInstallRoot } from "./install/managed";
 import { disposeStatusBar, refreshStatusBar } from "./status/statusBar";
 
 export function activate(context: vscode.ExtensionContext): void {
+  setManagedInstallRoot(context.globalStorageUri.fsPath);
   context.subscriptions.push(
     vscode.commands.registerCommand("patchloom.initializeProject", initializeProject),
     vscode.commands.registerCommand("patchloom.setupWorkspace", setupWorkspace),
@@ -30,5 +32,6 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {
+  setManagedInstallRoot(undefined);
   disposeStatusBar();
 }

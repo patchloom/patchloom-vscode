@@ -8,6 +8,14 @@ import {
   parsePatchloomVersion,
   resolvePatchloomStatusWithInputs
 } from "../../src/binary/patchloom";
+import {
+  buildManagedInstallReleaseAssets,
+  detectManagedInstallTarget,
+  inspectManagedInstallStatus,
+  normalizeReleaseVersion,
+  PATCHLOOM_MANAGED_INSTALL_DIR,
+  resolveManagedInstallPaths
+} from "../../src/install/managed";
 import { resolveMcpTargets } from "../../src/mcp/config";
 import { defaultWorkspaceFolderIndex, describeWorkspaceEnvironment } from "../../src/workspace/readiness";
 
@@ -115,4 +123,88 @@ test("resolveMcpTargets omits user config targets when disabled", () => {
   const targets = resolveMcpTargets("/workspace/demo", "/Users/demo", false);
 
   assert.deepEqual(targets.map((target) => target.kind), ["vscode-workspace", "cursor-workspace"]);
+});
+
+test("detectManagedInstallTarget maps supported platforms to release targets", () => {
+  assert.deepEqual(detectManagedInstallTarget("darwin", "arm64"), {
+    platform: "darwin",
+    arch: "arm64",
+    targetTriple: "aarch64-apple-darwin",
+    archiveFormat: ".tar.xz"
+  });
+  assert.deepEqual(detectManagedInstallTarget("win32", "x64"), {
+    platform: "win32",
+    arch: "x64",
+    targetTriple: "x86_64-pc-windows-msvc",
+    archiveFormat: ".zip"
+  });
+  assert.equal(detectManagedInstallTarget("linux", "arm"), undefined);
+});
+
+test("resolveManagedInstallPaths uses cargo-dist style archive names", () => {
+  const target = detectManagedInstallTarget("darwin", "arm64");
+  assert.ok(target);
+  const paths = resolveManagedInstallPaths("/managed/install", "0.1.0", target);
+
+  assert.equal(paths.archiveFileName, "patchloom-aarch64-apple-darwin.tar.xz");
+  assert.equal(paths.checksumFileName, "patchloom-aarch64-apple-darwin.tar.xz.sha256");
+  assert.match(paths.binaryPath, /managed-bin\/patchloom$/);
+});
+
+test("buildManagedInstallReleaseAssets builds archive and checksum urls", () => {
+  const target = detectManagedInstallTarget("linux", "x64");
+  assert.ok(target);
+  const release = buildManagedInstallReleaseAssets("v0.1.0", target);
+
+  assert.equal(release.tagName, "v0.1.0");
+  assert.equal(release.archiveFileName, "patchloom-x86_64-unknown-linux-gnu.tar.xz");
+  assert.equal(release.checksumFileName, "patchloom-x86_64-unknown-linux-gnu.tar.xz.sha256");
+  assert.match(release.archiveDownloadUrl, /patchloom-x86_64-unknown-linux-gnu\.tar\.xz$/);
+  assert.match(release.checksumDownloadUrl, /patchloom-x86_64-unknown-linux-gnu\.tar\.xz\.sha256$/);
+});
+
+test("managed install constants use a stable storage directory name", () => {
+  assert.equal(PATCHLOOM_MANAGED_INSTALL_DIR, "patchloom-managed");
+});
+
+test("inspectManagedInstallStatus reports discovered managed binaries", async () => {
+  const target = detectManagedInstallTarget("darwin", "arm64");
+  assert.ok(target);
+  const status = await inspectManagedInstallStatus({
+    installRoot: "/managed/install",
+    version: "v0.1.0",
+    target,
+    fileExists: async (filePath) => filePath.endsWith("/0.1.0/managed-bin/patchloom")
+  });
+
+  assert.deepEqual(status, {
+    exists: true,
+    binaryPath: "/managed/install/0.1.0/managed-bin/patchloom",
+    version: "0.1.0",
+    target
+  });
+});
+
+test("normalizeReleaseVersion removes a leading v", () => {
+  assert.equal(normalizeReleaseVersion("v0.1.0"), "0.1.0");
+  assert.equal(normalizeReleaseVersion("0.1.0"), "0.1.0");
+});
+
+test("resolvePatchloomStatusWithInputs falls back to a managed install when present", async () => {
+  const status = await resolvePatchloomStatusWithInputs({
+    configuredPath: "",
+    pathValue: "/usr/local/bin:/bin",
+    platform: "darwin",
+    arch: "arm64",
+    managedInstallRoot: "/managed/install",
+    managedInstallVersion: "0.1.0",
+    managedFileExists: async (filePath) => filePath.endsWith("/0.1.0/managed-bin/patchloom"),
+    canExecute: async (candidate) => candidate === "/managed/install/0.1.0/managed-bin/patchloom",
+    getVersion: async () => "patchloom 0.1.0"
+  });
+
+  assert.equal(status.ready, true);
+  assert.equal(status.source, "managed");
+  assert.equal(status.binaryPath, "/managed/install/0.1.0/managed-bin/patchloom");
+  assert.equal(status.managedInstall?.exists, true);
 });

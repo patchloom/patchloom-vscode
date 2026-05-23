@@ -47,6 +47,9 @@ export function buildStatusDetails(status: PatchloomStatus, workspaceReadiness?:
     status.compatibility ? `CLI compatibility: ${describePatchloomCompatibility(status.compatibility)}` : undefined,
     status.compatibilityMessage && patchloomNeedsUpgrade(status) ? status.compatibilityMessage : undefined,
     status.binaryPath ? `Path: ${status.binaryPath}` : undefined,
+    status.managedInstall?.version ? `Managed install version: ${status.managedInstall.version}` : undefined,
+    status.managedInstall ? `Managed install: ${status.managedInstall.exists ? "available" : "not installed"}` : undefined,
+    status.managedInstall?.target ? `Managed target: ${status.managedInstall.target.targetTriple}` : undefined,
     workspaceReadiness?.workspaceName ? `Workspace: ${workspaceReadiness.workspaceName}` : undefined,
     workspaceReadiness?.hasWorkspace === false
       ? "Workspace: no folder open"

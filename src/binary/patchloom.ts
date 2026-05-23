@@ -3,13 +3,19 @@ import { constants as fsConstants } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { promisify } from "node:util";
+import {
+  detectManagedInstallTarget,
+  getManagedInstallRoot,
+  inspectManagedInstallStatus,
+  ManagedInstallStatus
+} from "../install/managed";
 
 const execFileAsync = promisify(execFile);
 
 export const MINIMUM_SUPPORTED_PATCHLOOM_VERSION = "0.1.0";
 export const PATCHLOOM_RELEASES_URL = "https://github.com/patchloom/patchloom/releases";
 
-export type PatchloomSource = "setting" | "path" | "missing";
+export type PatchloomSource = "setting" | "path" | "managed" | "missing";
 export type PatchloomCompatibility = "supported" | "unsupported" | "unknown";
 
 export interface PatchloomStatus {
@@ -22,6 +28,7 @@ export interface PatchloomStatus {
   readonly compatibility?: PatchloomCompatibility;
   readonly minimumSupportedVersion?: string;
   readonly compatibilityMessage?: string;
+  readonly managedInstall?: ManagedInstallStatus;
 }
 
 export interface PatchloomCompatibilityAssessment {
@@ -35,16 +42,24 @@ export interface PatchloomStatusInputs {
   readonly configuredPath?: string;
   readonly pathValue?: string;
   readonly platform?: NodeJS.Platform;
+  readonly arch?: NodeJS.Architecture;
   readonly canExecute?: (binaryPath: string) => Promise<boolean>;
   readonly getVersion?: (binaryPath: string) => Promise<string | undefined>;
+  readonly managedInstallRoot?: string;
+  readonly managedInstallVersion?: string;
+  readonly managedFileExists?: (filePath: string) => Promise<boolean>;
 }
 
 export async function resolvePatchloomStatus(): Promise<PatchloomStatus> {
   const vscode = await import("vscode");
+  const managedInstallRoot = getManagedInstallRoot();
   return resolvePatchloomStatusWithInputs({
     configuredPath: vscode.workspace.getConfiguration("patchloom").get<string>("path", ""),
     pathValue: process.env.PATH,
-    platform: process.platform
+    platform: process.platform,
+    arch: process.arch,
+    managedInstallRoot,
+    managedInstallVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION
   });
 }
 
@@ -52,22 +67,43 @@ export async function resolvePatchloomStatusWithInputs(inputs: PatchloomStatusIn
   const configuredPath = configuredBinaryPathFromSetting(inputs.configuredPath);
   const canExecute = inputs.canExecute ?? isExecutable;
   const getVersion = inputs.getVersion ?? readVersion;
+  const managedInstall = inputs.managedInstallRoot
+    ? await inspectManagedInstallStatus({
+      installRoot: inputs.managedInstallRoot,
+      version: inputs.managedInstallVersion,
+      target: detectManagedInstallTarget(inputs.platform, inputs.arch),
+      fileExists: inputs.managedFileExists
+    })
+    : undefined;
 
   if (configuredPath) {
-    return inspectCandidate(configuredPath, "setting", canExecute, getVersion);
+    const status = await inspectCandidate(configuredPath, "setting", canExecute, getVersion);
+    return managedInstall ? { ...status, managedInstall } : status;
   }
 
   const discoveredPath = await findOnPath(inputs.pathValue, inputs.platform, canExecute);
   if (discoveredPath) {
-    return inspectCandidate(discoveredPath, "path", canExecute, getVersion);
+    const status = await inspectCandidate(discoveredPath, "path", canExecute, getVersion);
+    return managedInstall ? { ...status, managedInstall } : status;
+  }
+
+  if (managedInstall?.exists) {
+    const status = await inspectCandidate(managedInstall.binaryPath, "managed", canExecute, getVersion);
+    return {
+      ...status,
+      managedInstall
+    };
   }
 
   return {
     ready: false,
     source: "missing",
-    message: "Patchloom binary not found. Set patchloom.path or install patchloom on PATH.",
+    message: managedInstall
+      ? `Patchloom binary not found. Set patchloom.path, install patchloom on PATH, or install a managed Patchloom release.`
+      : "Patchloom binary not found. Set patchloom.path or install patchloom on PATH.",
     compatibility: "unknown",
-    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION
+    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
+    managedInstall
   };
 }
 
@@ -82,6 +118,8 @@ export function describePatchloomSource(source: PatchloomSource): string {
       return "patchloom.path";
     case "path":
       return "PATH";
+    case "managed":
+      return "managed install";
     case "missing":
       return "not found";
   }

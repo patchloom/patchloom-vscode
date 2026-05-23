@@ -17,6 +17,8 @@ This initial scaffold focuses on the local-binary-first MVP:
 
 Managed binary downloads, MCP config injection, and marketplace publishing workflows are tracked as follow-up issues.
 
+The extension now has managed-install groundwork for release asset targeting and status reporting, using VS Code global storage for future managed binaries, but it does not download binaries yet.
+
 ## Commands
 
 - `Patchloom: Show Status`
