@@ -34,6 +34,8 @@
   "activationEvents": [
     "onStartupFinished",
     "onCommand:patchloom.initializeProject",
+    "onCommand:patchloom.setupWorkspace",
+    "onCommand:patchloom.openPatchloomSettings",
     "onCommand:patchloom.showStatus"
   ],
   "contributes": {
@@ -41,6 +43,16 @@
       {
         "command": "patchloom.initializeProject",
         "title": "Initialize Project",
+        "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.setupWorkspace",
+        "title": "Setup Workspace",
+        "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.openPatchloomSettings",
+        "title": "Open Settings",
         "category": "Patchloom"
       },
       {

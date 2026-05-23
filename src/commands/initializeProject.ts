@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
 import { resolvePatchloomStatus } from "../binary/patchloom";
+import { activeWorkspaceFolder } from "../workspace/readiness";
 
 const execFileAsync = promisify(execFile);
 const encoder = new TextEncoder();
@@ -73,21 +74,6 @@ export async function initializeProject(): Promise<void> {
   );
   await vscode.window.showWarningMessage("AGENTS.md already exists and differs. Opened a diff against newly generated rules.");
   await refreshStatusBar();
-}
-
-export async function activeWorkspaceFolder(): Promise<VSCode.WorkspaceFolder | undefined> {
-  const vscode = await import("vscode");
-  const folders = vscode.workspace.workspaceFolders;
-  if (!folders || folders.length === 0) {
-    return undefined;
-  }
-
-  const activeDocument = vscode.window.activeTextEditor?.document.uri;
-  if (activeDocument) {
-    return vscode.workspace.getWorkspaceFolder(activeDocument) ?? folders[0];
-  }
-
-  return folders[0];
 }
 
 export function classifyAgentsFile(existingContent: string | undefined, generatedRules: string): AgentsFileState {

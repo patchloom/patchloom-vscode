@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
-import { describePatchloomSource, resolvePatchloomStatus } from "../binary/patchloom";
+import { resolvePatchloomStatus } from "../binary/patchloom";
+import { buildStatusDetails, preferredStatusAction } from "../commands/showStatus";
+import { inspectWorkspaceReadiness } from "../workspace/readiness";
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 
@@ -13,17 +15,15 @@ export async function refreshStatusBar(): Promise<void> {
   if (!statusBarItem) {
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     statusBarItem.name = "Patchloom Status";
-    statusBarItem.command = "patchloom.showStatus";
   }
 
   const status = await resolvePatchloomStatus();
+  const workspaceReadiness = await inspectWorkspaceReadiness();
+  const action = preferredStatusAction(status, workspaceReadiness);
+
   statusBarItem.text = status.ready ? "$(check) Patchloom" : "$(warning) Patchloom";
-  statusBarItem.tooltip = [
-    status.message,
-    `Source: ${describePatchloomSource(status.source)}`,
-    status.version ? `Version: ${status.version}` : undefined,
-    status.binaryPath ? `Path: ${status.binaryPath}` : undefined
-  ].filter((line): line is string => Boolean(line)).join("\n");
+  statusBarItem.command = action?.command ?? "patchloom.showStatus";
+  statusBarItem.tooltip = buildStatusDetails(status, workspaceReadiness);
   statusBarItem.show();
 }
 

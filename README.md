@@ -18,7 +18,9 @@ Managed binary downloads, MCP config injection, and marketplace publishing workf
 ## Commands
 
 - `Patchloom: Show Status`
+- `Patchloom: Setup Workspace`
 - `Patchloom: Initialize Project`
+- `Patchloom: Open Settings`
 
 ## Settings
 
