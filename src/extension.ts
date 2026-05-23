@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { configureMcp } from "./commands/configureMcp";
 import { initializeProject } from "./commands/initializeProject";
 import { setupWorkspace, openPatchloomSettings } from "./commands/setupWorkspace";
 import { showStatus } from "./commands/showStatus";
@@ -8,6 +9,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("patchloom.initializeProject", initializeProject),
     vscode.commands.registerCommand("patchloom.setupWorkspace", setupWorkspace),
+    vscode.commands.registerCommand("patchloom.configureMcp", configureMcp),
     vscode.commands.registerCommand("patchloom.openPatchloomSettings", openPatchloomSettings),
     vscode.commands.registerCommand("patchloom.showStatus", showStatus),
     new vscode.Disposable(disposeStatusBar),

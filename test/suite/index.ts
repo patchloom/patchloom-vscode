@@ -11,6 +11,7 @@ export async function run(): Promise<void> {
   const commands = await vscode.commands.getCommands(true);
   assert.ok(commands.includes("patchloom.initializeProject"));
   assert.ok(commands.includes("patchloom.setupWorkspace"));
+  assert.ok(commands.includes("patchloom.configureMcp"));
   assert.ok(commands.includes("patchloom.openPatchloomSettings"));
   assert.ok(commands.includes("patchloom.showStatus"));
 }

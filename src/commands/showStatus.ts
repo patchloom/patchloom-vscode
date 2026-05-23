@@ -38,7 +38,10 @@ export function buildStatusDetails(status: PatchloomStatus, workspaceReadiness?:
       : undefined,
     workspaceReadiness?.hasAgentsFile === undefined
       ? undefined
-      : `AGENTS.md: ${workspaceReadiness.hasAgentsFile ? "present" : "missing"}`
+      : `AGENTS.md: ${workspaceReadiness.hasAgentsFile ? "present" : "missing"}`,
+    workspaceReadiness?.hasMcpConfig === undefined
+      ? undefined
+      : `MCP config: ${workspaceReadiness.hasMcpConfig ? "present" : "missing"}`
   ].filter((line): line is string => Boolean(line)).join("\n");
 }
 
@@ -54,6 +57,13 @@ export function preferredStatusAction(status: PatchloomStatus, workspaceReadines
     return {
       title: "Initialize Project",
       command: "patchloom.initializeProject"
+    };
+  }
+
+  if (workspaceReadiness?.hasMcpConfig === false) {
+    return {
+      title: "Configure MCP",
+      command: "patchloom.configureMcp"
     };
   }
 

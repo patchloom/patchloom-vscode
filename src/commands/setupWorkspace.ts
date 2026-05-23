@@ -32,7 +32,18 @@ export async function setupWorkspace(): Promise<void> {
     return;
   }
 
-  await vscode.window.showInformationMessage("Patchloom workspace setup looks good. Binary and AGENTS.md are already in place.");
+  if (readiness.hasMcpConfig === false) {
+    const choice = await vscode.window.showInformationMessage(
+      "Patchloom MCP config is missing. Configure supported editors now?",
+      "Configure MCP"
+    );
+    if (choice === "Configure MCP") {
+      await vscode.commands.executeCommand("patchloom.configureMcp");
+    }
+    return;
+  }
+
+  await vscode.window.showInformationMessage("Patchloom workspace setup looks good. Binary, AGENTS.md, and MCP config are already in place.");
 }
 
 export async function openPatchloomSettings(): Promise<void> {
