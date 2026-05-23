@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
 import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
-import { activeWorkspaceFolder } from "../workspace/readiness";
+import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness";
 
 const execFileAsync = promisify(execFile);
 const STRUCTURED_FILE_EXTENSIONS = new Set([".json", ".yaml", ".yml", ".toml"]);
@@ -312,10 +312,20 @@ async function buildPreviewDocument(
 
 async function pickWorkspaceFileTarget(placeHolder: string): Promise<WorkspaceFileTarget | undefined> {
   const vscode = await import("vscode");
-  const folder = await activeWorkspaceFolder();
+  const folder = await activeWorkspaceFolder({
+    promptIfMany: true,
+    placeHolder
+  });
   if (!folder) {
     await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom quick actions.");
     return undefined;
+  }
+
+  const environment = describeWorkspaceEnvironment(vscode.env.remoteName);
+  if (environment.support === "unverified") {
+    await vscode.window.showWarningMessage(
+      `${environment.label} is not explicitly verified for Patchloom quick actions. Proceed carefully.`
+    );
   }
 
   const activeTarget = await activeEditorTarget(folder);

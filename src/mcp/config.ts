@@ -22,6 +22,7 @@ export interface McpInspectionInputs {
   readonly workspaceFolderPath?: string;
   readonly homeDir?: string;
   readonly readFile?: (filePath: string) => Promise<string | undefined>;
+  readonly includeUserTarget?: boolean;
 }
 
 export interface McpApplyInputs extends McpInspectionInputs {
@@ -32,7 +33,7 @@ export interface McpApplyInputs extends McpInspectionInputs {
 
 export async function inspectMcpTargets(inputs: McpInspectionInputs): Promise<McpTargetStatus[]> {
   const readFile = inputs.readFile ?? defaultReadFile;
-  const targets = resolveMcpTargets(inputs.workspaceFolderPath, inputs.homeDir);
+  const targets = resolveMcpTargets(inputs.workspaceFolderPath, inputs.homeDir, inputs.includeUserTarget);
   const results: McpTargetStatus[] = [];
 
   for (const target of targets) {
@@ -52,7 +53,7 @@ export async function configureMcpTargets(inputs: McpApplyInputs): Promise<McpTa
   const readFile = inputs.readFile ?? defaultReadFile;
   const patchloomCommand = configuredBinaryPathFromSetting(inputs.patchloomPathSetting) ?? "patchloom";
   const includeKinds = inputs.includeKinds ? new Set(inputs.includeKinds) : undefined;
-  const targets = resolveMcpTargets(inputs.workspaceFolderPath, inputs.homeDir)
+  const targets = resolveMcpTargets(inputs.workspaceFolderPath, inputs.homeDir, inputs.includeUserTarget)
     .filter((target) => !includeKinds || includeKinds.has(target.kind));
   const results: McpTargetResult[] = [];
 
@@ -79,7 +80,11 @@ export async function configureMcpTargets(inputs: McpApplyInputs): Promise<McpTa
   return results;
 }
 
-export function resolveMcpTargets(workspaceFolderPath?: string, homeDir = defaultHomeDir()): McpTarget[] {
+export function resolveMcpTargets(
+  workspaceFolderPath?: string,
+  homeDir = defaultHomeDir(),
+  includeUserTarget = true
+): McpTarget[] {
   const targets: McpTarget[] = [];
 
   if (workspaceFolderPath) {
@@ -97,7 +102,7 @@ export function resolveMcpTargets(workspaceFolderPath?: string, homeDir = defaul
     );
   }
 
-  if (homeDir) {
+  if (includeUserTarget && homeDir) {
     targets.push({
       kind: "windsurf-user",
       label: "Windsurf user",

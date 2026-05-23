@@ -32,6 +32,14 @@ Managed binary downloads, MCP config injection, and marketplace publishing workf
 - `patchloom.path`: absolute path to the Patchloom binary
 - `patchloom.showStatusBar`: enable or disable the status bar item
 
+## Workspace and remote behavior
+
+- In multi-root workspaces, Patchloom commands target the active editor's workspace folder first.
+- If there is no active editor and multiple folders are open, Patchloom prompts you to choose the target folder.
+- Local sessions support both workspace MCP config targets and the Windsurf user target.
+- Remote sessions like WSL, SSH, dev containers, and Codespaces stay focused on workspace-scoped flows. User-scoped MCP config targets are intentionally hidden there.
+- Unknown remote environments are surfaced as unverified so failures are explicit instead of silent.
+
 ## Local development
 
 ```bash

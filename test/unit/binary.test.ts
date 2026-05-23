@@ -8,6 +8,8 @@ import {
   parsePatchloomVersion,
   resolvePatchloomStatusWithInputs
 } from "../../src/binary/patchloom";
+import { resolveMcpTargets } from "../../src/mcp/config";
+import { defaultWorkspaceFolderIndex, describeWorkspaceEnvironment } from "../../src/workspace/readiness";
 
 test("resolvePatchloomStatusWithInputs prefers patchloom.path over PATH", async () => {
   const status = await resolvePatchloomStatusWithInputs({
@@ -92,4 +94,25 @@ test("resolvePatchloomStatusWithInputs exposes compatibility diagnostics", async
   assert.equal(status.compatibility, "unsupported");
   assert.equal(status.minimumSupportedVersion, MINIMUM_SUPPORTED_PATCHLOOM_VERSION);
   assert.match(status.compatibilityMessage ?? "", /older than the minimum supported version/i);
+});
+
+test("defaultWorkspaceFolderIndex prefers active folders and only auto-selects single roots", () => {
+  assert.equal(defaultWorkspaceFolderIndex(3, 2), 2);
+  assert.equal(defaultWorkspaceFolderIndex(1, undefined), 0);
+  assert.equal(defaultWorkspaceFolderIndex(2, undefined), undefined);
+});
+
+test("describeWorkspaceEnvironment reports limited remote support", () => {
+  const environment = describeWorkspaceEnvironment("wsl");
+
+  assert.equal(environment.label, "WSL");
+  assert.equal(environment.support, "limited");
+  assert.equal(environment.supportsUserMcpConfig, false);
+  assert.match(environment.note ?? "", /workspace-scoped/i);
+});
+
+test("resolveMcpTargets omits user config targets when disabled", () => {
+  const targets = resolveMcpTargets("/workspace/demo", "/Users/demo", false);
+
+  assert.deepEqual(targets.map((target) => target.kind), ["vscode-workspace", "cursor-workspace"]);
 });

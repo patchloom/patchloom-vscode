@@ -13,7 +13,10 @@ export type AgentsFileState = "missing" | "up_to_date" | "different";
 export async function initializeProject(): Promise<void> {
   const vscode = await import("vscode");
   const { refreshStatusBar } = await import("../status/statusBar");
-  const folder = await activeWorkspaceFolder();
+  const folder = await activeWorkspaceFolder({
+    promptIfMany: true,
+    placeHolder: "Select the workspace folder to initialize for Patchloom"
+  });
   if (!folder) {
     await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom: Initialize Project.");
     return;

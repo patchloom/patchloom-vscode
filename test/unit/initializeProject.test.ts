@@ -29,13 +29,17 @@ test("buildStatusDetails includes workspace readiness context", () => {
     {
       hasWorkspace: true,
       workspaceName: "demo",
-      hasAgentsFile: false
+      hasAgentsFile: false,
+      workspaceCount: 1,
+      environmentLabel: "Local",
+      environmentSupport: "supported"
     }
   );
 
   assert.match(details, /Patchloom is ready\./);
   assert.match(details, /Source: PATH/);
   assert.match(details, /Workspace: demo/);
+  assert.match(details, /Environment: Local/);
   assert.match(details, /AGENTS\.md: missing/);
 });
 
@@ -49,7 +53,10 @@ test("preferredStatusAction points missing binary users to settings", () => {
     {
       hasWorkspace: true,
       workspaceName: "demo",
-      hasAgentsFile: false
+      hasAgentsFile: false,
+      workspaceCount: 1,
+      environmentLabel: "Local",
+      environmentSupport: "supported"
     }
   );
 
@@ -70,11 +77,22 @@ test("buildStatusDetails includes compatibility upgrade guidance", () => {
     compatibility: "unsupported",
     minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
     compatibilityMessage: "Patchloom 0.0.9 is older than the minimum supported version 0.1.0."
+  }, {
+    hasWorkspace: true,
+    hasAgentsFile: true,
+    hasMcpConfig: true,
+    workspaceCount: 2,
+    environmentLabel: "WSL",
+    environmentSupport: "limited",
+    environmentNote: "Workspace-scoped Patchloom commands are supported."
   });
 
   assert.match(details, /Detected CLI version: 0\.0\.9/);
   assert.match(details, /Required CLI version: >= 0\.1\.0/);
   assert.match(details, /CLI compatibility: upgrade required/);
+  assert.match(details, /Environment: WSL/);
+  assert.match(details, /Environment support: limited/);
+  assert.match(details, /Workspace folders: 2/);
   assert.match(details, /older than the minimum supported version/);
 });
 
@@ -109,7 +127,10 @@ test("preferredStatusAction points ready workspaces without AGENTS to initializa
     {
       hasWorkspace: true,
       workspaceName: "demo",
-      hasAgentsFile: false
+      hasAgentsFile: false,
+      workspaceCount: 1,
+      environmentLabel: "Local",
+      environmentSupport: "supported"
     }
   );
 
@@ -132,7 +153,10 @@ test("preferredStatusAction points ready workspaces without MCP config to MCP se
       hasWorkspace: true,
       workspaceName: "demo",
       hasAgentsFile: true,
-      hasMcpConfig: false
+      hasMcpConfig: false,
+      workspaceCount: 1,
+      environmentLabel: "Local",
+      environmentSupport: "supported"
     }
   );
 
@@ -155,7 +179,10 @@ test("preferredStatusAction returns nothing when workspace is already ready", ()
       hasWorkspace: true,
       workspaceName: "demo",
       hasAgentsFile: true,
-      hasMcpConfig: true
+      hasMcpConfig: true,
+      workspaceCount: 1,
+      environmentLabel: "Local",
+      environmentSupport: "supported"
     }
   );
 

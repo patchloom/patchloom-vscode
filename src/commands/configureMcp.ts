@@ -3,7 +3,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
 import { configureMcpTargets, inspectMcpTargets } from "../mcp/config";
-import { activeWorkspaceFolder } from "../workspace/readiness";
+import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness";
 import { refreshStatusBar } from "../status/statusBar";
 
 export async function configureMcp(): Promise<void> {
@@ -30,9 +30,16 @@ export async function configureMcp(): Promise<void> {
     return;
   }
 
-  const folder = await activeWorkspaceFolder();
+  const folder = await activeWorkspaceFolder({
+    promptIfMany: true,
+    placeHolder: "Select the workspace folder to configure for Patchloom MCP"
+  });
   const workspaceFolderPath = folder?.uri.fsPath;
-  const targets = await inspectMcpTargets({ workspaceFolderPath });
+  const environment = describeWorkspaceEnvironment(vscode.env.remoteName);
+  const targets = await inspectMcpTargets({
+    workspaceFolderPath,
+    includeUserTarget: environment.supportsUserMcpConfig
+  });
   const selectable = targets.map((target) => ({
     label: target.label,
     description: target.filePath,
@@ -41,7 +48,8 @@ export async function configureMcp(): Promise<void> {
   }));
 
   if (selectable.length === 0) {
-    await vscode.window.showWarningMessage("No supported MCP config targets were found for this environment.");
+    const detail = environment.note ? ` ${environment.note}` : "";
+    await vscode.window.showWarningMessage(`No supported MCP config targets were found for this environment.${detail}`);
     return;
   }
 
@@ -57,6 +65,7 @@ export async function configureMcp(): Promise<void> {
   const results = await configureMcpTargets({
     workspaceFolderPath,
     includeKinds: selectedKinds,
+    includeUserTarget: environment.supportsUserMcpConfig,
     patchloomPathSetting: status.binaryPath,
     readFile: async (filePath) => {
       try {

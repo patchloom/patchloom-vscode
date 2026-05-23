@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { PATCHLOOM_RELEASES_URL, patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
-import { inspectWorkspaceReadiness } from "../workspace/readiness";
+import { describeWorkspaceEnvironment, inspectWorkspaceReadiness } from "../workspace/readiness";
 
 export async function setupWorkspace(): Promise<void> {
   const status = await resolvePatchloomStatus();
@@ -15,7 +15,10 @@ export async function setupWorkspace(): Promise<void> {
     return;
   }
 
-  const readiness = await inspectWorkspaceReadiness();
+  const readiness = await inspectWorkspaceReadiness({
+    promptIfMany: true,
+    placeHolder: "Select the workspace folder to inspect for Patchloom setup"
+  });
   if (patchloomNeedsUpgrade(status)) {
     const choice = await vscode.window.showWarningMessage(
       `${status.compatibilityMessage}\n\nUpgrade Patchloom before workspace setup can continue.`,
@@ -54,7 +57,12 @@ export async function setupWorkspace(): Promise<void> {
     return;
   }
 
-  await vscode.window.showInformationMessage("Patchloom workspace setup looks good. Binary, AGENTS.md, and MCP config are already in place.");
+  const environment = describeWorkspaceEnvironment(vscode.env.remoteName);
+  const environmentSuffix = environment.note ? ` ${environment.note}` : "";
+  const workspaceTarget = readiness.workspaceName ? ` for ${readiness.workspaceName}` : "";
+  await vscode.window.showInformationMessage(
+    `Patchloom workspace setup looks good${workspaceTarget}. Binary, AGENTS.md, and MCP config are already in place.${environmentSuffix}`
+  );
 }
 
 export async function openPatchloomSettings(): Promise<void> {

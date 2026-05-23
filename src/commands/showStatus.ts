@@ -15,7 +15,10 @@ export interface SetupAction {
 export async function showStatus(): Promise<void> {
   const vscode = await import("vscode");
   const status = await resolvePatchloomStatus();
-  const workspaceReadiness = await inspectWorkspaceReadiness();
+  const workspaceReadiness = await inspectWorkspaceReadiness({
+    promptIfMany: true,
+    placeHolder: "Select the workspace folder to inspect for Patchloom status"
+  });
   const details = buildStatusDetails(status, workspaceReadiness);
   const action = preferredStatusAction(status, workspaceReadiness);
 
@@ -48,6 +51,10 @@ export function buildStatusDetails(status: PatchloomStatus, workspaceReadiness?:
     workspaceReadiness?.hasWorkspace === false
       ? "Workspace: no folder open"
       : undefined,
+    `Environment: ${workspaceReadiness?.environmentLabel ?? "Local"}`,
+    workspaceReadiness?.environmentSupport ? `Environment support: ${workspaceReadiness.environmentSupport}` : undefined,
+    workspaceReadiness?.environmentNote,
+    workspaceReadiness && workspaceReadiness.workspaceCount > 1 ? `Workspace folders: ${workspaceReadiness.workspaceCount}` : undefined,
     workspaceReadiness?.hasAgentsFile === undefined
       ? undefined
       : `AGENTS.md: ${workspaceReadiness.hasAgentsFile ? "present" : "missing"}`,
