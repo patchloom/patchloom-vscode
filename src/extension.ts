@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { configureMcp } from "./commands/configureMcp";
 import { initializeProject } from "./commands/initializeProject";
+import { runQuickAction } from "./commands/quickActions";
 import { setupWorkspace, openPatchloomSettings } from "./commands/setupWorkspace";
 import { showStatus } from "./commands/showStatus";
 import { disposeStatusBar, refreshStatusBar } from "./status/statusBar";
@@ -10,6 +11,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("patchloom.initializeProject", initializeProject),
     vscode.commands.registerCommand("patchloom.setupWorkspace", setupWorkspace),
     vscode.commands.registerCommand("patchloom.configureMcp", configureMcp),
+    vscode.commands.registerCommand("patchloom.quickAction", runQuickAction),
     vscode.commands.registerCommand("patchloom.openPatchloomSettings", openPatchloomSettings),
     vscode.commands.registerCommand("patchloom.showStatus", showStatus),
     new vscode.Disposable(disposeStatusBar),

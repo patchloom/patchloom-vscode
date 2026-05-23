@@ -36,6 +36,7 @@
     "onCommand:patchloom.initializeProject",
     "onCommand:patchloom.setupWorkspace",
     "onCommand:patchloom.configureMcp",
+    "onCommand:patchloom.quickAction",
     "onCommand:patchloom.openPatchloomSettings",
     "onCommand:patchloom.showStatus"
   ],
@@ -54,6 +55,11 @@
       {
         "command": "patchloom.configureMcp",
         "title": "Configure MCP",
+        "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.quickAction",
+        "title": "Quick Action",
         "category": "Patchloom"
       },
       {
