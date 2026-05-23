@@ -6,7 +6,11 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
+export const MINIMUM_SUPPORTED_PATCHLOOM_VERSION = "0.1.0";
+export const PATCHLOOM_RELEASES_URL = "https://github.com/patchloom/patchloom/releases";
+
 export type PatchloomSource = "setting" | "path" | "missing";
+export type PatchloomCompatibility = "supported" | "unsupported" | "unknown";
 
 export interface PatchloomStatus {
   readonly ready: boolean;
@@ -14,6 +18,17 @@ export interface PatchloomStatus {
   readonly message: string;
   readonly binaryPath?: string;
   readonly version?: string;
+  readonly detectedVersion?: string;
+  readonly compatibility?: PatchloomCompatibility;
+  readonly minimumSupportedVersion?: string;
+  readonly compatibilityMessage?: string;
+}
+
+export interface PatchloomCompatibilityAssessment {
+  readonly compatibility: PatchloomCompatibility;
+  readonly detectedVersion?: string;
+  readonly minimumSupportedVersion: string;
+  readonly message: string;
 }
 
 export interface PatchloomStatusInputs {
@@ -50,7 +65,9 @@ export async function resolvePatchloomStatusWithInputs(inputs: PatchloomStatusIn
   return {
     ready: false,
     source: "missing",
-    message: "Patchloom binary not found. Set patchloom.path or install patchloom on PATH."
+    message: "Patchloom binary not found. Set patchloom.path or install patchloom on PATH.",
+    compatibility: "unknown",
+    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION
   };
 }
 
@@ -70,6 +87,89 @@ export function describePatchloomSource(source: PatchloomSource): string {
   }
 }
 
+export function describePatchloomCompatibility(compatibility?: PatchloomCompatibility): string {
+  switch (compatibility) {
+    case "supported":
+      return "supported";
+    case "unsupported":
+      return "upgrade required";
+    case "unknown":
+      return "unable to verify";
+    default:
+      return "unknown";
+  }
+}
+
+export function patchloomNeedsUpgrade(status: PatchloomStatus): boolean {
+  return status.compatibility === "unsupported";
+}
+
+export function parsePatchloomVersion(versionText?: string): string | undefined {
+  if (!versionText) {
+    return undefined;
+  }
+
+  const match = versionText.match(/\bv?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?\b/);
+  return match?.[0].replace(/^v/, "");
+}
+
+export function assessPatchloomCompatibility(
+  versionText: string | undefined,
+  minimumSupportedVersion = MINIMUM_SUPPORTED_PATCHLOOM_VERSION
+): PatchloomCompatibilityAssessment {
+  const detectedVersion = parsePatchloomVersion(versionText);
+  if (!detectedVersion) {
+    return {
+      compatibility: "unknown",
+      minimumSupportedVersion,
+      message: `Patchloom CLI compatibility could not be verified. Expected ${minimumSupportedVersion} or newer.`
+    };
+  }
+
+  if (comparePatchloomVersions(detectedVersion, minimumSupportedVersion) < 0) {
+    return {
+      compatibility: "unsupported",
+      detectedVersion,
+      minimumSupportedVersion,
+      message: `Patchloom ${detectedVersion} is older than the minimum supported version ${minimumSupportedVersion}.`
+    };
+  }
+
+  return {
+    compatibility: "supported",
+    detectedVersion,
+    minimumSupportedVersion,
+    message: `Patchloom ${detectedVersion} is supported.`
+  };
+}
+
+export function comparePatchloomVersions(left: string, right: string): number {
+  const leftVersion = parseSemanticVersion(left);
+  const rightVersion = parseSemanticVersion(right);
+  if (!leftVersion || !rightVersion) {
+    return left.localeCompare(right);
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const diff = leftVersion.core[index] - rightVersion.core[index];
+    if (diff !== 0) {
+      return diff;
+    }
+  }
+
+  if (!leftVersion.prerelease && !rightVersion.prerelease) {
+    return 0;
+  }
+  if (!leftVersion.prerelease) {
+    return 1;
+  }
+  if (!rightVersion.prerelease) {
+    return -1;
+  }
+
+  return comparePrerelease(leftVersion.prerelease, rightVersion.prerelease);
+}
+
 async function inspectCandidate(
   binaryPath: string,
   source: Exclude<PatchloomSource, "missing">,
@@ -81,17 +181,24 @@ async function inspectCandidate(
       ready: false,
       source,
       binaryPath,
-      message: `Patchloom binary is not executable: ${binaryPath}`
+      message: `Patchloom binary is not executable: ${binaryPath}`,
+      compatibility: "unknown",
+      minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION
     };
   }
 
   try {
     const version = await getVersion(binaryPath);
+    const compatibility = assessPatchloomCompatibility(version);
     return {
       ready: true,
       source,
       binaryPath,
       version,
+      detectedVersion: compatibility.detectedVersion,
+      compatibility: compatibility.compatibility,
+      minimumSupportedVersion: compatibility.minimumSupportedVersion,
+      compatibilityMessage: compatibility.message,
       message: `Using Patchloom from ${describePatchloomSource(source)}.`
     };
   } catch (error) {
@@ -99,7 +206,9 @@ async function inspectCandidate(
       ready: false,
       source,
       binaryPath,
-      message: `Found Patchloom at ${binaryPath}, but failed to run --version (${formatError(error)}).`
+      message: `Found Patchloom at ${binaryPath}, but failed to run --version (${formatError(error)}).`,
+      compatibility: "unknown",
+      minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION
     };
   }
 }
@@ -163,4 +272,54 @@ function formatError(error: unknown): string {
     return error.message;
   }
   return String(error);
+}
+
+interface ParsedSemanticVersion {
+  readonly core: readonly [number, number, number];
+  readonly prerelease?: readonly string[];
+}
+
+function parseSemanticVersion(version: string): ParsedSemanticVersion | undefined {
+  const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/);
+  if (!match) {
+    return undefined;
+  }
+
+  const prerelease = match[4]?.split(".").filter((segment) => segment.length > 0);
+  return {
+    core: [Number(match[1]), Number(match[2]), Number(match[3])],
+    prerelease: prerelease && prerelease.length > 0 ? prerelease : undefined
+  };
+}
+
+function comparePrerelease(left: readonly string[], right: readonly string[]): number {
+  const maxLength = Math.max(left.length, right.length);
+  for (let index = 0; index < maxLength; index += 1) {
+    const leftSegment = left[index];
+    const rightSegment = right[index];
+    if (leftSegment === undefined) {
+      return -1;
+    }
+    if (rightSegment === undefined) {
+      return 1;
+    }
+    if (leftSegment === rightSegment) {
+      continue;
+    }
+
+    const leftNumber = /^[0-9]+$/.test(leftSegment) ? Number(leftSegment) : undefined;
+    const rightNumber = /^[0-9]+$/.test(rightSegment) ? Number(rightSegment) : undefined;
+    if (leftNumber !== undefined && rightNumber !== undefined) {
+      return leftNumber - rightNumber;
+    }
+    if (leftNumber !== undefined) {
+      return -1;
+    }
+    if (rightNumber !== undefined) {
+      return 1;
+    }
+    return leftSegment.localeCompare(rightSegment);
+  }
+
+  return 0;
 }

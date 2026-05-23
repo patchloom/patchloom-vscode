@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { resolvePatchloomStatus } from "../binary/patchloom";
+import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
 import { buildStatusDetails, preferredStatusAction } from "../commands/showStatus";
 import { inspectWorkspaceReadiness } from "../workspace/readiness";
 
@@ -21,7 +21,9 @@ export async function refreshStatusBar(): Promise<void> {
   const workspaceReadiness = await inspectWorkspaceReadiness();
   const action = preferredStatusAction(status, workspaceReadiness);
 
-  statusBarItem.text = status.ready ? "$(check) Patchloom" : "$(warning) Patchloom";
+  statusBarItem.text = status.ready && !patchloomNeedsUpgrade(status)
+    ? "$(check) Patchloom"
+    : "$(warning) Patchloom";
   statusBarItem.command = action?.command ?? "patchloom.showStatus";
   statusBarItem.tooltip = buildStatusDetails(status, workspaceReadiness);
   statusBarItem.show();

@@ -1,4 +1,10 @@
-import { describePatchloomSource, PatchloomStatus, resolvePatchloomStatus } from "../binary/patchloom";
+import {
+  describePatchloomCompatibility,
+  describePatchloomSource,
+  patchloomNeedsUpgrade,
+  PatchloomStatus,
+  resolvePatchloomStatus
+} from "../binary/patchloom";
 import { inspectWorkspaceReadiness, WorkspaceReadiness } from "../workspace/readiness";
 
 export interface SetupAction {
@@ -18,7 +24,9 @@ export async function showStatus(): Promise<void> {
     return;
   }
 
-  const messageFn = status.ready ? vscode.window.showInformationMessage : vscode.window.showWarningMessage;
+  const messageFn = (!status.ready || patchloomNeedsUpgrade(status))
+    ? vscode.window.showWarningMessage
+    : vscode.window.showInformationMessage;
   const choice = await messageFn(details, action.title);
   if (choice === action.title) {
     await vscode.commands.executeCommand(action.command);
@@ -31,6 +39,10 @@ export function buildStatusDetails(status: PatchloomStatus, workspaceReadiness?:
     status.message,
     `Source: ${describePatchloomSource(status.source)}`,
     status.version ? `Version: ${status.version}` : undefined,
+    status.detectedVersion ? `Detected CLI version: ${status.detectedVersion}` : undefined,
+    status.minimumSupportedVersion ? `Required CLI version: >= ${status.minimumSupportedVersion}` : undefined,
+    status.compatibility ? `CLI compatibility: ${describePatchloomCompatibility(status.compatibility)}` : undefined,
+    status.compatibilityMessage && patchloomNeedsUpgrade(status) ? status.compatibilityMessage : undefined,
     status.binaryPath ? `Path: ${status.binaryPath}` : undefined,
     workspaceReadiness?.workspaceName ? `Workspace: ${workspaceReadiness.workspaceName}` : undefined,
     workspaceReadiness?.hasWorkspace === false
@@ -50,6 +62,13 @@ export function preferredStatusAction(status: PatchloomStatus, workspaceReadines
     return {
       title: "Open Settings",
       command: "patchloom.openPatchloomSettings"
+    };
+  }
+
+  if (patchloomNeedsUpgrade(status)) {
+    return {
+      title: "Open Releases",
+      command: "patchloom.openPatchloomReleases"
     };
   }
 

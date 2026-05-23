@@ -38,6 +38,7 @@
     "onCommand:patchloom.configureMcp",
     "onCommand:patchloom.quickAction",
     "onCommand:patchloom.openPatchloomSettings",
+    "onCommand:patchloom.openPatchloomReleases",
     "onCommand:patchloom.showStatus"
   ],
   "contributes": {
@@ -65,6 +66,11 @@
       {
         "command": "patchloom.openPatchloomSettings",
         "title": "Open Settings",
+        "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.openPatchloomReleases",
+        "title": "Open Releases",
         "category": "Patchloom"
       },
       {

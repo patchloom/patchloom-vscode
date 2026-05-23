@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { MINIMUM_SUPPORTED_PATCHLOOM_VERSION } from "../../src/binary/patchloom";
 import { classifyAgentsFile } from "../../src/commands/initializeProject";
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus";
 import { buildPatchloomMcpEntry, configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config";
@@ -55,6 +56,44 @@ test("preferredStatusAction points missing binary users to settings", () => {
   assert.deepEqual(action, {
     title: "Open Settings",
     command: "patchloom.openPatchloomSettings"
+  });
+});
+
+test("buildStatusDetails includes compatibility upgrade guidance", () => {
+  const details = buildStatusDetails({
+    ready: true,
+    source: "path",
+    message: "Using Patchloom from PATH.",
+    binaryPath: "/usr/local/bin/patchloom",
+    version: "patchloom 0.0.9",
+    detectedVersion: "0.0.9",
+    compatibility: "unsupported",
+    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
+    compatibilityMessage: "Patchloom 0.0.9 is older than the minimum supported version 0.1.0."
+  });
+
+  assert.match(details, /Detected CLI version: 0\.0\.9/);
+  assert.match(details, /Required CLI version: >= 0\.1\.0/);
+  assert.match(details, /CLI compatibility: upgrade required/);
+  assert.match(details, /older than the minimum supported version/);
+});
+
+test("preferredStatusAction points outdated CLI users to releases", () => {
+  const action = preferredStatusAction({
+    ready: true,
+    source: "path",
+    message: "Using Patchloom from PATH.",
+    binaryPath: "/usr/local/bin/patchloom",
+    version: "patchloom 0.0.9",
+    detectedVersion: "0.0.9",
+    compatibility: "unsupported",
+    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
+    compatibilityMessage: "Patchloom 0.0.9 is older than the minimum supported version 0.1.0."
+  });
+
+  assert.deepEqual(action, {
+    title: "Open Releases",
+    command: "patchloom.openPatchloomReleases"
   });
 });
 

@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { findOnPath, resolvePatchloomStatusWithInputs } from "../../src/binary/patchloom";
+import {
+  assessPatchloomCompatibility,
+  comparePatchloomVersions,
+  findOnPath,
+  MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
+  parsePatchloomVersion,
+  resolvePatchloomStatusWithInputs
+} from "../../src/binary/patchloom";
 
 test("resolvePatchloomStatusWithInputs prefers patchloom.path over PATH", async () => {
   const status = await resolvePatchloomStatusWithInputs({
@@ -52,4 +59,37 @@ test("findOnPath respects win32 PATH separators and command names", async () => 
   );
 
   assert.equal(found, "C:\\bin\\patchloom.exe");
+});
+
+test("parsePatchloomVersion extracts semantic versions from --version output", () => {
+  assert.equal(parsePatchloomVersion("patchloom 0.1.0"), "0.1.0");
+  assert.equal(parsePatchloomVersion("patchloom v0.2.0-beta.1"), "0.2.0-beta.1");
+  assert.equal(parsePatchloomVersion("custom build"), undefined);
+});
+
+test("comparePatchloomVersions follows semantic version ordering", () => {
+  assert.ok(comparePatchloomVersions("0.1.0", "0.1.0") === 0);
+  assert.ok(comparePatchloomVersions("0.2.0", "0.1.0") > 0);
+  assert.ok(comparePatchloomVersions("0.1.0-beta.1", "0.1.0") < 0);
+});
+
+test("assessPatchloomCompatibility flags outdated CLI builds", () => {
+  const assessment = assessPatchloomCompatibility("patchloom 0.0.9", MINIMUM_SUPPORTED_PATCHLOOM_VERSION);
+
+  assert.equal(assessment.compatibility, "unsupported");
+  assert.equal(assessment.detectedVersion, "0.0.9");
+  assert.match(assessment.message, /older than the minimum supported version/i);
+});
+
+test("resolvePatchloomStatusWithInputs exposes compatibility diagnostics", async () => {
+  const status = await resolvePatchloomStatusWithInputs({
+    configuredPath: "/custom/patchloom",
+    canExecute: async () => true,
+    getVersion: async () => "patchloom 0.0.9"
+  });
+
+  assert.equal(status.ready, true);
+  assert.equal(status.compatibility, "unsupported");
+  assert.equal(status.minimumSupportedVersion, MINIMUM_SUPPORTED_PATCHLOOM_VERSION);
+  assert.match(status.compatibilityMessage ?? "", /older than the minimum supported version/i);
 });

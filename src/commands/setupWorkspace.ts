@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { resolvePatchloomStatus } from "../binary/patchloom";
+import { PATCHLOOM_RELEASES_URL, patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
 import { inspectWorkspaceReadiness } from "../workspace/readiness";
 
 export async function setupWorkspace(): Promise<void> {
@@ -16,6 +16,17 @@ export async function setupWorkspace(): Promise<void> {
   }
 
   const readiness = await inspectWorkspaceReadiness();
+  if (patchloomNeedsUpgrade(status)) {
+    const choice = await vscode.window.showWarningMessage(
+      `${status.compatibilityMessage}\n\nUpgrade Patchloom before workspace setup can continue.`,
+      "Open Releases"
+    );
+    if (choice === "Open Releases") {
+      await vscode.commands.executeCommand("patchloom.openPatchloomReleases");
+    }
+    return;
+  }
+
   if (!readiness.hasWorkspace) {
     await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom: Setup Workspace.");
     return;
@@ -48,4 +59,8 @@ export async function setupWorkspace(): Promise<void> {
 
 export async function openPatchloomSettings(): Promise<void> {
   await vscode.commands.executeCommand("workbench.action.openSettings", "patchloom");
+}
+
+export async function openPatchloomReleases(): Promise<void> {
+  await vscode.env.openExternal(vscode.Uri.parse(PATCHLOOM_RELEASES_URL));
 }

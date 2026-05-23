@@ -2,6 +2,8 @@
 
 Patchloom for VS Code is the official editor extension for Patchloom. It helps you discover the Patchloom binary, inspect its current status, and bootstrap a workspace for agent-driven Patchloom workflows.
 
+The current extension requires Patchloom CLI `0.1.0` or newer. Older CLI builds are detected and surfaced with upgrade guidance.
+
 ## Current scope
 
 This initial scaffold focuses on the local-binary-first MVP:
@@ -23,6 +25,7 @@ Managed binary downloads, MCP config injection, and marketplace publishing workf
 - `Patchloom: Configure MCP`
 - `Patchloom: Quick Action`
 - `Patchloom: Open Settings`
+- `Patchloom: Open Releases`
 
 ## Settings
 

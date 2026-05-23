@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { resolvePatchloomStatus } from "../binary/patchloom";
+import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
 import { configureMcpTargets, inspectMcpTargets } from "../mcp/config";
 import { activeWorkspaceFolder } from "../workspace/readiness";
 import { refreshStatusBar } from "../status/statusBar";
@@ -15,6 +15,17 @@ export async function configureMcp(): Promise<void> {
     );
     if (choice === "Open Settings") {
       await vscode.commands.executeCommand("patchloom.openPatchloomSettings");
+    }
+    return;
+  }
+
+  if (patchloomNeedsUpgrade(status)) {
+    const choice = await vscode.window.showWarningMessage(
+      `${status.compatibilityMessage}\n\nUpgrade Patchloom before MCP setup can continue.`,
+      "Open Releases"
+    );
+    if (choice === "Open Releases") {
+      await vscode.commands.executeCommand("patchloom.openPatchloomReleases");
     }
     return;
   }

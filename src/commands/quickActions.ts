@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
-import { resolvePatchloomStatus } from "../binary/patchloom";
+import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
 import { activeWorkspaceFolder } from "../workspace/readiness";
 
 const execFileAsync = promisify(execFile);
@@ -39,6 +39,17 @@ export async function runQuickAction(): Promise<void> {
     const choice = await vscode.window.showWarningMessage(status.message, "Open Settings");
     if (choice === "Open Settings") {
       await vscode.commands.executeCommand("patchloom.openPatchloomSettings");
+    }
+    return;
+  }
+
+  if (patchloomNeedsUpgrade(status)) {
+    const choice = await vscode.window.showWarningMessage(
+      `${status.compatibilityMessage}\n\nUpgrade Patchloom before running quick actions.`,
+      "Open Releases"
+    );
+    if (choice === "Open Releases") {
+      await vscode.commands.executeCommand("patchloom.openPatchloomReleases");
     }
     return;
   }
