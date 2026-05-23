@@ -1,0 +1,81 @@
+{
+  "name": "patchloom",
+  "displayName": "Patchloom",
+  "description": "VS Code extension for Patchloom. Installs, configures, and integrates the Patchloom CLI for editor-first workflows.",
+  "version": "0.0.1",
+  "publisher": "patchloom",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/patchloom/patchloom-vscode.git"
+  },
+  "homepage": "https://github.com/patchloom/patchloom-vscode#readme",
+  "bugs": {
+    "url": "https://github.com/patchloom/patchloom-vscode/issues"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "patchloom",
+    "mcp",
+    "ai",
+    "agent",
+    "refactoring",
+    "codemod",
+    "json",
+    "yaml",
+    "markdown"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:patchloom.initializeProject",
+    "onCommand:patchloom.showStatus"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "patchloom.initializeProject",
+        "title": "Initialize Project",
+        "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.showStatus",
+        "title": "Show Status",
+        "category": "Patchloom"
+      }
+    ],
+    "configuration": {
+      "title": "Patchloom",
+      "properties": {
+        "patchloom.path": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Absolute path to the Patchloom binary. When empty, the extension searches `PATH` before falling back to a managed install in a future release."
+        },
+        "patchloom.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a status bar item reporting whether Patchloom is available for the current workspace."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package",
+    "check": "npm run compile && npm run package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+}
