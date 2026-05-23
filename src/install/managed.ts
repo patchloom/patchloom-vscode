@@ -71,6 +71,14 @@ export interface ManagedInstallStatusInputs {
   readonly fileExists?: (filePath: string) => Promise<boolean>;
 }
 
+export interface ManagedInstallPromotionInputs {
+  readonly paths: ManagedInstallTransactionPaths;
+  readonly fileExists?: (filePath: string) => Promise<boolean>;
+  readonly ensureDir?: (dirPath: string) => Promise<void>;
+  readonly renameFile?: (from: string, to: string) => Promise<void>;
+  readonly removeFile?: (filePath: string) => Promise<void>;
+}
+
 export interface ManagedInstallChecksumEntry {
   readonly fileName: string;
   readonly sha256: string;
@@ -313,6 +321,41 @@ export function assertTrustedManagedInstallDownloadUrl(
   }
 }
 
+export async function promoteManagedInstallBinary(inputs: ManagedInstallPromotionInputs): Promise<void> {
+  const fileExists = inputs.fileExists ?? defaultFileExists;
+  const ensureDir = inputs.ensureDir ?? defaultEnsureDir;
+  const renameFile = inputs.renameFile ?? defaultRenameFile;
+  const removeFile = inputs.removeFile ?? defaultRemoveFile;
+  const { paths } = inputs;
+
+  await ensureDir(path.dirname(paths.binaryPath));
+
+  const hadExistingBinary = await fileExists(paths.binaryPath);
+  if (hadExistingBinary) {
+    await removeIfExists(paths.backupBinaryPath, fileExists, removeFile);
+    await renameFile(paths.binaryPath, paths.backupBinaryPath);
+  }
+
+  try {
+    await renameFile(paths.stagedBinaryPath, paths.binaryPath);
+    await removeIfExists(paths.backupBinaryPath, fileExists, removeFile);
+    clearManagedInstallFailure();
+  } catch (error) {
+    if (hadExistingBinary && await fileExists(paths.backupBinaryPath)) {
+      await removeIfExists(paths.binaryPath, fileExists, removeFile);
+      await renameFile(paths.backupBinaryPath, paths.binaryPath);
+    }
+
+    const message = `Failed to replace managed Patchloom binary (${formatError(error)}).`;
+    setManagedInstallFailure({
+      stage: "replace",
+      reason: "replace-failed",
+      message
+    });
+    throw new Error(message);
+  }
+}
+
 export async function inspectManagedInstallStatus(
   inputs: ManagedInstallStatusInputs
 ): Promise<ManagedInstallStatus | undefined> {
@@ -341,6 +384,23 @@ function managedBinaryName(platform: NodeJS.Platform): string {
   return platform === "win32" ? "patchloom.exe" : "patchloom";
 }
 
+async function removeIfExists(
+  filePath: string,
+  fileExists: (filePath: string) => Promise<boolean>,
+  removeFile: (filePath: string) => Promise<void>
+): Promise<void> {
+  if (await fileExists(filePath)) {
+    await removeFile(filePath);
+  }
+}
+
+function formatError(error: unknown): string {
+  if (error instanceof Error && error.message.length > 0) {
+    return error.message;
+  }
+  return String(error);
+}
+
 async function defaultFileExists(filePath: string): Promise<boolean> {
   try {
     await (await import("node:fs/promises")).access(filePath);
@@ -348,4 +408,16 @@ async function defaultFileExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function defaultEnsureDir(dirPath: string): Promise<void> {
+  await (await import("node:fs/promises")).mkdir(dirPath, { recursive: true });
+}
+
+async function defaultRenameFile(from: string, to: string): Promise<void> {
+  await (await import("node:fs/promises")).rename(from, to);
+}
+
+async function defaultRemoveFile(filePath: string): Promise<void> {
+  await (await import("node:fs/promises")).rm(filePath, { force: true });
 }

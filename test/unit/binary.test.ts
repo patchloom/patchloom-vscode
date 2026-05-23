@@ -19,6 +19,7 @@ import {
   normalizeReleaseVersion,
   parseManagedInstallChecksumFile,
   PATCHLOOM_MANAGED_INSTALL_DIR,
+  promoteManagedInstallBinary,
   resolveManagedInstallChecksum,
   resolveManagedInstallPaths,
   resolveManagedInstallTransactionPaths,
@@ -303,6 +304,108 @@ test("inspectManagedInstallStatus includes the last managed install failure for 
   } finally {
     clearManagedInstallFailure();
   }
+});
+
+test("promoteManagedInstallBinary replaces the live binary and clears stale backups", async () => {
+  const target = detectManagedInstallTarget("darwin", "arm64");
+  assert.ok(target);
+  const paths = resolveManagedInstallTransactionPaths("/managed/install", "0.1.0", target);
+  const operations: string[] = [];
+  const existing = new Set([
+    paths.binaryPath,
+    paths.stagedBinaryPath,
+    paths.backupBinaryPath
+  ]);
+
+  await promoteManagedInstallBinary({
+    paths,
+    fileExists: async (filePath) => existing.has(filePath),
+    ensureDir: async (dirPath) => {
+      operations.push(`mkdir ${dirPath}`);
+    },
+    renameFile: async (from, to) => {
+      operations.push(`rename ${from} -> ${to}`);
+      existing.delete(from);
+      existing.add(to);
+    },
+    removeFile: async (filePath) => {
+      operations.push(`remove ${filePath}`);
+      existing.delete(filePath);
+    }
+  });
+
+  assert.deepEqual(operations, [
+    "mkdir /managed/install/0.1.0/managed-bin",
+    "remove /managed/install/0.1.0/managed-bin/patchloom.bak",
+    "rename /managed/install/0.1.0/managed-bin/patchloom -> /managed/install/0.1.0/managed-bin/patchloom.bak",
+    "rename /managed/install/0.1.0/.staging/managed-bin/patchloom -> /managed/install/0.1.0/managed-bin/patchloom",
+    "remove /managed/install/0.1.0/managed-bin/patchloom.bak"
+  ]);
+
+  const status = await inspectManagedInstallStatus({
+    installRoot: "/managed/install",
+    version: "v0.1.0",
+    target,
+    fileExists: async (filePath) => existing.has(filePath)
+  });
+  assert.equal(status?.exists, true);
+  assert.equal(status?.failure, undefined);
+});
+
+test("promoteManagedInstallBinary restores the previous binary when replacement fails", async () => {
+  const target = detectManagedInstallTarget("darwin", "arm64");
+  assert.ok(target);
+  const paths = resolveManagedInstallTransactionPaths("/managed/install", "0.1.0", target);
+  const operations: string[] = [];
+  const existing = new Set([
+    paths.binaryPath,
+    paths.stagedBinaryPath
+  ]);
+
+  await assert.rejects(
+    () => promoteManagedInstallBinary({
+      paths,
+      fileExists: async (filePath) => existing.has(filePath),
+      ensureDir: async (dirPath) => {
+        operations.push(`mkdir ${dirPath}`);
+      },
+      renameFile: async (from, to) => {
+        operations.push(`rename ${from} -> ${to}`);
+        if (from === paths.stagedBinaryPath && to === paths.binaryPath) {
+          throw new Error("simulated rename failure");
+        }
+        existing.delete(from);
+        existing.add(to);
+      },
+      removeFile: async (filePath) => {
+        operations.push(`remove ${filePath}`);
+        existing.delete(filePath);
+      }
+    }),
+    /Failed to replace managed Patchloom binary/
+  );
+
+  assert.deepEqual(operations, [
+    "mkdir /managed/install/0.1.0/managed-bin",
+    "rename /managed/install/0.1.0/managed-bin/patchloom -> /managed/install/0.1.0/managed-bin/patchloom.bak",
+    "rename /managed/install/0.1.0/.staging/managed-bin/patchloom -> /managed/install/0.1.0/managed-bin/patchloom",
+    "rename /managed/install/0.1.0/managed-bin/patchloom.bak -> /managed/install/0.1.0/managed-bin/patchloom"
+  ]);
+
+  const status = await inspectManagedInstallStatus({
+    installRoot: "/managed/install",
+    version: "v0.1.0",
+    target,
+    fileExists: async (filePath) => existing.has(filePath)
+  });
+  assert.equal(status?.exists, true);
+  assert.deepEqual(status?.failure, {
+    stage: "replace",
+    reason: "replace-failed",
+    message: "Failed to replace managed Patchloom binary (simulated rename failure)."
+  });
+
+  clearManagedInstallFailure();
 });
 
 test("inspectManagedInstallStatus reports discovered managed binaries", async () => {
