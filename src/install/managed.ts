@@ -5,6 +5,7 @@ export const PATCHLOOM_RELEASE_REPO = "patchloom/patchloom";
 export const PATCHLOOM_MANAGED_INSTALL_DIR = "patchloom-managed";
 export const PATCHLOOM_MANAGED_BINARY_DIR = "managed-bin";
 export const PATCHLOOM_MANAGED_BINARY_NAME = process.platform === "win32" ? "patchloom.exe" : "patchloom";
+export const PATCHLOOM_MANAGED_INSTALL_FAILURE_FILE = "managed-install-failure.json";
 
 let managedInstallRoot: string | undefined;
 let managedInstallFailure: ManagedInstallFailure | undefined;
@@ -69,6 +70,7 @@ export interface ManagedInstallStatusInputs {
   readonly version?: string;
   readonly target?: ManagedInstallTarget;
   readonly fileExists?: (filePath: string) => Promise<boolean>;
+  readonly failurePersistence?: ManagedInstallFailurePersistenceInputs;
 }
 
 export interface ManagedInstallPromotionInputs {
@@ -77,6 +79,15 @@ export interface ManagedInstallPromotionInputs {
   readonly ensureDir?: (dirPath: string) => Promise<void>;
   readonly renameFile?: (from: string, to: string) => Promise<void>;
   readonly removeFile?: (filePath: string) => Promise<void>;
+  readonly failurePersistence?: ManagedInstallFailurePersistenceInputs;
+}
+
+export interface ManagedInstallFailurePersistenceInputs {
+  readonly storageRoot?: string;
+  readonly readFile?: (filePath: string) => Promise<string | undefined>;
+  readonly writeFile?: (filePath: string, content: string) => Promise<void>;
+  readonly removeFile?: (filePath: string) => Promise<void>;
+  readonly ensureDir?: (dirPath: string) => Promise<void>;
 }
 
 export interface ManagedInstallChecksumEntry {
@@ -124,6 +135,59 @@ export function getManagedInstallFailure(): ManagedInstallFailure | undefined {
 
 export function clearManagedInstallFailure(): void {
   managedInstallFailure = undefined;
+}
+
+export async function loadManagedInstallFailure(
+  inputs: ManagedInstallFailurePersistenceInputs = {}
+): Promise<ManagedInstallFailure | undefined> {
+  const failurePath = resolveManagedInstallFailurePath(inputs.storageRoot);
+  if (!failurePath) {
+    return managedInstallFailure;
+  }
+
+  const content = await (inputs.readFile ?? defaultReadFile)(failurePath);
+  if (!content) {
+    managedInstallFailure = undefined;
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(content) as Partial<ManagedInstallFailure>;
+    if (isManagedInstallFailure(parsed)) {
+      managedInstallFailure = parsed;
+      return parsed;
+    }
+  } catch {
+  }
+
+  managedInstallFailure = undefined;
+  return undefined;
+}
+
+export async function persistManagedInstallFailure(
+  failure: ManagedInstallFailure,
+  inputs: ManagedInstallFailurePersistenceInputs = {}
+): Promise<void> {
+  managedInstallFailure = failure;
+  const failurePath = resolveManagedInstallFailurePath(inputs.storageRoot);
+  if (!failurePath) {
+    return;
+  }
+
+  await (inputs.ensureDir ?? defaultEnsureDir)(path.dirname(failurePath));
+  await (inputs.writeFile ?? defaultWriteFile)(failurePath, `${JSON.stringify(failure, null, 2)}\n`);
+}
+
+export async function clearManagedInstallFailureRecord(
+  inputs: ManagedInstallFailurePersistenceInputs = {}
+): Promise<void> {
+  managedInstallFailure = undefined;
+  const failurePath = resolveManagedInstallFailurePath(inputs.storageRoot);
+  if (!failurePath) {
+    return;
+  }
+
+  await (inputs.removeFile ?? defaultRemoveFile)(failurePath);
 }
 
 export function detectManagedInstallTarget(
@@ -339,7 +403,7 @@ export async function promoteManagedInstallBinary(inputs: ManagedInstallPromotio
   try {
     await renameFile(paths.stagedBinaryPath, paths.binaryPath);
     await removeIfExists(paths.backupBinaryPath, fileExists, removeFile);
-    clearManagedInstallFailure();
+    await clearManagedInstallFailureRecord(inputs.failurePersistence);
   } catch (error) {
     if (hadExistingBinary && await fileExists(paths.backupBinaryPath)) {
       await removeIfExists(paths.binaryPath, fileExists, removeFile);
@@ -347,11 +411,12 @@ export async function promoteManagedInstallBinary(inputs: ManagedInstallPromotio
     }
 
     const message = `Failed to replace managed Patchloom binary (${formatError(error)}).`;
-    setManagedInstallFailure({
+    const failure = {
       stage: "replace",
       reason: "replace-failed",
       message
-    });
+    } satisfies ManagedInstallFailure;
+    await persistManagedInstallFailure(failure, inputs.failurePersistence);
     throw new Error(message);
   }
 }
@@ -367,6 +432,7 @@ export async function inspectManagedInstallStatus(
 
   const paths = resolveManagedInstallPaths(inputs.installRoot, version, target);
   const exists = await (inputs.fileExists ?? defaultFileExists)(paths.binaryPath);
+  await loadManagedInstallFailure(inputs.failurePersistence);
   return {
     exists,
     binaryPath: paths.binaryPath,
@@ -382,6 +448,29 @@ export function normalizeReleaseVersion(version: string): string {
 
 function managedBinaryName(platform: NodeJS.Platform): string {
   return platform === "win32" ? "patchloom.exe" : "patchloom";
+}
+
+function resolveManagedInstallFailurePath(storageRoot?: string): string | undefined {
+  if (!storageRoot) {
+    return undefined;
+  }
+  return path.join(storageRoot, PATCHLOOM_MANAGED_INSTALL_FAILURE_FILE);
+}
+
+function isManagedInstallFailure(value: Partial<ManagedInstallFailure> | undefined): value is ManagedInstallFailure {
+  return typeof value?.stage === "string"
+    && ["download", "verify", "extract", "replace"].includes(value.stage)
+    && typeof value.reason === "string"
+    && [
+      "missing-checksum",
+      "invalid-checksum-format",
+      "checksum-mismatch",
+      "untrusted-download-url",
+      "download-failed",
+      "extract-failed",
+      "replace-failed"
+    ].includes(value.reason)
+    && typeof value.message === "string";
 }
 
 async function removeIfExists(
@@ -410,12 +499,24 @@ async function defaultFileExists(filePath: string): Promise<boolean> {
   }
 }
 
+async function defaultReadFile(filePath: string): Promise<string | undefined> {
+  try {
+    return await (await import("node:fs/promises")).readFile(filePath, "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
 async function defaultEnsureDir(dirPath: string): Promise<void> {
   await (await import("node:fs/promises")).mkdir(dirPath, { recursive: true });
 }
 
 async function defaultRenameFile(from: string, to: string): Promise<void> {
   await (await import("node:fs/promises")).rename(from, to);
+}
+
+async function defaultWriteFile(filePath: string, content: string): Promise<void> {
+  await (await import("node:fs/promises")).writeFile(filePath, content, "utf8");
 }
 
 async function defaultRemoveFile(filePath: string): Promise<void> {

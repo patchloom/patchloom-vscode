@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import test from "node:test";
 import {
   assessPatchloomCompatibility,
@@ -13,12 +16,16 @@ import {
   buildManagedInstallReleaseAssets,
   calculateSha256Hex,
   clearManagedInstallFailure,
+  clearManagedInstallFailureRecord,
   detectManagedInstallTarget,
   inspectManagedInstallStatus,
+  loadManagedInstallFailure,
   ManagedInstallVerificationError,
   normalizeReleaseVersion,
   parseManagedInstallChecksumFile,
   PATCHLOOM_MANAGED_INSTALL_DIR,
+  PATCHLOOM_MANAGED_INSTALL_FAILURE_FILE,
+  persistManagedInstallFailure,
   promoteManagedInstallBinary,
   resolveManagedInstallChecksum,
   resolveManagedInstallPaths,
@@ -331,6 +338,12 @@ test("promoteManagedInstallBinary replaces the live binary and clears stale back
     removeFile: async (filePath) => {
       operations.push(`remove ${filePath}`);
       existing.delete(filePath);
+    },
+    failurePersistence: {
+      storageRoot: "/managed/storage",
+      removeFile: async (filePath) => {
+        operations.push(`remove ${filePath}`);
+      }
     }
   });
 
@@ -339,7 +352,8 @@ test("promoteManagedInstallBinary replaces the live binary and clears stale back
     "remove /managed/install/0.1.0/managed-bin/patchloom.bak",
     "rename /managed/install/0.1.0/managed-bin/patchloom -> /managed/install/0.1.0/managed-bin/patchloom.bak",
     "rename /managed/install/0.1.0/.staging/managed-bin/patchloom -> /managed/install/0.1.0/managed-bin/patchloom",
-    "remove /managed/install/0.1.0/managed-bin/patchloom.bak"
+    "remove /managed/install/0.1.0/managed-bin/patchloom.bak",
+    `remove /managed/storage/${PATCHLOOM_MANAGED_INSTALL_FAILURE_FILE}`
   ]);
 
   const status = await inspectManagedInstallStatus({
@@ -380,6 +394,15 @@ test("promoteManagedInstallBinary restores the previous binary when replacement 
       removeFile: async (filePath) => {
         operations.push(`remove ${filePath}`);
         existing.delete(filePath);
+      },
+      failurePersistence: {
+        storageRoot: "/managed/storage",
+        ensureDir: async (dirPath) => {
+          operations.push(`mkdir ${dirPath}`);
+        },
+        writeFile: async (filePath, content) => {
+          operations.push(`write ${filePath} => ${content.trim()}`);
+        }
       }
     }),
     /Failed to replace managed Patchloom binary/
@@ -389,7 +412,9 @@ test("promoteManagedInstallBinary restores the previous binary when replacement 
     "mkdir /managed/install/0.1.0/managed-bin",
     "rename /managed/install/0.1.0/managed-bin/patchloom -> /managed/install/0.1.0/managed-bin/patchloom.bak",
     "rename /managed/install/0.1.0/.staging/managed-bin/patchloom -> /managed/install/0.1.0/managed-bin/patchloom",
-    "rename /managed/install/0.1.0/managed-bin/patchloom.bak -> /managed/install/0.1.0/managed-bin/patchloom"
+    "rename /managed/install/0.1.0/managed-bin/patchloom.bak -> /managed/install/0.1.0/managed-bin/patchloom",
+    "mkdir /managed/storage",
+    `write /managed/storage/${PATCHLOOM_MANAGED_INSTALL_FAILURE_FILE} => {\n  \"stage\": \"replace\",\n  \"reason\": \"replace-failed\",\n  \"message\": \"Failed to replace managed Patchloom binary (simulated rename failure).\"\n}`
   ]);
 
   const status = await inspectManagedInstallStatus({
@@ -424,6 +449,105 @@ test("inspectManagedInstallStatus reports discovered managed binaries", async ()
     version: "0.1.0",
     target
   });
+});
+
+test("loadManagedInstallFailure reads persisted failure diagnostics from storage", async () => {
+  clearManagedInstallFailure();
+
+  const failure = await loadManagedInstallFailure({
+    storageRoot: "/managed/storage",
+    readFile: async (filePath) => {
+      assert.equal(filePath, `/managed/storage/${PATCHLOOM_MANAGED_INSTALL_FAILURE_FILE}`);
+      return JSON.stringify({
+        stage: "verify",
+        reason: "checksum-mismatch",
+        message: "Checksum mismatch for patchloom-aarch64-apple-darwin.tar.xz."
+      });
+    }
+  });
+
+  assert.deepEqual(failure, {
+    stage: "verify",
+    reason: "checksum-mismatch",
+    message: "Checksum mismatch for patchloom-aarch64-apple-darwin.tar.xz."
+  });
+  clearManagedInstallFailure();
+});
+
+test("persistManagedInstallFailure and clearManagedInstallFailureRecord update the failure record file", async () => {
+  const writes: string[] = [];
+
+  await persistManagedInstallFailure({
+    stage: "extract",
+    reason: "extract-failed",
+    message: "Archive extraction failed."
+  }, {
+    storageRoot: "/managed/storage",
+    ensureDir: async (dirPath) => {
+      writes.push(`mkdir ${dirPath}`);
+    },
+    writeFile: async (filePath, content) => {
+      writes.push(`write ${filePath} => ${content.trim()}`);
+    }
+  });
+
+  await clearManagedInstallFailureRecord({
+    storageRoot: "/managed/storage",
+    removeFile: async (filePath) => {
+      writes.push(`remove ${filePath}`);
+    }
+  });
+
+  assert.deepEqual(writes, [
+    "mkdir /managed/storage",
+    `write /managed/storage/${PATCHLOOM_MANAGED_INSTALL_FAILURE_FILE} => {\n  \"stage\": \"extract\",\n  \"reason\": \"extract-failed\",\n  \"message\": \"Archive extraction failed.\"\n}`,
+    `remove /managed/storage/${PATCHLOOM_MANAGED_INSTALL_FAILURE_FILE}`
+  ]);
+  assert.equal(await loadManagedInstallFailure({}), undefined);
+});
+
+test("resolvePatchloomStatusWithInputs surfaces persisted managed install failures after reload", async () => {
+  clearManagedInstallFailure();
+  const storageRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-managed-"));
+
+  try {
+    await persistManagedInstallFailure({
+      stage: "verify",
+      reason: "checksum-mismatch",
+      message: "Checksum mismatch for patchloom-aarch64-apple-darwin.tar.xz."
+    }, {
+      storageRoot
+    });
+    clearManagedInstallFailure();
+
+    const status = await resolvePatchloomStatusWithInputs({
+      configuredPath: "",
+      pathValue: "/usr/local/bin:/bin",
+      platform: "darwin",
+      arch: "arm64",
+      managedInstallRoot: storageRoot,
+      managedInstallVersion: "0.1.0",
+      managedFileExists: async () => false,
+      canExecute: async () => false,
+      getVersion: async () => undefined
+    });
+
+    assert.equal(status.ready, false);
+    assert.equal(status.source, "missing");
+    assert.deepEqual(status.managedInstall?.failure, {
+      stage: "verify",
+      reason: "checksum-mismatch",
+      message: "Checksum mismatch for patchloom-aarch64-apple-darwin.tar.xz."
+    });
+    assert.deepEqual(status.diagnostics, [
+      "Managed install last failure stage: verify",
+      "Managed install last failure reason: checksum-mismatch",
+      "Managed install diagnostic: Checksum mismatch for patchloom-aarch64-apple-darwin.tar.xz."
+    ]);
+  } finally {
+    clearManagedInstallFailure();
+    await fs.rm(storageRoot, { recursive: true, force: true });
+  }
 });
 
 test("normalizeReleaseVersion removes a leading v", () => {

@@ -73,7 +73,10 @@ export async function resolvePatchloomStatusWithInputs(inputs: PatchloomStatusIn
       installRoot: inputs.managedInstallRoot,
       version: inputs.managedInstallVersion,
       target: detectManagedInstallTarget(inputs.platform, inputs.arch),
-      fileExists: inputs.managedFileExists
+      fileExists: inputs.managedFileExists,
+      failurePersistence: {
+        storageRoot: inputs.managedInstallRoot
+      }
     })
     : undefined;
   const diagnostics = buildManagedInstallDiagnostics(managedInstall);

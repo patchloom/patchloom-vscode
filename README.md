@@ -31,6 +31,7 @@ The managed installer work is intentionally conservative:
 - managed binary promotion should rename the previous binary into a backup before swapping in the staged binary
 - if replacement fails, the previous managed binary should be restored before the install reports failure
 - verification failures should stay diagnosable through explicit user-facing status and error messages
+- the last managed-install failure record should persist in global storage so diagnostics survive extension reloads
 
 ## Commands
 
