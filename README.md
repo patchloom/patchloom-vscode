@@ -28,6 +28,7 @@ The managed installer work is intentionally conservative:
 - checksum verification failures must stop the install before any managed binary is used
 - a failed verification or failed install must not replace an already working Patchloom binary
 - downloads and extracted binaries should stay in a staging area until verification succeeds and replacement is ready
+- stale version-scoped staging directories should be removable in one cleanup step before retries or after aborted installs
 - managed binary promotion should rename the previous binary into a backup before swapping in the staged binary
 - if replacement fails, the previous managed binary should be restored before the install reports failure
 - verification failures should stay diagnosable through explicit user-facing status and error messages

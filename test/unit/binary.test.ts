@@ -25,6 +25,7 @@ import {
   parseManagedInstallChecksumFile,
   PATCHLOOM_MANAGED_INSTALL_DIR,
   PATCHLOOM_MANAGED_INSTALL_FAILURE_FILE,
+  clearManagedInstallStaging,
   persistManagedInstallFailure,
   promoteManagedInstallBinary,
   resolveManagedInstallChecksum,
@@ -311,6 +312,24 @@ test("inspectManagedInstallStatus includes the last managed install failure for 
   } finally {
     clearManagedInstallFailure();
   }
+});
+
+test("clearManagedInstallStaging removes the entire staging directory", async () => {
+  const target = detectManagedInstallTarget("darwin", "arm64");
+  assert.ok(target);
+  const paths = resolveManagedInstallTransactionPaths("/managed/install", "0.1.0", target);
+  const operations: string[] = [];
+
+  await clearManagedInstallStaging({
+    paths,
+    removeDir: async (dirPath) => {
+      operations.push(`rmdir ${dirPath}`);
+    }
+  });
+
+  assert.deepEqual(operations, [
+    "rmdir /managed/install/0.1.0/.staging"
+  ]);
 });
 
 test("promoteManagedInstallBinary replaces the live binary and clears stale backups", async () => {

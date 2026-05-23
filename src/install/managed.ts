@@ -82,6 +82,11 @@ export interface ManagedInstallPromotionInputs {
   readonly failurePersistence?: ManagedInstallFailurePersistenceInputs;
 }
 
+export interface ManagedInstallStagingCleanupInputs {
+  readonly paths: ManagedInstallTransactionPaths;
+  readonly removeDir?: (dirPath: string) => Promise<void>;
+}
+
 export interface ManagedInstallFailurePersistenceInputs {
   readonly storageRoot?: string;
   readonly readFile?: (filePath: string) => Promise<string | undefined>;
@@ -385,6 +390,12 @@ export function assertTrustedManagedInstallDownloadUrl(
   }
 }
 
+export async function clearManagedInstallStaging(
+  inputs: ManagedInstallStagingCleanupInputs
+): Promise<void> {
+  await (inputs.removeDir ?? defaultRemoveDir)(inputs.paths.stagingRoot);
+}
+
 export async function promoteManagedInstallBinary(inputs: ManagedInstallPromotionInputs): Promise<void> {
   const fileExists = inputs.fileExists ?? defaultFileExists;
   const ensureDir = inputs.ensureDir ?? defaultEnsureDir;
@@ -521,4 +532,8 @@ async function defaultWriteFile(filePath: string, content: string): Promise<void
 
 async function defaultRemoveFile(filePath: string): Promise<void> {
   await (await import("node:fs/promises")).rm(filePath, { force: true });
+}
+
+async function defaultRemoveDir(dirPath: string): Promise<void> {
+  await (await import("node:fs/promises")).rm(dirPath, { recursive: true, force: true });
 }
