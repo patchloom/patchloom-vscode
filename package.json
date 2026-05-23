@@ -16,7 +16,15 @@
   "engines": {
     "vscode": "^1.90.0"
   },
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
   "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters",
     "Other"
   ],
   "keywords": [
