@@ -50,6 +50,8 @@ export function buildStatusDetails(status: PatchloomStatus, workspaceReadiness?:
     status.managedInstall?.version ? `Managed install version: ${status.managedInstall.version}` : undefined,
     status.managedInstall ? `Managed install: ${status.managedInstall.exists ? "available" : "not installed"}` : undefined,
     status.managedInstall?.target ? `Managed target: ${status.managedInstall.target.targetTriple}` : undefined,
+    status.managedInstall?.failure ? `Managed install last failure: ${status.managedInstall.failure.stage} (${status.managedInstall.failure.reason})` : undefined,
+    ...(status.diagnostics ?? []),
     workspaceReadiness?.workspaceName ? `Workspace: ${workspaceReadiness.workspaceName}` : undefined,
     workspaceReadiness?.hasWorkspace === false
       ? "Workspace: no folder open"

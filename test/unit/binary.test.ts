@@ -12,6 +12,7 @@ import {
   assertTrustedManagedInstallDownloadUrl,
   buildManagedInstallReleaseAssets,
   calculateSha256Hex,
+  clearManagedInstallFailure,
   detectManagedInstallTarget,
   inspectManagedInstallStatus,
   ManagedInstallVerificationError,
@@ -20,6 +21,8 @@ import {
   PATCHLOOM_MANAGED_INSTALL_DIR,
   resolveManagedInstallChecksum,
   resolveManagedInstallPaths,
+  resolveManagedInstallTransactionPaths,
+  setManagedInstallFailure,
   verifyManagedInstallArchiveChecksum
 } from "../../src/install/managed";
 import { resolveMcpTargets } from "../../src/mcp/config";
@@ -255,6 +258,51 @@ test("assertTrustedManagedInstallDownloadUrl only accepts GitHub release downloa
 
 test("managed install constants use a stable storage directory name", () => {
   assert.equal(PATCHLOOM_MANAGED_INSTALL_DIR, "patchloom-managed");
+});
+
+test("resolveManagedInstallTransactionPaths keeps staged files separate from the live binary", () => {
+  const target = detectManagedInstallTarget("darwin", "arm64");
+  assert.ok(target);
+  const paths = resolveManagedInstallTransactionPaths("/managed/install", "0.1.0", target);
+
+  assert.equal(paths.archivePath, "/managed/install/0.1.0/patchloom-aarch64-apple-darwin.tar.xz");
+  assert.equal(paths.stagedArchivePath, "/managed/install/0.1.0/.staging/patchloom-aarch64-apple-darwin.tar.xz");
+  assert.equal(paths.stagedChecksumPath, "/managed/install/0.1.0/.staging/patchloom-aarch64-apple-darwin.tar.xz.sha256");
+  assert.equal(paths.stagedBinaryPath, "/managed/install/0.1.0/.staging/managed-bin/patchloom");
+  assert.equal(paths.backupBinaryPath, "/managed/install/0.1.0/managed-bin/patchloom.bak");
+});
+
+test("inspectManagedInstallStatus includes the last managed install failure for diagnostics", async () => {
+  const target = detectManagedInstallTarget("darwin", "arm64");
+  assert.ok(target);
+  setManagedInstallFailure({
+    stage: "verify",
+    reason: "checksum-mismatch",
+    message: "Checksum mismatch for patchloom-aarch64-apple-darwin.tar.xz."
+  });
+
+  try {
+    const status = await inspectManagedInstallStatus({
+      installRoot: "/managed/install",
+      version: "v0.1.0",
+      target,
+      fileExists: async () => false
+    });
+
+    assert.deepEqual(status, {
+      exists: false,
+      binaryPath: "/managed/install/0.1.0/managed-bin/patchloom",
+      version: "0.1.0",
+      target,
+      failure: {
+        stage: "verify",
+        reason: "checksum-mismatch",
+        message: "Checksum mismatch for patchloom-aarch64-apple-darwin.tar.xz."
+      }
+    });
+  } finally {
+    clearManagedInstallFailure();
+  }
 });
 
 test("inspectManagedInstallStatus reports discovered managed binaries", async () => {

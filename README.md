@@ -27,6 +27,8 @@ The managed installer work is intentionally conservative:
 - each downloaded archive must match a published SHA-256 checksum before the extension can trust it
 - checksum verification failures must stop the install before any managed binary is used
 - a failed verification or failed install must not replace an already working Patchloom binary
+- downloads and extracted binaries should stay in a staging area until verification succeeds and replacement is ready
+- a future managed install should keep the previous binary available for rollback until replacement finishes cleanly
 - verification failures should stay diagnosable through explicit user-facing status and error messages
 
 ## Commands

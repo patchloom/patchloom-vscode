@@ -29,6 +29,7 @@ export interface PatchloomStatus {
   readonly minimumSupportedVersion?: string;
   readonly compatibilityMessage?: string;
   readonly managedInstall?: ManagedInstallStatus;
+  readonly diagnostics?: readonly string[];
 }
 
 export interface PatchloomCompatibilityAssessment {
@@ -75,24 +76,22 @@ export async function resolvePatchloomStatusWithInputs(inputs: PatchloomStatusIn
       fileExists: inputs.managedFileExists
     })
     : undefined;
+  const diagnostics = buildManagedInstallDiagnostics(managedInstall);
 
   if (configuredPath) {
     const status = await inspectCandidate(configuredPath, "setting", canExecute, getVersion);
-    return managedInstall ? { ...status, managedInstall } : status;
+    return withManagedInstallContext(status, managedInstall, diagnostics);
   }
 
   const discoveredPath = await findOnPath(inputs.pathValue, inputs.platform, canExecute);
   if (discoveredPath) {
     const status = await inspectCandidate(discoveredPath, "path", canExecute, getVersion);
-    return managedInstall ? { ...status, managedInstall } : status;
+    return withManagedInstallContext(status, managedInstall, diagnostics);
   }
 
   if (managedInstall?.exists) {
     const status = await inspectCandidate(managedInstall.binaryPath, "managed", canExecute, getVersion);
-    return {
-      ...status,
-      managedInstall
-    };
+    return withManagedInstallContext(status, managedInstall, diagnostics);
   }
 
   return {
@@ -103,7 +102,8 @@ export async function resolvePatchloomStatusWithInputs(inputs: PatchloomStatusIn
       : "Patchloom binary not found. Set patchloom.path or install patchloom on PATH.",
     compatibility: "unknown",
     minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
-    managedInstall
+    managedInstall,
+    diagnostics
   };
 }
 
@@ -303,6 +303,30 @@ async function readVersion(binaryPath: string): Promise<string | undefined> {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find((line) => line.length > 0);
+}
+
+function withManagedInstallContext(
+  status: PatchloomStatus,
+  managedInstall: ManagedInstallStatus | undefined,
+  diagnostics: readonly string[]
+): PatchloomStatus {
+  return {
+    ...status,
+    managedInstall,
+    diagnostics
+  };
+}
+
+function buildManagedInstallDiagnostics(managedInstall: ManagedInstallStatus | undefined): readonly string[] {
+  if (!managedInstall?.failure) {
+    return [];
+  }
+
+  return [
+    `Managed install last failure stage: ${managedInstall.failure.stage}`,
+    `Managed install last failure reason: ${managedInstall.failure.reason}`,
+    `Managed install diagnostic: ${managedInstall.failure.message}`
+  ];
 }
 
 function formatError(error: unknown): string {

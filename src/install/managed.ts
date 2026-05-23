@@ -7,6 +7,7 @@ export const PATCHLOOM_MANAGED_BINARY_DIR = "managed-bin";
 export const PATCHLOOM_MANAGED_BINARY_NAME = process.platform === "win32" ? "patchloom.exe" : "patchloom";
 
 let managedInstallRoot: string | undefined;
+let managedInstallFailure: ManagedInstallFailure | undefined;
 
 export type PatchloomArchiveFormat = ".tar.xz" | ".zip";
 export type PatchloomTargetTriple =
@@ -33,6 +34,14 @@ export interface ManagedInstallPaths {
   readonly binaryPath: string;
 }
 
+export interface ManagedInstallTransactionPaths extends ManagedInstallPaths {
+  readonly stagingRoot: string;
+  readonly stagedArchivePath: string;
+  readonly stagedChecksumPath: string;
+  readonly stagedBinaryPath: string;
+  readonly backupBinaryPath: string;
+}
+
 export interface ManagedInstallReleaseAssets {
   readonly tagName: string;
   readonly archiveFileName: string;
@@ -41,11 +50,18 @@ export interface ManagedInstallReleaseAssets {
   readonly checksumDownloadUrl: string;
 }
 
+export interface ManagedInstallFailure {
+  readonly stage: ManagedInstallFailureStage;
+  readonly reason: ManagedInstallVerificationFailureReason | "download-failed" | "extract-failed" | "replace-failed";
+  readonly message: string;
+}
+
 export interface ManagedInstallStatus {
   readonly exists: boolean;
   readonly binaryPath: string;
   readonly version?: string;
   readonly target: ManagedInstallTarget;
+  readonly failure?: ManagedInstallFailure;
 }
 
 export interface ManagedInstallStatusInputs {
@@ -66,6 +82,12 @@ export type ManagedInstallVerificationFailureReason =
   | "checksum-mismatch"
   | "untrusted-download-url";
 
+export type ManagedInstallFailureStage =
+  | "download"
+  | "verify"
+  | "extract"
+  | "replace";
+
 export class ManagedInstallVerificationError extends Error {
   readonly reason: ManagedInstallVerificationFailureReason;
 
@@ -82,6 +104,18 @@ export function setManagedInstallRoot(root: string | undefined): void {
 
 export function getManagedInstallRoot(): string | undefined {
   return managedInstallRoot;
+}
+
+export function setManagedInstallFailure(failure: ManagedInstallFailure | undefined): void {
+  managedInstallFailure = failure;
+}
+
+export function getManagedInstallFailure(): ManagedInstallFailure | undefined {
+  return managedInstallFailure;
+}
+
+export function clearManagedInstallFailure(): void {
+  managedInstallFailure = undefined;
 }
 
 export function detectManagedInstallTarget(
@@ -152,6 +186,23 @@ export function resolveManagedInstallPaths(
     checksumFileName,
     checksumPath: path.join(versionRoot, checksumFileName),
     binaryPath: path.join(versionRoot, PATCHLOOM_MANAGED_BINARY_DIR, managedBinaryName(target.platform))
+  };
+}
+
+export function resolveManagedInstallTransactionPaths(
+  installRoot: string,
+  version: string,
+  target: ManagedInstallTarget
+): ManagedInstallTransactionPaths {
+  const paths = resolveManagedInstallPaths(installRoot, version, target);
+  const stagingRoot = path.join(paths.versionRoot, ".staging");
+  return {
+    ...paths,
+    stagingRoot,
+    stagedArchivePath: path.join(stagingRoot, paths.archiveFileName),
+    stagedChecksumPath: path.join(stagingRoot, paths.checksumFileName),
+    stagedBinaryPath: path.join(stagingRoot, PATCHLOOM_MANAGED_BINARY_DIR, managedBinaryName(target.platform)),
+    backupBinaryPath: `${paths.binaryPath}.bak`
   };
 }
 
@@ -277,7 +328,8 @@ export async function inspectManagedInstallStatus(
     exists,
     binaryPath: paths.binaryPath,
     version,
-    target
+    target,
+    ...(managedInstallFailure ? { failure: managedInstallFailure } : {})
   };
 }
 

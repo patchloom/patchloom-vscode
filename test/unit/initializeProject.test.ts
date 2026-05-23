@@ -96,6 +96,45 @@ test("buildStatusDetails includes compatibility upgrade guidance", () => {
   assert.match(details, /older than the minimum supported version/);
 });
 
+test("buildStatusDetails surfaces managed install failure diagnostics", () => {
+  const details = buildStatusDetails({
+    ready: false,
+    source: "missing",
+    message: "Patchloom binary not found.",
+    compatibility: "unknown",
+    managedInstall: {
+      exists: false,
+      binaryPath: "/managed/install/0.1.0/managed-bin/patchloom",
+      version: "0.1.0",
+      target: {
+        platform: "darwin",
+        arch: "arm64",
+        targetTriple: "aarch64-apple-darwin",
+        archiveFormat: ".tar.xz"
+      },
+      failure: {
+        stage: "verify",
+        reason: "checksum-mismatch",
+        message: "Checksum mismatch for patchloom-aarch64-apple-darwin.tar.xz."
+      }
+    },
+    diagnostics: [
+      "Managed install last failure stage: verify",
+      "Managed install last failure reason: checksum-mismatch",
+      "Managed install diagnostic: Checksum mismatch for patchloom-aarch64-apple-darwin.tar.xz."
+    ]
+  }, {
+    hasWorkspace: false,
+    workspaceCount: 0,
+    environmentLabel: "Local",
+    environmentSupport: "supported"
+  });
+
+  assert.match(details, /Managed install: not installed/);
+  assert.match(details, /Managed install last failure: verify \(checksum-mismatch\)/);
+  assert.match(details, /Managed install diagnostic: Checksum mismatch/);
+});
+
 test("preferredStatusAction points outdated CLI users to releases", () => {
   const action = preferredStatusAction({
     ready: true,
