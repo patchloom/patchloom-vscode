@@ -9,12 +9,18 @@ import {
   resolvePatchloomStatusWithInputs
 } from "../../src/binary/patchloom";
 import {
+  assertTrustedManagedInstallDownloadUrl,
   buildManagedInstallReleaseAssets,
+  calculateSha256Hex,
   detectManagedInstallTarget,
   inspectManagedInstallStatus,
+  ManagedInstallVerificationError,
   normalizeReleaseVersion,
+  parseManagedInstallChecksumFile,
   PATCHLOOM_MANAGED_INSTALL_DIR,
-  resolveManagedInstallPaths
+  resolveManagedInstallChecksum,
+  resolveManagedInstallPaths,
+  verifyManagedInstallArchiveChecksum
 } from "../../src/install/managed";
 import { resolveMcpTargets } from "../../src/mcp/config";
 import { defaultWorkspaceFolderIndex, describeWorkspaceEnvironment } from "../../src/workspace/readiness";
@@ -161,6 +167,90 @@ test("buildManagedInstallReleaseAssets builds archive and checksum urls", () => 
   assert.equal(release.checksumFileName, "patchloom-x86_64-unknown-linux-gnu.tar.xz.sha256");
   assert.match(release.archiveDownloadUrl, /patchloom-x86_64-unknown-linux-gnu\.tar\.xz$/);
   assert.match(release.checksumDownloadUrl, /patchloom-x86_64-unknown-linux-gnu\.tar\.xz\.sha256$/);
+});
+
+test("parseManagedInstallChecksumFile accepts common sha256 sidecar formats", () => {
+  const entries = parseManagedInstallChecksumFile([
+    "ece89100861aa6d4c7e409f279777d1619f8d86e0f67f396fa9f3e4535eb2f0e  patchloom-aarch64-apple-darwin.tar.xz",
+    "1dc508c14f9b3584c992c61dcf8d18d8d3a6770f33fff241038c1e9ea7b27a97 *patchloom-x86_64-unknown-linux-gnu.tar.xz"
+  ].join("\n"));
+
+  assert.deepEqual(entries, [
+    {
+      sha256: "ece89100861aa6d4c7e409f279777d1619f8d86e0f67f396fa9f3e4535eb2f0e",
+      fileName: "patchloom-aarch64-apple-darwin.tar.xz"
+    },
+    {
+      sha256: "1dc508c14f9b3584c992c61dcf8d18d8d3a6770f33fff241038c1e9ea7b27a97",
+      fileName: "patchloom-x86_64-unknown-linux-gnu.tar.xz"
+    }
+  ]);
+});
+
+test("resolveManagedInstallChecksum returns the matching archive checksum", () => {
+  const checksum = resolveManagedInstallChecksum(
+    [
+      "ece89100861aa6d4c7e409f279777d1619f8d86e0f67f396fa9f3e4535eb2f0e  patchloom-aarch64-apple-darwin.tar.xz",
+      "1dc508c14f9b3584c992c61dcf8d18d8d3a6770f33fff241038c1e9ea7b27a97  patchloom-x86_64-unknown-linux-gnu.tar.xz"
+    ].join("\n"),
+    "patchloom-x86_64-unknown-linux-gnu.tar.xz"
+  );
+
+  assert.equal(checksum, "1dc508c14f9b3584c992c61dcf8d18d8d3a6770f33fff241038c1e9ea7b27a97");
+});
+
+test("verifyManagedInstallArchiveChecksum validates archive content against the checksum sidecar", () => {
+  const checksum = verifyManagedInstallArchiveChecksum(
+    "patchloom",
+    "ece89100861aa6d4c7e409f279777d1619f8d86e0f67f396fa9f3e4535eb2f0e  patchloom-aarch64-apple-darwin.tar.xz",
+    "patchloom-aarch64-apple-darwin.tar.xz"
+  );
+
+  assert.equal(checksum, calculateSha256Hex("patchloom"));
+});
+
+test("verifyManagedInstallArchiveChecksum rejects mismatched archive content", () => {
+  assert.throws(
+    () => verifyManagedInstallArchiveChecksum(
+      "managed-install",
+      "ece89100861aa6d4c7e409f279777d1619f8d86e0f67f396fa9f3e4535eb2f0e  patchloom-aarch64-apple-darwin.tar.xz",
+      "patchloom-aarch64-apple-darwin.tar.xz"
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof ManagedInstallVerificationError);
+      assert.equal(error.reason, "checksum-mismatch");
+      assert.match(error.message, /checksum mismatch/i);
+      return true;
+    }
+  );
+});
+
+test("parseManagedInstallChecksumFile rejects invalid lines", () => {
+  assert.throws(
+    () => parseManagedInstallChecksumFile("not-a-checksum patchloom-aarch64-apple-darwin.tar.xz"),
+    (error: unknown) => {
+      assert.ok(error instanceof ManagedInstallVerificationError);
+      assert.equal(error.reason, "invalid-checksum-format");
+      return true;
+    }
+  );
+});
+
+test("assertTrustedManagedInstallDownloadUrl only accepts GitHub release download urls", () => {
+  assert.doesNotThrow(() => assertTrustedManagedInstallDownloadUrl(
+    "https://github.com/patchloom/patchloom/releases/download/v0.1.0/patchloom-aarch64-apple-darwin.tar.xz"
+  ));
+
+  assert.throws(
+    () => assertTrustedManagedInstallDownloadUrl(
+      "https://example.com/patchloom-aarch64-apple-darwin.tar.xz"
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof ManagedInstallVerificationError);
+      assert.equal(error.reason, "untrusted-download-url");
+      return true;
+    }
+  );
 });
 
 test("managed install constants use a stable storage directory name", () => {

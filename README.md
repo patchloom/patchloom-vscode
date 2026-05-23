@@ -19,6 +19,16 @@ Managed binary downloads, MCP config injection, and marketplace publishing workf
 
 The extension now has managed-install groundwork for release asset targeting and status reporting, using VS Code global storage for future managed binaries, but it does not download binaries yet.
 
+## Managed install security model
+
+The managed installer work is intentionally conservative:
+
+- downloads must come from `https://github.com/patchloom/patchloom/releases/download/...`
+- each downloaded archive must match a published SHA-256 checksum before the extension can trust it
+- checksum verification failures must stop the install before any managed binary is used
+- a failed verification or failed install must not replace an already working Patchloom binary
+- verification failures should stay diagnosable through explicit user-facing status and error messages
+
 ## Commands
 
 - `Patchloom: Show Status`

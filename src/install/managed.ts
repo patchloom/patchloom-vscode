@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import * as path from "node:path";
 
 export const PATCHLOOM_RELEASE_REPO = "patchloom/patchloom";
@@ -52,6 +53,27 @@ export interface ManagedInstallStatusInputs {
   readonly version?: string;
   readonly target?: ManagedInstallTarget;
   readonly fileExists?: (filePath: string) => Promise<boolean>;
+}
+
+export interface ManagedInstallChecksumEntry {
+  readonly fileName: string;
+  readonly sha256: string;
+}
+
+export type ManagedInstallVerificationFailureReason =
+  | "missing-checksum"
+  | "invalid-checksum-format"
+  | "checksum-mismatch"
+  | "untrusted-download-url";
+
+export class ManagedInstallVerificationError extends Error {
+  readonly reason: ManagedInstallVerificationFailureReason;
+
+  constructor(reason: ManagedInstallVerificationFailureReason, message: string) {
+    super(message);
+    this.name = "ManagedInstallVerificationError";
+    this.reason = reason;
+  }
 }
 
 export function setManagedInstallRoot(root: string | undefined): void {
@@ -147,6 +169,97 @@ export function buildManagedInstallReleaseAssets(
     archiveDownloadUrl: `https://github.com/${repo}/releases/download/v${normalizedVersion}/${paths.archiveFileName}`,
     checksumDownloadUrl: `https://github.com/${repo}/releases/download/v${normalizedVersion}/${paths.checksumFileName}`
   };
+}
+
+export function parseManagedInstallChecksumFile(content: string): ManagedInstallChecksumEntry[] {
+  const entries: ManagedInstallChecksumEntry[] = [];
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) {
+      continue;
+    }
+
+    const match = line.match(/^([0-9a-fA-F]{64})\s+\*?(.+)$/);
+    if (!match) {
+      throw new ManagedInstallVerificationError(
+        "invalid-checksum-format",
+        `Invalid checksum line: ${rawLine}`
+      );
+    }
+
+    entries.push({
+      sha256: match[1].toLowerCase(),
+      fileName: match[2].trim()
+    });
+  }
+
+  return entries;
+}
+
+export function resolveManagedInstallChecksum(
+  checksumFileContent: string,
+  archiveFileName: string
+): string {
+  const entry = parseManagedInstallChecksumFile(checksumFileContent)
+    .find((candidate) => candidate.fileName === archiveFileName);
+
+  if (!entry) {
+    throw new ManagedInstallVerificationError(
+      "missing-checksum",
+      `Missing checksum entry for ${archiveFileName}.`
+    );
+  }
+
+  return entry.sha256;
+}
+
+export function calculateSha256Hex(content: string | Uint8Array): string {
+  return createHash("sha256").update(content).digest("hex");
+}
+
+export function verifyManagedInstallArchiveChecksum(
+  archiveContent: string | Uint8Array,
+  checksumFileContent: string,
+  archiveFileName: string
+): string {
+  const expectedSha256 = resolveManagedInstallChecksum(checksumFileContent, archiveFileName);
+  const actualSha256 = calculateSha256Hex(archiveContent);
+
+  if (expectedSha256 !== actualSha256) {
+    throw new ManagedInstallVerificationError(
+      "checksum-mismatch",
+      `Checksum mismatch for ${archiveFileName}. Expected ${expectedSha256}, got ${actualSha256}.`
+    );
+  }
+
+  return actualSha256;
+}
+
+export function isTrustedManagedInstallDownloadUrl(
+  url: string,
+  repo = PATCHLOOM_RELEASE_REPO
+): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:"
+      && parsed.hostname === "github.com"
+      && parsed.pathname.startsWith(`/${repo}/releases/download/`);
+  } catch {
+    return false;
+  }
+}
+
+export function assertTrustedManagedInstallDownloadUrl(
+  url: string,
+  repo = PATCHLOOM_RELEASE_REPO
+): void {
+  if (!isTrustedManagedInstallDownloadUrl(url, repo)) {
+    throw new ManagedInstallVerificationError(
+      "untrusted-download-url",
+      `Managed install downloads must come from https://github.com/${repo}/releases/download/.`
+    );
+  }
 }
 
 export async function inspectManagedInstallStatus(
