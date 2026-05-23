@@ -3,7 +3,6 @@ import { constants as fsConstants } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { promisify } from "node:util";
-import * as vscode from "vscode";
 
 const execFileAsync = promisify(execFile);
 
@@ -17,15 +16,35 @@ export interface PatchloomStatus {
   readonly version?: string;
 }
 
+export interface PatchloomStatusInputs {
+  readonly configuredPath?: string;
+  readonly pathValue?: string;
+  readonly platform?: NodeJS.Platform;
+  readonly canExecute?: (binaryPath: string) => Promise<boolean>;
+  readonly getVersion?: (binaryPath: string) => Promise<string | undefined>;
+}
+
 export async function resolvePatchloomStatus(): Promise<PatchloomStatus> {
-  const configuredPath = configuredBinaryPath();
+  const vscode = await import("vscode");
+  return resolvePatchloomStatusWithInputs({
+    configuredPath: vscode.workspace.getConfiguration("patchloom").get<string>("path", ""),
+    pathValue: process.env.PATH,
+    platform: process.platform
+  });
+}
+
+export async function resolvePatchloomStatusWithInputs(inputs: PatchloomStatusInputs): Promise<PatchloomStatus> {
+  const configuredPath = configuredBinaryPathFromSetting(inputs.configuredPath);
+  const canExecute = inputs.canExecute ?? isExecutable;
+  const getVersion = inputs.getVersion ?? readVersion;
+
   if (configuredPath) {
-    return inspectCandidate(configuredPath, "setting");
+    return inspectCandidate(configuredPath, "setting", canExecute, getVersion);
   }
 
-  const discoveredPath = await findOnPath();
+  const discoveredPath = await findOnPath(inputs.pathValue, inputs.platform, canExecute);
   if (discoveredPath) {
-    return inspectCandidate(discoveredPath, "path");
+    return inspectCandidate(discoveredPath, "path", canExecute, getVersion);
   }
 
   return {
@@ -35,15 +54,29 @@ export async function resolvePatchloomStatus(): Promise<PatchloomStatus> {
   };
 }
 
-function configuredBinaryPath(): string | undefined {
-  const configured = vscode.workspace.getConfiguration("patchloom").get<string>("path", "").trim();
-  return configured.length > 0 ? configured : undefined;
+export function configuredBinaryPathFromSetting(configuredPath?: string): string | undefined {
+  const configured = configuredPath?.trim();
+  return configured ? configured : undefined;
 }
 
-async function inspectCandidate(binaryPath: string, source: Exclude<PatchloomSource, "missing">): Promise<PatchloomStatus> {
-  try {
-    await fs.access(binaryPath, fsConstants.X_OK);
-  } catch {
+export function describePatchloomSource(source: PatchloomSource): string {
+  switch (source) {
+    case "setting":
+      return "patchloom.path";
+    case "path":
+      return "PATH";
+    case "missing":
+      return "not found";
+  }
+}
+
+async function inspectCandidate(
+  binaryPath: string,
+  source: Exclude<PatchloomSource, "missing">,
+  canExecute: (binaryPath: string) => Promise<boolean>,
+  getVersion: (binaryPath: string) => Promise<string | undefined>
+): Promise<PatchloomStatus> {
+  if (!(await canExecute(binaryPath))) {
     return {
       ready: false,
       source,
@@ -53,21 +86,13 @@ async function inspectCandidate(binaryPath: string, source: Exclude<PatchloomSou
   }
 
   try {
-    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], {
-      timeout: 5_000,
-      windowsHide: true
-    });
-    const version = `${stdout}${stderr}`
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .find((line) => line.length > 0);
-
+    const version = await getVersion(binaryPath);
     return {
       ready: true,
       source,
       binaryPath,
       version,
-      message: `Using Patchloom from ${source === "setting" ? "patchloom.path" : "PATH"}.`
+      message: `Using Patchloom from ${describePatchloomSource(source)}.`
     };
   } catch (error) {
     return {
@@ -79,33 +104,58 @@ async function inspectCandidate(binaryPath: string, source: Exclude<PatchloomSou
   }
 }
 
-async function findOnPath(): Promise<string | undefined> {
-  const pathValue = process.env.PATH;
+export async function findOnPath(
+  pathValue = process.env.PATH,
+  platform: NodeJS.Platform = process.platform,
+  canExecute: (binaryPath: string) => Promise<boolean> = isExecutable
+): Promise<string | undefined> {
   if (!pathValue) {
     return undefined;
   }
 
-  const candidates = process.platform === "win32"
+  const commands = platform === "win32"
     ? ["patchloom.exe", "patchloom.cmd", "patchloom.bat", "patchloom"]
     : ["patchloom"];
+  const delimiter = platform === "win32" ? ";" : ":";
+  const joinPath = platform === "win32" ? path.win32.join : path.posix.join;
+  const seenDirs = new Set<string>();
 
-  for (const dir of pathValue.split(path.delimiter)) {
-    if (!dir) {
+  for (const rawDir of pathValue.split(delimiter)) {
+    const dir = rawDir.trim();
+    if (!dir || seenDirs.has(dir)) {
       continue;
     }
+    seenDirs.add(dir);
 
-    for (const command of candidates) {
-      const candidate = path.join(dir, command);
-      try {
-        await fs.access(candidate, fsConstants.X_OK);
+    for (const command of commands) {
+      const candidate = joinPath(dir, command);
+      if (await canExecute(candidate)) {
         return candidate;
-      } catch {
-        continue;
       }
     }
   }
 
   return undefined;
+}
+
+async function isExecutable(binaryPath: string): Promise<boolean> {
+  try {
+    await fs.access(binaryPath, fsConstants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readVersion(binaryPath: string): Promise<string | undefined> {
+  const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], {
+    timeout: 5_000,
+    windowsHide: true
+  });
+  return `${stdout}${stderr}`
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
 }
 
 function formatError(error: unknown): string {

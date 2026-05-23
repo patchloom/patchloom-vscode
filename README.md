@@ -30,6 +30,7 @@ Managed binary downloads, MCP config injection, and marketplace publishing workf
 ```bash
 npm install
 npm run compile
+npm test
 ```
 
 Then open the repo in VS Code and run the extension in the Extension Development Host.

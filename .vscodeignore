@@ -1,6 +1,9 @@
 .vscode/**
 .vscode-test/**
 src/**
+test/**
+out-test/**
 tsconfig.json
+tsconfig.test.json
 .github/**
 **/*.tsbuildinfo
