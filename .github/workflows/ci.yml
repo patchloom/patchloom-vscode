@@ -36,7 +36,12 @@ jobs:
         run: npm run package
 
   integration-test:
-    runs-on: ubuntu-latest
+    needs: build
+    runs-on:
+      - self-hosted
+      - macOS
+      - ARM64
+      - patchloom-vscode
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -51,25 +56,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install xvfb and Electron dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 \
-            libxss1 libasound2t64 libatk-bridge2.0-0 libdrm2 \
-            libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
-            libxrandr2 libpango-1.0-0 libcairo2
+      - name: Patch test VS Code to run as background app
+        run: bash scripts/hide-test-vscode.sh
 
-      - name: Disable GPU acceleration for Electron
-        run: |
-          mkdir -p ~/.vscode
-          echo '{ "disable-hardware-acceleration": true }' > ~/.vscode/argv.json
+      - name: Run VS Code extension tests
+        run: npm run test:all
 
-      - name: Run VS Code extension tests (headless via xvfb)
-        uses: GabrielBB/xvfb-action@v1
-        with:
-          run: npm run test:all
-
-      - name: Run UI tests (headless via xvfb)
-        uses: GabrielBB/xvfb-action@v1
-        with:
-          run: npm run test:ui
+      - name: Run UI tests
+        run: npm run test:ui
