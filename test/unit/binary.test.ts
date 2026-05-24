@@ -128,6 +128,23 @@ test("defaultWorkspaceFolderIndex prefers active folders and only auto-selects s
   assert.equal(defaultWorkspaceFolderIndex(2, undefined), undefined);
 });
 
+test("defaultWorkspaceFolderIndex ignores out-of-range active indices", () => {
+  assert.equal(defaultWorkspaceFolderIndex(3, -1), undefined);
+  assert.equal(defaultWorkspaceFolderIndex(3, 3), undefined);
+  assert.equal(defaultWorkspaceFolderIndex(3, 99), undefined);
+  assert.equal(defaultWorkspaceFolderIndex(0, 0), undefined);
+});
+
+test("describeWorkspaceEnvironment reports local environment for undefined remoteName", () => {
+  const environment = describeWorkspaceEnvironment(undefined);
+
+  assert.equal(environment.label, "Local");
+  assert.equal(environment.support, "supported");
+  assert.equal(environment.supportsUserMcpConfig, true);
+  assert.equal(environment.remoteName, undefined);
+  assert.equal(environment.note, undefined);
+});
+
 test("describeWorkspaceEnvironment reports limited remote support", () => {
   const environment = describeWorkspaceEnvironment("wsl");
 
@@ -135,6 +152,39 @@ test("describeWorkspaceEnvironment reports limited remote support", () => {
   assert.equal(environment.support, "limited");
   assert.equal(environment.supportsUserMcpConfig, false);
   assert.match(environment.note ?? "", /workspace-scoped/i);
+});
+
+test("describeWorkspaceEnvironment reports limited support for ssh-remote", () => {
+  const environment = describeWorkspaceEnvironment("ssh-remote");
+
+  assert.equal(environment.label, "Remote SSH");
+  assert.equal(environment.support, "limited");
+  assert.equal(environment.supportsUserMcpConfig, false);
+});
+
+test("describeWorkspaceEnvironment reports limited support for dev-container", () => {
+  const environment = describeWorkspaceEnvironment("dev-container");
+
+  assert.equal(environment.label, "Dev Container");
+  assert.equal(environment.support, "limited");
+  assert.equal(environment.supportsUserMcpConfig, false);
+});
+
+test("describeWorkspaceEnvironment reports limited support for codespaces", () => {
+  const environment = describeWorkspaceEnvironment("codespaces");
+
+  assert.equal(environment.label, "Codespaces");
+  assert.equal(environment.support, "limited");
+  assert.equal(environment.supportsUserMcpConfig, false);
+});
+
+test("describeWorkspaceEnvironment reports unverified for unknown remote names", () => {
+  const environment = describeWorkspaceEnvironment("some-unknown-remote");
+
+  assert.equal(environment.label, "Remote (some-unknown-remote)");
+  assert.equal(environment.support, "unverified");
+  assert.equal(environment.supportsUserMcpConfig, false);
+  assert.match(environment.note ?? "", /not explicitly verified/i);
 });
 
 test("resolveMcpTargets omits user config targets when disabled", () => {

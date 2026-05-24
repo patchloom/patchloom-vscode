@@ -228,6 +228,21 @@ test("preferredStatusAction returns nothing when workspace is already ready", ()
   assert.equal(action, undefined);
 });
 
+test("preferredStatusAction returns nothing when workspace readiness is undefined", () => {
+  const action = preferredStatusAction(
+    {
+      ready: true,
+      source: "path",
+      message: "Using Patchloom from PATH.",
+      binaryPath: "/usr/local/bin/patchloom",
+      version: "patchloom 0.1.0"
+    },
+    undefined
+  );
+
+  assert.equal(action, undefined);
+});
+
 test("buildPatchloomMcpEntry points at patchloom mcp-server", () => {
   assert.deepEqual(buildPatchloomMcpEntry("/usr/local/bin/patchloom"), {
     command: "/usr/local/bin/patchloom",
