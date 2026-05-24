@@ -8,7 +8,11 @@ async function main(): Promise<void> {
   await runTests({
     extensionDevelopmentPath,
     extensionTestsPath,
-    launchArgs: [extensionDevelopmentPath]
+    launchArgs: [
+      extensionDevelopmentPath,
+      "--disable-gpu",
+      "--disable-gpu-sandbox"
+    ]
   });
 }
 

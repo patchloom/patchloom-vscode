@@ -109,10 +109,10 @@
     "compile-uitests": "tsc -p ./tsconfig.uitest.json",
     "watch": "tsc -watch -p ./",
     "test:unit": "node --test ./out-test/test/unit/*.test.js",
-    "test:extension": "node ./out-test/test/suite/runExtensionTests.js",
+    "test:extension": "bash scripts/hide-test-vscode.sh && node ./out-test/test/suite/runExtensionTests.js",
     "test:ui": "npm run compile && npm run compile-uitests && extest setup-and-run './out-uitest/test/ui/*.test.js' --code_version max --extensions_dir .vscode-test/extensions",
     "test": "npm run compile && npm run compile-tests && npm run test:unit",
-    "test:all": "npm run compile && npm run compile-tests && npm run test:unit && npm run test:extension",
+    "test:all": "npm run compile && npm run compile-tests && bash scripts/hide-test-vscode.sh && npm run test:unit && npm run test:extension",
     "vscode:prepublish": "npm run compile",
     "package": "vsce package",
     "check": "npm run test && npm run package"
