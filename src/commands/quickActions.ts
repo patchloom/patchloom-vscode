@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
 import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
+import { formatError } from "../util";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness";
 
 const execFileAsync = promisify(execFile);
@@ -482,13 +483,6 @@ function sameFilePath(left: string, right: string): boolean {
     ? path.resolve(value).toLowerCase()
     : path.resolve(value);
   return normalize(left) === normalize(right);
-}
-
-function formatError(error: unknown): string {
-  if (error instanceof Error && error.message.length > 0) {
-    return error.message;
-  }
-  return String(error);
 }
 
 function asExecFailure(error: unknown): (Error & { stdout: string; stderr: string; exitCode: number }) | undefined {

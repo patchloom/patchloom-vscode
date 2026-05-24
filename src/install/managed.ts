@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import * as path from "node:path";
+import { formatError } from "../util";
 
 export const PATCHLOOM_RELEASE_REPO = "patchloom/patchloom";
 export const PATCHLOOM_MANAGED_INSTALL_DIR = "patchloom-managed";
@@ -492,13 +493,6 @@ async function removeIfExists(
   if (await fileExists(filePath)) {
     await removeFile(filePath);
   }
-}
-
-function formatError(error: unknown): string {
-  if (error instanceof Error && error.message.length > 0) {
-    return error.message;
-  }
-  return String(error);
 }
 
 async function defaultFileExists(filePath: string): Promise<boolean> {

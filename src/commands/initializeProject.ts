@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
 import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
+import { formatError } from "../util";
 import { activeWorkspaceFolder } from "../workspace/readiness";
 
 const execFileAsync = promisify(execFile);
@@ -122,11 +123,4 @@ async function readTextFileIfExists(uri: VSCode.Uri): Promise<string | undefined
 
 function normalizeForComparison(value: string): string {
   return value.replace(/\r\n/g, "\n").trimEnd();
-}
-
-function formatError(error: unknown): string {
-  if (error instanceof Error && error.message.length > 0) {
-    return error.message;
-  }
-  return String(error);
 }

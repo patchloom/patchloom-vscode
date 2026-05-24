@@ -9,6 +9,7 @@ import {
   inspectManagedInstallStatus,
   ManagedInstallStatus
 } from "../install/managed";
+import { formatError } from "../util";
 
 const execFileAsync = promisify(execFile);
 
@@ -330,13 +331,6 @@ function buildManagedInstallDiagnostics(managedInstall: ManagedInstallStatus | u
     `Managed install last failure reason: ${managedInstall.failure.reason}`,
     `Managed install diagnostic: ${managedInstall.failure.message}`
   ];
-}
-
-function formatError(error: unknown): string {
-  if (error instanceof Error && error.message.length > 0) {
-    return error.message;
-  }
-  return String(error);
 }
 
 interface ParsedSemanticVersion {
