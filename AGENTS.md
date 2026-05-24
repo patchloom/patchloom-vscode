@@ -13,7 +13,7 @@ Patchloom for VS Code is the official VS Code extension for [Patchloom](https://
 | `npm run watch` | Watch mode for extension source |
 | `npm run test:unit` | Run unit tests (`node --test ./out-test/test/unit/*.test.js`) |
 | `npm run test:extension` | Run VS Code extension integration tests |
-| `npm run test` | Compile + compile-tests + unit tests + extension tests |
+| `npm run test` | Compile + compile-tests + unit tests |
 | `npm run package` | Package the `.vsix` using `@vscode/vsce` |
 | `npm run check` | Full CI gate: test + package |
 
@@ -24,6 +24,7 @@ Always run `npm run check` before committing.
 ```
 src/
   extension.ts           Thin entrypoint: registers commands, status bar, config listeners
+  util.ts                Shared utilities (formatError)
   binary/patchloom.ts    Binary discovery, version parsing, compatibility assessment
   commands/
     configureMcp.ts      Configure MCP command: multi-target MCP config injection
@@ -37,11 +38,12 @@ src/
   workspace/readiness.ts Workspace readiness: environment detection, folder selection
 test/
   unit/                  Unit tests (node:test, dependency-injected, no VS Code API)
-    binary.test.ts       Binary discovery, managed install, compatibility (32 tests)
+    binary.test.ts       Binary discovery, managed install, compatibility, workspace env (38 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (10 tests)
-    initializeProject.test.ts  Status display, agents file classification (14 tests)
+    initializeProject.test.ts  Status display, agents file classification (15 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (10 tests)
     mcpConfig.test.ts    MCP config with real temp directories (9 tests)
+    patchloomCli.test.ts Patchloom CLI integration tests with real binary (24 tests)
     quickActions.test.ts Quick action command building (6 tests)
   suite/
     index.ts             VS Code extension integration tests
