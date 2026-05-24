@@ -21,6 +21,10 @@ import {
   assessPatchloomCompatibility,
   resolvePatchloomStatusWithInputs
 } from "../../src/binary/patchloom";
+import { classifyAgentsFile } from "../../src/commands/initializeProject";
+import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus";
+import { buildReplaceQuickAction, retargetQuickAction, withApplyFlag } from "../../src/commands/quickActions";
+import { configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config";
 
 const execFileAsync = promisify(execFile);
 
@@ -253,6 +257,254 @@ describe("patchloom CLI integration", async () => {
         const execError = error as Error & { code?: number };
         assert.equal(execError.code, 3, "no-match exit code should be 3");
       }
+    });
+  });
+
+  test("exit code 2 for replace --check with pending changes", async () => {
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "check-target.txt");
+      await fs.writeFile(file, "hello world\n", "utf8");
+
+      try {
+        await execFileAsync(binaryPath, [
+          "replace", "hello", "--to", "goodbye", file, "--check"
+        ], { timeout: 5000 });
+        assert.fail("should have exited with non-zero code");
+      } catch (error) {
+        const execError = error as Error & { code?: number };
+        assert.equal(execError.code, 2, "changes-detected exit code should be 2");
+      }
+
+      // File should be unchanged (--check is read-only)
+      const content = await fs.readFile(file, "utf8");
+      assert.equal(content, "hello world\n", "file must not be modified by --check");
+    });
+  });
+
+  test("exit code 0 for tidy check on a clean file", async () => {
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "clean.txt");
+      await fs.writeFile(file, "already clean\n", "utf8");
+
+      // File has a final newline and no trailing whitespace; tidy check should exit 0
+      await execFileAsync(binaryPath, [
+        "tidy", "check", file, "--ensure-final-newline"
+      ], { timeout: 5000 });
+      // If we get here, exit code was 0 (no issues found)
+    });
+  });
+
+  test("exit code 2 for tidy check on a file needing fixes", async () => {
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "dirty.txt");
+      await fs.writeFile(file, "no trailing newline", "utf8");
+
+      try {
+        await execFileAsync(binaryPath, [
+          "tidy", "check", file, "--ensure-final-newline"
+        ], { timeout: 5000 });
+        assert.fail("should have exited with non-zero code");
+      } catch (error) {
+        const execError = error as Error & { code?: number };
+        assert.equal(execError.code, 2, "tidy check should return 2 for issues found");
+      }
+    });
+  });
+
+  // --- Initialize Project round-trip ---
+
+  test("agent-rules output classified as up_to_date after write", async () => {
+    await withTempDir(async (dir) => {
+      // Generate agent rules
+      const { stdout: rules } = await execFileAsync(binaryPath, ["agent-rules"], {
+        cwd: dir,
+        timeout: 10000
+      });
+
+      // Write it exactly as generated
+      const agentsPath = path.join(dir, "AGENTS.md");
+      const content = rules.endsWith("\n") ? rules : `${rules}\n`;
+      await fs.writeFile(agentsPath, content, "utf8");
+
+      // Extension's classifier should see it as up_to_date
+      const existing = await fs.readFile(agentsPath, "utf8");
+      const state = classifyAgentsFile(existing, content);
+      assert.equal(state, "up_to_date",
+        "freshly written agent-rules output should be classified as up_to_date");
+    });
+  });
+
+  test("agent-rules output classified as different after modification", async () => {
+    await withTempDir(async (dir) => {
+      const { stdout: rules } = await execFileAsync(binaryPath, ["agent-rules"], {
+        cwd: dir,
+        timeout: 10000
+      });
+
+      const content = rules.endsWith("\n") ? rules : `${rules}\n`;
+      const modified = content + "\n## Custom section\n\nExtra content.\n";
+
+      const state = classifyAgentsFile(modified, content);
+      assert.equal(state, "different",
+        "modified agent-rules should be classified as different");
+    });
+  });
+
+  // --- Quick action preview flow ---
+
+  test("quick action preview flow: copy, apply to copy, compare", async () => {
+    await withTempDir(async (dir) => {
+      // Original file
+      const originalFile = path.join(dir, "original.txt");
+      const originalContent = "The quick brown fox jumps over the lazy dog.\n";
+      await fs.writeFile(originalFile, originalContent, "utf8");
+
+      // Build the quick action (extension builds these from user input)
+      const action = buildReplaceQuickAction(originalFile, "fox", "cat");
+
+      // Simulate the preview flow: copy to temp, retarget, apply
+      const previewDir = path.join(dir, "preview");
+      await fs.mkdir(previewDir);
+      const previewFile = path.join(previewDir, "original.txt");
+      await fs.writeFile(previewFile, originalContent, "utf8");
+
+      const previewAction = retargetQuickAction(action, previewFile);
+      const applyArgs = withApplyFlag([...previewAction.args]);
+
+      await execFileAsync(binaryPath, applyArgs, { cwd: previewDir, timeout: 5000 });
+
+      // Original is untouched
+      const originalAfter = await fs.readFile(originalFile, "utf8");
+      assert.equal(originalAfter, originalContent, "original file must not be modified during preview");
+
+      // Preview file has the replacement
+      const previewContent = await fs.readFile(previewFile, "utf8");
+      assert.ok(previewContent.includes("cat"), "preview should contain the replacement");
+      assert.ok(!previewContent.includes("fox"), "preview should not contain the original text");
+    });
+  });
+
+  // --- Full status details with real binary ---
+
+  test("buildStatusDetails renders real binary status correctly", async () => {
+    const status = await resolvePatchloomStatusWithInputs({
+      configuredPath: binaryPath
+    });
+
+    const details = buildStatusDetails(status, {
+      hasWorkspace: true,
+      workspaceName: "test-project",
+      hasAgentsFile: false,
+      workspaceCount: 1,
+      environmentLabel: "Local",
+      environmentSupport: "supported"
+    });
+
+    assert.match(details, /Patchloom is ready/, "should report ready");
+    assert.match(details, /patchloom\.path/, "should show source as setting");
+    assert.ok(details.includes(binaryPath), "should include the binary path");
+    assert.match(details, /Workspace: test-project/, "should include workspace name");
+    assert.match(details, /AGENTS\.md: missing/, "should report missing AGENTS.md");
+  });
+
+  test("preferredStatusAction suggests Initialize Project for real ready status", async () => {
+    const status = await resolvePatchloomStatusWithInputs({
+      configuredPath: binaryPath
+    });
+
+    const action = preferredStatusAction(status, {
+      hasWorkspace: true,
+      workspaceName: "test",
+      hasAgentsFile: false,
+      workspaceCount: 1,
+      environmentLabel: "Local",
+      environmentSupport: "supported"
+    });
+
+    assert.ok(action, "should suggest an action when AGENTS.md is missing");
+    assert.equal(action.command, "patchloom.initializeProject");
+  });
+
+  // --- MCP config write then verify server starts ---
+
+  test("mcp-server starts and responds to JSON-RPC initialize", async () => {
+    // Check if this binary was built with MCP support
+    try {
+      await execFileAsync(binaryPath, ["mcp-server", "--help"], { timeout: 5000 });
+    } catch {
+      // mcp-server not available in this build; skip
+      return;
+    }
+
+    const child = execFile(binaryPath, ["mcp-server"], { timeout: 10000 });
+    let stdout = "";
+    child.stdout!.on("data", (data: Buffer) => { stdout += data.toString(); });
+
+    // Send a JSON-RPC initialize request using the MCP wire format
+    const initRequest = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "test", version: "0.0.1" }
+      }
+    });
+    const header = `Content-Length: ${Buffer.byteLength(initRequest)}\r\n\r\n`;
+    child.stdin!.write(header + initRequest);
+
+    // Wait for the server to respond (it needs to start the tokio runtime)
+    const deadline = Date.now() + 5000;
+    while (stdout.length === 0 && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    child.kill();
+
+    // Should have received a JSON-RPC response with Content-Length header
+    assert.ok(stdout.length > 0, "mcp-server should produce output");
+    assert.match(stdout, /Content-Length/i, "response should use Content-Length framing");
+    assert.match(stdout, /jsonrpc/, "response body should be JSON-RPC");
+  });
+
+  test("MCP config written for real binary is structurally valid", async () => {
+    await withTempDir(async (workspace) => {
+      const readFile = async (filePath: string) => {
+        try { return await fs.readFile(filePath, "utf8"); } catch { return undefined; }
+      };
+      const writeFile = async (filePath: string, content: string) => {
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        await fs.writeFile(filePath, content, "utf8");
+      };
+
+      // Write MCP config pointing to the real binary
+      await configureMcpTargets({
+        workspaceFolderPath: workspace,
+        homeDir: workspace,
+        includeKinds: ["vscode-workspace"],
+        patchloomPathSetting: binaryPath,
+        readFile,
+        writeFile
+      });
+
+      // Read back and verify structure
+      const configPath = path.join(workspace, ".vscode", "mcp.json");
+      const config = JSON.parse(await fs.readFile(configPath, "utf8")) as Record<string, unknown>;
+      const servers = config.servers as Record<string, Record<string, unknown>>;
+      assert.ok(servers.patchloom, "should have a patchloom server entry");
+      assert.equal(servers.patchloom.command, binaryPath, "command should point to real binary");
+      assert.deepEqual(servers.patchloom.args, ["mcp-server"], "args should be mcp-server");
+
+      // Verify the config is re-readable by inspectMcpTargets
+      const targets = await inspectMcpTargets({
+        workspaceFolderPath: workspace,
+        homeDir: workspace,
+        readFile
+      });
+      const vscodeTarget = targets.find((t) => t.kind === "vscode-workspace");
+      assert.ok(vscodeTarget);
+      assert.equal(vscodeTarget.configured, true, "target should be detected as configured");
     });
   });
 });
