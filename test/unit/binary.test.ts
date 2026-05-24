@@ -477,29 +477,31 @@ test("promoteManagedInstallBinary restores the previous binary when replacement 
     /Failed to replace managed Patchloom binary/
   );
 
-  assert.deepEqual(operations, [
-    "mkdir /managed/install/0.1.0/managed-bin",
-    "rename /managed/install/0.1.0/managed-bin/patchloom -> /managed/install/0.1.0/managed-bin/patchloom.bak",
-    "rename /managed/install/0.1.0/.staging/managed-bin/patchloom -> /managed/install/0.1.0/managed-bin/patchloom",
-    "rename /managed/install/0.1.0/managed-bin/patchloom.bak -> /managed/install/0.1.0/managed-bin/patchloom",
-    "mkdir /managed/storage",
-    `write /managed/storage/${PATCHLOOM_MANAGED_INSTALL_FAILURE_FILE} => {\n  \"stage\": \"replace\",\n  \"reason\": \"replace-failed\",\n  \"message\": \"Failed to replace managed Patchloom binary (simulated rename failure).\"\n}`
-  ]);
+  try {
+    assert.deepEqual(operations, [
+      "mkdir /managed/install/0.1.0/managed-bin",
+      "rename /managed/install/0.1.0/managed-bin/patchloom -> /managed/install/0.1.0/managed-bin/patchloom.bak",
+      "rename /managed/install/0.1.0/.staging/managed-bin/patchloom -> /managed/install/0.1.0/managed-bin/patchloom",
+      "rename /managed/install/0.1.0/managed-bin/patchloom.bak -> /managed/install/0.1.0/managed-bin/patchloom",
+      "mkdir /managed/storage",
+      `write /managed/storage/${PATCHLOOM_MANAGED_INSTALL_FAILURE_FILE} => {\n  \"stage\": \"replace\",\n  \"reason\": \"replace-failed\",\n  \"message\": \"Failed to replace managed Patchloom binary (simulated rename failure).\"\n}`
+    ]);
 
-  const status = await inspectManagedInstallStatus({
-    installRoot: "/managed/install",
-    version: "v0.1.0",
-    target,
-    fileExists: async (filePath) => existing.has(filePath)
-  });
-  assert.equal(status?.exists, true);
-  assert.deepEqual(status?.failure, {
-    stage: "replace",
-    reason: "replace-failed",
-    message: "Failed to replace managed Patchloom binary (simulated rename failure)."
-  });
-
-  clearManagedInstallFailure();
+    const status = await inspectManagedInstallStatus({
+      installRoot: "/managed/install",
+      version: "v0.1.0",
+      target,
+      fileExists: async (filePath) => existing.has(filePath)
+    });
+    assert.equal(status?.exists, true);
+    assert.deepEqual(status?.failure, {
+      stage: "replace",
+      reason: "replace-failed",
+      message: "Failed to replace managed Patchloom binary (simulated rename failure)."
+    });
+  } finally {
+    clearManagedInstallFailure();
+  }
 });
 
 test("inspectManagedInstallStatus reports discovered managed binaries", async () => {
