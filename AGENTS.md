@@ -34,6 +34,7 @@ src/
     showStatus.ts         Show Status command: diagnostics display
   install/managed.ts     Managed install safety: checksum, staging, promotion, rollback, persistence
   mcp/config.ts          MCP config file operations: inspect, configure, resolve targets
+  status/details.ts      Status presentation: buildStatusDetails, preferredStatusAction
   status/statusBar.ts    Status bar item: create, refresh, dispose
   workspace/readiness.ts Workspace readiness: environment detection, folder selection
 test/
