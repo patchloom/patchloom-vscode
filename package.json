@@ -14,7 +14,8 @@
     "url": "https://github.com/patchloom/patchloom-vscode/issues"
   },
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.90.0",
+    "node": ">=20"
   },
   "icon": "images/icon.png",
   "galleryBanner": {
