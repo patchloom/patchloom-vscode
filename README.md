@@ -52,7 +52,7 @@ The status bar shows binary readiness and CLI version at a glance. Click it to s
 
 ### Quick actions
 
-`Patchloom: Quick Action` builds common CLI commands (replace, tidy, doc set, batch) from an interactive picker. Select the operation, pick a target file, and the extension assembles the command.
+`Patchloom: Quick Action` builds common CLI commands (replace, tidy, doc set) from an interactive picker. Select the operation, pick a target file, and the extension assembles the command with a diff preview before applying.
 
 ### Compatibility diagnostics
 
