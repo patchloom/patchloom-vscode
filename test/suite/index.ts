@@ -55,4 +55,36 @@ export async function run(): Promise<void> {
   const properties = configSchema.properties as Record<string, unknown>;
   assert.ok(properties["patchloom.path"], "should contribute patchloom.path setting");
   assert.ok(properties["patchloom.showStatusBar"], "should contribute patchloom.showStatusBar setting");
+
+  // Activation events include onStartupFinished
+  const activationEvents = packageJson.activationEvents as string[];
+  assert.ok(activationEvents.includes("onStartupFinished"),
+    "should activate on startup finished");
+
+  // All contributed commands have corresponding activation events
+  for (const cmd of EXPECTED_COMMANDS) {
+    assert.ok(
+      activationEvents.includes("onStartupFinished") || activationEvents.includes(`onCommand:${cmd}`),
+      `command ${cmd} should be activatable`
+    );
+  }
+
+  // Extension remains active throughout test lifecycle
+  assert.ok(extension.isActive, "extension should still be active after assertions");
+
+  // Configuration type validation
+  const pathSchema = properties["patchloom.path"] as Record<string, unknown>;
+  assert.equal(pathSchema.type, "string", "patchloom.path should be a string type");
+  assert.equal(pathSchema.default, "", "patchloom.path default should be empty");
+
+  const statusBarSchema = properties["patchloom.showStatusBar"] as Record<string, unknown>;
+  assert.equal(statusBarSchema.type, "boolean", "patchloom.showStatusBar should be boolean type");
+  assert.equal(statusBarSchema.default, true, "patchloom.showStatusBar default should be true");
+
+  // Extension has required license and repo metadata
+  assert.equal(packageJson.license, "MIT");
+  assert.ok(typeof (packageJson.repository as Record<string, unknown>).url === "string",
+    "should have a repository URL");
+  assert.ok(typeof packageJson.description === "string" && (packageJson.description as string).length > 0,
+    "should have a non-empty description");
 }
