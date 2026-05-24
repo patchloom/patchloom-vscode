@@ -106,19 +106,23 @@
   "scripts": {
     "compile": "tsc -p ./",
     "compile-tests": "tsc -p ./tsconfig.test.json",
+    "compile-uitests": "tsc -p ./tsconfig.uitest.json",
     "watch": "tsc -watch -p ./",
     "test:unit": "node --test ./out-test/test/unit/*.test.js",
     "test:extension": "node ./out-test/test/suite/runExtensionTests.js",
+    "test:ui": "npm run compile && npm run compile-uitests && extest setup-and-run './out-uitest/test/ui/*.test.js' --code_version max --extensions_dir .vscode-test/extensions",
     "test": "npm run compile && npm run compile-tests && npm run test:unit && npm run test:extension",
     "vscode:prepublish": "npm run compile",
     "package": "vsce package",
     "check": "npm run test && npm run package"
   },
   "devDependencies": {
+    "@types/mocha": "^10.0.10",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.90.0",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vscode-extension-tester": "^8.23.0"
   }
 }

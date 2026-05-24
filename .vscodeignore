@@ -3,7 +3,9 @@
 src/**
 test/**
 out-test/**
+out-uitest/**
 tsconfig.json
 tsconfig.test.json
+tsconfig.uitest.json
 .github/**
 **/*.tsbuildinfo
