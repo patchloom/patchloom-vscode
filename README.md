@@ -76,7 +76,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `patchloom.path` | `""` | Absolute path to the Patchloom binary. When empty, the extension searches `PATH`. |
+| `patchloom.path` | `""` | Absolute path to the Patchloom binary. When empty, the extension searches `PATH` and then the managed install location. |
 | `patchloom.showStatusBar` | `true` | Show a status bar item reporting whether Patchloom is available. |
 
 ---
