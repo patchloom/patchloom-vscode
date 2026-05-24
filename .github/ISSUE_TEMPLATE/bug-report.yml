@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a bug in the Patchloom VS Code extension
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report.
+
+        Include the output of `Patchloom: Show Status` if relevant.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is going wrong?
+      placeholder: A short description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: List the smallest sequence of steps that reproduces the issue.
+      placeholder: |
+        1. Open a workspace
+        2. Run command `...`
+        3. Observe `...`
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: What happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Paste error messages or Patchloom Show Status output.
+      render: shell
+  - type: input
+    id: vscode-version
+    attributes:
+      label: VS Code version
+      placeholder: "1.90.0"
+    validations:
+      required: false
+  - type: input
+    id: patchloom-version
+    attributes:
+      label: Patchloom CLI version
+      placeholder: "0.1.0"
+    validations:
+      required: false
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: macOS 15, Windows 11, WSL, Remote SSH, etc.
+    validations:
+      required: false

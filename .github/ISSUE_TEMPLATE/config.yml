@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Patchloom CLI issues
+    url: https://github.com/patchloom/patchloom/issues
+    about: For bugs in the CLI itself (not the extension), file an issue on the main repo.
+  - name: Security reporting policy
+    url: https://github.com/patchloom/patchloom-vscode/blob/main/SECURITY.md
+    about: Do not post security vulnerabilities publicly. Read the private reporting policy first.
