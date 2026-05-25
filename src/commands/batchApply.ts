@@ -86,7 +86,7 @@ export async function batchApply(): Promise<void> {
   if (result.exitCode !== 0) {
     log?.show();
     await vscode.window.showErrorMessage(
-      `Batch apply failed: ${formatBatchOutput(result)}`
+      `Batch apply failed: ${formatCliOutput(result)}`
     );
     return;
   }
@@ -135,6 +135,3 @@ function executePatchloomWithStdin(
   });
 }
 
-function formatBatchOutput(result: BatchCommandResult): string {
-  return formatCliOutput(result);
-}

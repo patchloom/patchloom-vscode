@@ -208,7 +208,7 @@ export async function runQuickAction(): Promise<void> {
         if (result.exitCode === 3) {
           await vscode.window.showInformationMessage(`No matches found for "${pattern}".`);
         } else if (result.exitCode !== 0) {
-          await vscode.window.showErrorMessage(`Patchloom search failed: ${formatPatchloomOutput(result)}`);
+          await vscode.window.showErrorMessage(`Patchloom search failed: ${formatCliOutput(result)}`);
         } else {
           log?.show();
           await vscode.window.showInformationMessage("Search results displayed in the Patchloom output channel.");
@@ -249,7 +249,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
 
         if (result.exitCode !== 0) {
-          await vscode.window.showErrorMessage(`Patchloom create failed: ${formatPatchloomOutput(result)}`);
+          await vscode.window.showErrorMessage(`Patchloom create failed: ${formatCliOutput(result)}`);
           return;
         }
 
@@ -289,7 +289,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action.args, target.workspaceFolder.uri.fsPath);
 
         if (result.exitCode !== 0) {
-          await vscode.window.showErrorMessage(`Patchloom doc get failed: ${formatPatchloomOutput(result)}`);
+          await vscode.window.showErrorMessage(`Patchloom doc get failed: ${formatCliOutput(result)}`);
           return;
         }
 
@@ -430,7 +430,7 @@ async function previewAndMaybeApply(
   const result = await executePatchloom(binaryPath, withApplyFlag(action.args), target.workspaceFolder.uri.fsPath);
   if (result.exitCode !== 0) {
     await vscode.window.showErrorMessage(
-      `Patchloom failed while applying changes to ${target.relativePath}: ${formatPatchloomOutput(result)}`
+      `Patchloom failed while applying changes to ${target.relativePath}: ${formatCliOutput(result)}`
     );
     return;
   }
@@ -457,7 +457,7 @@ async function buildPreviewDocument(
     const previewAction = retargetQuickAction(action, tempPath);
     const result = await executePatchloom(binaryPath, withApplyFlag(previewAction.args), tempDir);
     if (result.exitCode !== 0 && result.exitCode !== 3) {
-      throw new Error(formatPatchloomOutput(result));
+      throw new Error(formatCliOutput(result));
     }
 
     const previewContent = await fs.readFile(tempPath, "utf8");
@@ -638,10 +638,6 @@ async function executePatchloom(
     log?.logResult(result.exitCode, result.stdout, result.stderr);
     return result;
   }
-}
-
-function formatPatchloomOutput(result: PatchloomCommandResult): string {
-  return formatCliOutput(result);
 }
 
 function sameFilePath(left: string, right: string): boolean {
