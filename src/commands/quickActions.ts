@@ -239,6 +239,12 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const absolutePath = path.resolve(folder.uri.fsPath, relativePath.trim());
+        const relative = path.relative(folder.uri.fsPath, absolutePath);
+        if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+          await vscode.window.showWarningMessage("File path must stay inside the workspace folder.");
+          return;
+        }
+
         const action = buildCreateQuickAction(absolutePath);
         const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
 
