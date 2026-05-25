@@ -42,10 +42,10 @@ test/
     binary.test.ts       Binary discovery, managed install, compatibility, workspace env (38 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (10 tests)
     initializeProject.test.ts  Status display, agents file classification (15 tests)
-    managedLifecycle.test.ts   Managed install with real file I/O (10 tests)
+    managedLifecycle.test.ts   Managed install with real file I/O (12 tests)
     mcpConfig.test.ts    MCP config with real temp directories (9 tests)
-    patchloomCli.test.ts Patchloom CLI integration tests with real binary (24 tests)
-    quickActions.test.ts Quick action command building (6 tests)
+    patchloomCli.test.ts Patchloom CLI integration tests with real binary (23 tests)
+    quickActions.test.ts Quick action command building (8 tests)
   suite/
     index.ts             VS Code extension integration tests
     runExtensionTests.ts  Test runner using @vscode/test-electron
