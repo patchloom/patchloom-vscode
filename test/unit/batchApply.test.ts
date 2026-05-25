@@ -40,3 +40,9 @@ test("parseBatchOperationCount returns 0 for missing operations", () => {
 test("parseBatchOperationCount returns 0 for empty operations array", () => {
   assert.equal(parseBatchOperationCount('{"operations": []}'), 0);
 });
+
+test("parseBatchOperationCount returns 0 when operations is not an array", () => {
+  assert.equal(parseBatchOperationCount('{"operations": "not-an-array"}'), 0);
+  assert.equal(parseBatchOperationCount('{"operations": 42}'), 0);
+  assert.equal(parseBatchOperationCount('{"operations": null}'), 0);
+});

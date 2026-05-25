@@ -144,6 +144,12 @@ test("buildCreateQuickAction builds a create command", () => {
   assert.deepEqual(action.targetArgIndices, [1]);
 });
 
+test("buildSearchQuickAction preserves spaces in pattern as a single arg", () => {
+  const action = buildSearchQuickAction("/workspace/demo", "hello world");
+
+  assert.deepEqual(action.args, ["search", "hello world", "/workspace/demo"]);
+});
+
 test("buildDocGetQuickAction builds a doc get command", () => {
   const action = buildDocGetQuickAction("/workspace/demo/package.json", "scripts.test");
 

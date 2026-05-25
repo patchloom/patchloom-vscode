@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createPatchloomLog } from "../../src/logging/outputChannel.js";
+import { createPatchloomLog, getPatchloomLog, setPatchloomLog } from "../../src/logging/outputChannel.js";
 
 test("createPatchloomLog lazily creates channel on first log call", () => {
   let channelCreated = false;
@@ -101,6 +101,26 @@ test("dispose disposes channel and subsequent log creates a new one", () => {
 
   log.log("second");
   assert.equal(createCount, 2);
+});
+
+test("setPatchloomLog and getPatchloomLog round-trip module state", () => {
+  const original = getPatchloomLog();
+  try {
+    assert.equal(getPatchloomLog(), undefined);
+
+    const log = createPatchloomLog(() => ({
+      appendLine() {},
+      show() {},
+      dispose() {}
+    }));
+    setPatchloomLog(log);
+    assert.equal(getPatchloomLog(), log);
+
+    setPatchloomLog(undefined);
+    assert.equal(getPatchloomLog(), undefined);
+  } finally {
+    setPatchloomLog(original);
+  }
 });
 
 test("logResult handles multiline stderr", () => {
