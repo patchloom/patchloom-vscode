@@ -2,7 +2,6 @@ import { execFile } from "node:child_process";
 import type * as VSCode from "vscode";
 import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
 import { getPatchloomLog } from "../logging/outputChannel.js";
-import { formatError } from "../util.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
 export const BATCH_TEMPLATE = JSON.stringify({
