@@ -14,8 +14,61 @@ import {
   StatusBar,
   InputBox,
   EditorView,
-  SettingsEditor
 } from "vscode-extension-tester";
+
+// ---------------------------------------------------------------------------
+// Polling helpers (replace fixed setTimeout waits)
+// ---------------------------------------------------------------------------
+
+/** Poll fn until it returns a defined value, or throw after timeoutMs. */
+async function poll<T>(
+  fn: () => Promise<T | undefined>,
+  timeoutMs = 5000,
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const result = await fn();
+    if (result !== undefined) return result;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error(`poll timed out after ${timeoutMs}ms`);
+}
+
+/** Find and return the text of a status bar item containing "Patchloom". */
+async function findPatchloomStatus(): Promise<string | undefined> {
+  for (const item of await new StatusBar().getItems()) {
+    try {
+      const text = await item.getText();
+      if (text.includes("Patchloom")) return text;
+    } catch {
+      // some items may not expose accessible text
+    }
+  }
+  return undefined;
+}
+
+/** Find, dismiss, and return a notification matching the given pattern. */
+async function findNotification(
+  workbench: Workbench,
+  pattern: RegExp,
+): Promise<string | undefined> {
+  for (const n of await workbench.getNotifications()) {
+    try {
+      const msg = await n.getMessage();
+      if (pattern.test(msg)) {
+        await n.dismiss();
+        return msg;
+      }
+    } catch {
+      // notification may have auto-dismissed
+    }
+  }
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 describe("Patchloom Extension UI", function () {
   this.timeout(60_000);
@@ -26,236 +79,113 @@ describe("Patchloom Extension UI", function () {
     this.timeout(90_000);
     await VSBrowser.instance.waitForWorkbench();
     workbench = new Workbench();
-    // Give the extension time to activate (onStartupFinished)
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    // Wait for the extension to activate and create its status bar item
+    await poll(findPatchloomStatus, 15_000);
   });
 
   describe("Status bar", function () {
     it("should display a Patchloom status bar item", async function () {
-      const statusBar = new StatusBar();
-      // The extension creates a status bar item with text containing "Patchloom"
-      const items = await statusBar.getItems();
-      const patchloomItem = items.find(
-        (item) => item !== undefined
-      );
-      // At minimum, the status bar should have items (VS Code always has some)
-      assert.ok(items.length > 0, "status bar should have items");
-
-      // Try to find our specific item by partial text match
-      let found = false;
-      for (const item of items) {
-        try {
-          const text = await item.getText();
-          if (text.includes("Patchloom")) {
-            found = true;
-            break;
-          }
-        } catch {
-          // Some items may not have accessible text
-        }
-      }
-      assert.ok(found, "status bar should contain a Patchloom item");
+      const text = await poll(findPatchloomStatus);
+      assert.ok(text.includes("Patchloom"), "status bar should contain a Patchloom item");
     });
 
-    it("should show warning icon when patchloom binary is not found", async function () {
-      const statusBar = new StatusBar();
-      const items = await statusBar.getItems();
-      let text = "";
-      for (const item of items) {
-        try {
-          const t = await item.getText();
-          if (t.includes("Patchloom")) {
-            text = t;
-            break;
-          }
-        } catch {
-          // skip
-        }
-      }
-      // In the test environment, patchloom is likely not on PATH,
-      // so the status bar should show the warning variant
-      // (unless patchloom.path is configured, which it shouldn't be in test)
+    it("should have non-empty status text", async function () {
+      const text = await poll(findPatchloomStatus);
       assert.ok(text.length > 0, "Patchloom status text should not be empty");
     });
   });
 
   describe("Show Status command", function () {
-    it("should display a status message when invoked", async function () {
+    it("should display a notification when invoked", async function () {
       await workbench.executeCommand("Patchloom: Show Status");
-      // The command shows an information or warning message
-      // Wait for notification to appear
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      const notifications = await workbench.getNotifications();
-      let foundPatchloom = false;
-      for (const notification of notifications) {
-        try {
-          const msg = await notification.getMessage();
-          if (msg.includes("Patchloom") || msg.includes("patchloom")) {
-            foundPatchloom = true;
-            // Dismiss the notification
-            await notification.dismiss();
-            break;
-          }
-        } catch {
-          // notification may have auto-dismissed
-        }
-      }
-      assert.ok(foundPatchloom, "Show Status should display a notification mentioning Patchloom");
+      const msg = await poll(
+        () => findNotification(workbench, /[Pp]atchloom/),
+      );
+      assert.ok(msg, "Show Status should display a notification mentioning Patchloom");
     });
   });
 
   describe("Open Settings command", function () {
     it("should open settings filtered to patchloom", async function () {
       await workbench.executeCommand("Patchloom: Open Settings");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Verify the settings editor opened
-      const editorView = new EditorView();
-      const titles = await editorView.getOpenEditorTitles();
-      const hasSettings = titles.some(
-        (title) => title.toLowerCase().includes("settings")
-      );
-      assert.ok(hasSettings, "Settings editor should be open after Open Settings command");
-
-      // Close the settings tab
-      await editorView.closeAllEditors();
+      await poll(async () => {
+        const titles = await new EditorView().getOpenEditorTitles();
+        return titles.some((t) => t.toLowerCase().includes("settings")) || undefined;
+      });
+      await new EditorView().closeAllEditors();
     });
   });
 
   describe("Configure MCP command", function () {
-    it("should show a quick pick or warning when invoked", async function () {
+    it("should show a notification or quick pick when invoked", async function () {
       await workbench.executeCommand("Patchloom: Configure MCP");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      // If patchloom is not found, it shows a warning notification.
-      // If patchloom is found, it shows a quick pick for target selection.
-      // Either way, something should appear.
-      const notifications = await workbench.getNotifications();
-      let gotNotification = false;
-      for (const notification of notifications) {
-        try {
-          const msg = await notification.getMessage();
-          if (msg.includes("Patchloom") || msg.includes("patchloom") || msg.includes("MCP")) {
-            gotNotification = true;
-            await notification.dismiss();
-            break;
-          }
-        } catch {
-          // skip
-        }
-      }
-
-      if (!gotNotification) {
-        // A quick pick may have appeared instead (patchloom is installed)
+      // The command shows either a warning notification (binary not found)
+      // or a quick pick for target selection (binary found).
+      const result = await poll<{ kind: string }>(async () => {
+        const msg = await findNotification(workbench, /[Pp]atchloom|MCP/);
+        if (msg) return { kind: "notification" };
         try {
           const input = new InputBox();
-          await input.cancel();
-          gotNotification = true;
+          await input.getText(); // throws if no input box visible
+          return { kind: "input" };
         } catch {
-          // No input box either; that's also acceptable if command completed silently
-          gotNotification = true;
+          return undefined; // neither appeared yet, keep polling
         }
-      }
+      });
 
-      assert.ok(gotNotification, "Configure MCP should show a notification or quick pick");
+      assert.ok(result, "Configure MCP should produce a notification or quick pick");
+      if (result.kind === "input") {
+        try { await new InputBox().cancel(); } catch { /* already gone */ }
+      }
     });
   });
 
   describe("Quick Action command", function () {
-    it("should show a quick pick or warning when invoked", async function () {
+    it("should show a notification or quick pick when invoked", async function () {
       await workbench.executeCommand("Patchloom: Quick Action");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      const notifications = await workbench.getNotifications();
-      let gotNotification = false;
-      for (const notification of notifications) {
-        try {
-          const msg = await notification.getMessage();
-          if (msg.includes("Patchloom") || msg.includes("patchloom")) {
-            gotNotification = true;
-            await notification.dismiss();
-            break;
-          }
-        } catch {
-          // skip
-        }
-      }
-
-      if (!gotNotification) {
+      const result = await poll<{ kind: string; labels?: string[] }>(async () => {
+        const msg = await findNotification(workbench, /[Pp]atchloom/);
+        if (msg) return { kind: "notification" };
         try {
           const input = new InputBox();
-          // If the quick pick appeared, verify it has our options
           const picks = await input.getQuickPicks();
-          if (picks.length > 0) {
-            const labels: string[] = [];
-            for (const pick of picks) {
-              labels.push(await pick.getLabel());
-            }
-            const hasReplace = labels.some((l) => l.includes("Replace"));
-            const hasTidy = labels.some((l) => l.includes("Tidy"));
-            assert.ok(hasReplace || hasTidy,
-              `quick pick should contain Replace or Tidy, got: ${labels.join(", ")}`);
-          }
-          await input.cancel();
-          gotNotification = true;
+          const labels: string[] = [];
+          for (const pick of picks) labels.push(await pick.getLabel());
+          return { kind: "input", labels };
         } catch {
-          gotNotification = true;
+          return undefined; // keep polling
         }
-      }
+      });
 
-      assert.ok(gotNotification, "Quick Action should show a notification or quick pick");
+      assert.ok(result, "Quick Action should produce a notification or quick pick");
+      if (result.kind === "input") {
+        assert.ok(
+          result.labels!.some((l) => l.includes("Replace") || l.includes("Tidy")),
+          `quick pick should contain Replace or Tidy, got: ${result.labels!.join(", ")}`,
+        );
+        try { await new InputBox().cancel(); } catch { /* already gone */ }
+      }
     });
   });
 
   describe("Configuration changes", function () {
-    it("should react to showStatusBar being toggled off and on", async function () {
-      const statusBar = new StatusBar();
-
-      // Verify Patchloom is in the status bar initially
-      let items = await statusBar.getItems();
-      let hasPatchloom = false;
-      for (const item of items) {
-        try {
-          if ((await item.getText()).includes("Patchloom")) {
-            hasPatchloom = true;
-            break;
-          }
-        } catch {
-          // skip
-        }
-      }
-      assert.ok(hasPatchloom, "Patchloom should be in status bar initially");
-
-      // Open settings and toggle showStatusBar off
+    it("should show Patchloom setting in the settings editor", async function () {
+      await poll(findPatchloomStatus);
       const settingsEditor = await workbench.openSettings();
-      await settingsEditor.findSetting("Show Status Bar", "Patchloom");
-      // We verified it opens; toggling programmatically is more reliable
-      // than clicking the checkbox via WebDriver
+      const setting = await settingsEditor.findSetting("Show Status Bar", "Patchloom");
+      assert.ok(setting, "should find the showStatusBar setting");
       await workbench.executeCommand("workbench.action.closeActiveEditor");
     });
   });
 
   after(async function () {
-    // Clean up: close all editors and dismiss notifications
+    try { await new EditorView().closeAllEditors(); } catch { /* none open */ }
     try {
-      const editorView = new EditorView();
-      await editorView.closeAllEditors();
-    } catch {
-      // may not have any editors open
-    }
-
-    try {
-      const notifications = await workbench.getNotifications();
-      for (const notification of notifications) {
-        try {
-          await notification.dismiss();
-        } catch {
-          // already dismissed
-        }
+      for (const n of await workbench.getNotifications()) {
+        try { await n.dismiss(); } catch { /* already dismissed */ }
       }
-    } catch {
-      // no notifications
-    }
+    } catch { /* no notifications */ }
   });
 });
