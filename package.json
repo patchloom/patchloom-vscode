@@ -94,7 +94,7 @@
         "patchloom.path": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Absolute path to the Patchloom binary. When empty, the extension searches `PATH` before falling back to a managed install in a future release."
+          "markdownDescription": "Absolute path to the Patchloom binary. When empty, the extension searches `PATH` and then the managed install location."
         },
         "patchloom.showStatusBar": {
           "type": "boolean",

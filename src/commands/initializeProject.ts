@@ -52,7 +52,7 @@ export async function initializeProject(): Promise<void> {
   }
 
   if (!rules.trim()) {
-    await vscode.window.showErrorMessage("patchloom agent-rules returned no output.");
+    await vscode.window.showErrorMessage("patchloom agent-rules returned no output. Verify the CLI is working by running `patchloom agent-rules` in a terminal.");
     return;
   }
 
