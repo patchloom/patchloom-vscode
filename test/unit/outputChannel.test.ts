@@ -47,6 +47,7 @@ test("logResult appends stdout, stderr, and exit code", () => {
 
   log.logResult(0, "output line 1\noutput line 2\n", "warning\n");
 
+  assert.equal(lines.length, 4, "should produce 2 stdout + 1 stderr + 1 exit code line");
   assert.ok(lines.some(l => l === "output line 1"));
   assert.ok(lines.some(l => l === "output line 2"));
   assert.ok(lines.some(l => l.includes("stderr: warning")));
@@ -147,6 +148,7 @@ test("logResult splits Windows-style CRLF line endings", () => {
 
   log.logResult(0, "line1\r\nline2\r\n", "");
 
+  assert.equal(lines.length, 3, "should produce 2 stdout + 1 exit code line");
   assert.ok(lines.some(l => l === "line1"));
   assert.ok(lines.some(l => l === "line2"));
   assert.ok(lines.some(l => l.includes("Exit code: 0")));
@@ -162,6 +164,7 @@ test("logResult handles multiline stderr", () => {
 
   log.logResult(1, "", "error line 1\nerror line 2");
 
+  assert.equal(lines.length, 3, "should produce 2 stderr + 1 exit code line");
   assert.ok(lines.some(l => l === "stderr: error line 1"));
   assert.ok(lines.some(l => l === "stderr: error line 2"));
   assert.ok(lines.some(l => l.includes("Exit code: 1")));
