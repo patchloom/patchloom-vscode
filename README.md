@@ -122,6 +122,9 @@ Run `Patchloom: Configure MCP` and select the target editor config.
 **Managed install failure persists after restart**
 Run `Patchloom: Show Status` to see persisted diagnostic details.
 
+**Debugging CLI errors**
+Run `Patchloom: Show Output` to see full CLI invocations, arguments, stdout, and stderr in the output channel.
+
 ---
 
 ## Security model
