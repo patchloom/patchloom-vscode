@@ -6,6 +6,8 @@ const EXPECTED_COMMANDS = [
   "patchloom.setupWorkspace",
   "patchloom.configureMcp",
   "patchloom.quickAction",
+  "patchloom.batchApply",
+  "patchloom.showOutput",
   "patchloom.openPatchloomSettings",
   "patchloom.openPatchloomReleases",
   "patchloom.showStatus"
