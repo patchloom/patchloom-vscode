@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import type * as VSCode from "vscode";
 import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { formatCliOutput } from "../util.js";
 import { getPatchloomLog } from "../logging/outputChannel.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
@@ -135,10 +136,5 @@ function executePatchloomWithStdin(
 }
 
 function formatBatchOutput(result: BatchCommandResult): string {
-  const output = `${result.stderr}\n${result.stdout}`
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .join(" ");
-  return output || `exit code ${result.exitCode}`;
+  return formatCliOutput(result);
 }
