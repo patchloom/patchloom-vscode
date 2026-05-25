@@ -264,3 +264,25 @@ test("promoteManagedInstallBinary clears persisted failure on disk after success
     assert.equal(await fileExists(failurePath), false, "failure file should be cleared after successful promotion");
   });
 });
+
+test("loadManagedInstallFailure returns undefined for corrupted JSON on disk", async () => {
+  await withTempDir(async (storageRoot) => {
+    clearManagedInstallFailure();
+    const failurePath = path.join(storageRoot, "managed-install-failure.json");
+    await fs.writeFile(failurePath, "not valid json {{{", "utf8");
+
+    const loaded = await loadManagedInstallFailure({ storageRoot });
+    assert.equal(loaded, undefined, "corrupted JSON should return undefined");
+  });
+});
+
+test("loadManagedInstallFailure returns undefined for valid JSON with wrong shape", async () => {
+  await withTempDir(async (storageRoot) => {
+    clearManagedInstallFailure();
+    const failurePath = path.join(storageRoot, "managed-install-failure.json");
+    await fs.writeFile(failurePath, JSON.stringify({ unrelated: "data" }), "utf8");
+
+    const loaded = await loadManagedInstallFailure({ storageRoot });
+    assert.equal(loaded, undefined, "valid JSON with wrong shape should return undefined");
+  });
+});

@@ -84,3 +84,23 @@ test("isStructuredDocumentPath recognizes supported structured formats", () => {
   assert.equal(isStructuredDocumentPath("Cargo.toml"), true);
   assert.equal(isStructuredDocumentPath("README.md"), false);
 });
+
+test("isStructuredDocumentPath handles uppercase extensions", () => {
+  assert.equal(isStructuredDocumentPath("data.JSON"), true);
+  assert.equal(isStructuredDocumentPath("config.YAML"), true);
+  assert.equal(isStructuredDocumentPath("config.YML"), true);
+  assert.equal(isStructuredDocumentPath("settings.TOML"), true);
+  assert.equal(isStructuredDocumentPath("README.MD"), false);
+});
+
+test("buildTidyQuickAction with a single fix omits unselected flags", () => {
+  const action = buildTidyQuickAction("/workspace/demo/file.txt", ["normalize-eol-lf"]);
+
+  assert.deepEqual(action.args, [
+    "tidy",
+    "fix",
+    "/workspace/demo/file.txt",
+    "--normalize-eol",
+    "lf"
+  ]);
+});
