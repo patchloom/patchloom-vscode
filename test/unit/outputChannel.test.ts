@@ -123,6 +123,35 @@ test("setPatchloomLog and getPatchloomLog round-trip module state", () => {
   }
 });
 
+test("logResult omits whitespace-only stdout and stderr", () => {
+  const lines: string[] = [];
+  const log = createPatchloomLog(() => ({
+    appendLine(value: string) { lines.push(value); },
+    show() {},
+    dispose() {}
+  }));
+
+  log.logResult(0, "  \n  ", "  \n  ");
+
+  assert.equal(lines.length, 1);
+  assert.ok(lines[0].includes("Exit code: 0"));
+});
+
+test("logResult splits Windows-style CRLF line endings", () => {
+  const lines: string[] = [];
+  const log = createPatchloomLog(() => ({
+    appendLine(value: string) { lines.push(value); },
+    show() {},
+    dispose() {}
+  }));
+
+  log.logResult(0, "line1\r\nline2\r\n", "");
+
+  assert.ok(lines.some(l => l === "line1"));
+  assert.ok(lines.some(l => l === "line2"));
+  assert.ok(lines.some(l => l.includes("Exit code: 0")));
+});
+
 test("logResult handles multiline stderr", () => {
   const lines: string[] = [];
   const log = createPatchloomLog(() => ({
