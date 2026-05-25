@@ -13,6 +13,29 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  unit-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
   build:
     runs-on:
       - self-hosted
@@ -27,20 +50,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
+      - name: Compile
+        run: npm run compile
 
       - name: Package extension
         run: npm run package
 
   integration-test:
-    needs: build
+    needs: [unit-test, build]
     runs-on:
       - self-hosted
       - macOS
@@ -54,14 +77,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run VS Code extension tests
-        run: npm run test:all
+      - name: Compile extension and tests
+        run: npm run compile && npm run compile-tests
+
+      - name: Run extension integration tests
+        run: npm run test:extension
 
       - name: Setup UI test VS Code
         run: npx extest setup-tests --code_version max --extensions_dir .vscode-test/extensions
