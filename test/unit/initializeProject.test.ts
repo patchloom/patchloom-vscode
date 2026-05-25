@@ -4,7 +4,7 @@ import { MINIMUM_SUPPORTED_PATCHLOOM_VERSION } from "../../src/binary/patchloom.
 import { classifyAgentsFile } from "../../src/commands/initializeProject.js";
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import { buildPatchloomMcpEntry, configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
-import { formatError } from "../../src/util.js";
+import { formatCliOutput, formatError } from "../../src/util.js";
 
 test("formatError extracts message from Error instances", () => {
   assert.equal(formatError(new Error("disk full")), "disk full");
@@ -20,6 +20,23 @@ test("formatError converts non-Error values to strings", () => {
 test("formatError falls back to String for Error with empty message", () => {
   const err = new Error("");
   assert.equal(formatError(err), String(err));
+});
+
+// --- #36: direct unit tests for formatCliOutput ---
+
+test("formatCliOutput merges stderr and stdout into a single line", () => {
+  const result = formatCliOutput({ exitCode: 0, stdout: "hello world", stderr: "warn: something" });
+  assert.equal(result, "warn: something hello world");
+});
+
+test("formatCliOutput returns exit code when both streams are empty", () => {
+  assert.equal(formatCliOutput({ exitCode: 1, stdout: "", stderr: "" }), "exit code 1");
+  assert.equal(formatCliOutput({ exitCode: 0, stdout: "  \n  ", stderr: "  " }), "exit code 0");
+});
+
+test("formatCliOutput normalizes CRLF line endings", () => {
+  const result = formatCliOutput({ exitCode: 0, stdout: "line1\r\nline2\r\n", stderr: "" });
+  assert.equal(result, "line1 line2");
 });
 
 test("classifyAgentsFile returns missing when AGENTS.md does not exist", () => {
