@@ -26,7 +26,7 @@ Always run `npm run check` before committing.
 ```
 src/
   extension.ts           Thin entrypoint: registers commands, status bar, config listeners
-  util.ts                Shared utilities (formatError)
+  util.ts                Shared utilities (formatError, formatCliOutput)
   binary/patchloom.ts    Binary discovery, version parsing, compatibility assessment
   commands/
     configureMcp.ts      Configure MCP command: multi-target MCP config injection
@@ -49,7 +49,7 @@ test/
     initializeProject.test.ts  Status display, agents file classification, formatError (18 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (12 tests)
     mcpConfig.test.ts    MCP config with real temp directories (9 tests)
-    outputChannel.test.ts Output channel logging wrapper (8 tests)
+    outputChannel.test.ts Output channel logging wrapper (10 tests)
     patchloomCli.test.ts Patchloom CLI integration tests with real binary (23 tests)
     quickActions.test.ts Quick action command building, path containment (26 tests)
   suite/
