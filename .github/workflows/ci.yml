@@ -60,11 +60,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Patch test VS Code to run as background app
-        run: bash scripts/hide-test-vscode.sh
-
       - name: Run VS Code extension tests
         run: npm run test:all
 
+      - name: Setup UI test VS Code
+        run: npx extest setup-tests --code_version max --extensions_dir .vscode-test/extensions
+
+      - name: Patch test VS Code to run as background app
+        run: bash scripts/hide-test-vscode.sh
+
       - name: Run UI tests
-        run: npm run test:ui
+        run: npx extest run-tests './out-uitest/test/ui/*.test.js' --extensions_dir .vscode-test/extensions

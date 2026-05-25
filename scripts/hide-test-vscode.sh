@@ -3,6 +3,10 @@
 # background apps (no Dock icon, no Cmd+Tab, no focus stealing).
 # Safe to run multiple times; skips already-patched bundles.
 # No-op on Linux/Windows.
+#
+# Covers:
+#   .vscode-test/       — @vscode/test-electron downloads
+#   $TMPDIR/test-resources/ — vscode-extension-tester (ExTester) downloads
 
 set -euo pipefail
 
@@ -13,8 +17,12 @@ fi
 patched=0
 shopt -s nullglob
 
+# ExTester uses $TEST_RESOURCES or $TMPDIR/test-resources
+extest_dir="${TEST_RESOURCES:-${TMPDIR:-/tmp}/test-resources}"
+
 for plist in \
-  .vscode-test/*/Visual\ Studio\ Code*.app/Contents/Info.plist; do
+  .vscode-test/*/Visual\ Studio\ Code*.app/Contents/Info.plist \
+  "$extest_dir"/*/Visual\ Studio\ Code*.app/Contents/Info.plist; do
   [ -f "$plist" ] || continue
 
   if plutil -extract LSUIElement raw "$plist" >/dev/null 2>&1; then
