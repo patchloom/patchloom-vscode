@@ -43,15 +43,15 @@ src/
   workspace/readiness.ts Workspace readiness: environment detection, folder selection
 test/
   unit/                  Unit tests (node:test, dependency-injected, no VS Code API)
-    batchApply.test.ts   Batch template and operation count parsing (6 tests)
+    batchApply.test.ts   Batch template and operation count parsing (7 tests)
     binary.test.ts       Binary discovery, managed install, compatibility, workspace env (38 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (10 tests)
     initializeProject.test.ts  Status display, agents file classification, formatError (18 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (12 tests)
     mcpConfig.test.ts    MCP config with real temp directories (9 tests)
-    outputChannel.test.ts Output channel logging wrapper (7 tests)
+    outputChannel.test.ts Output channel logging wrapper (8 tests)
     patchloomCli.test.ts Patchloom CLI integration tests with real binary (23 tests)
-    quickActions.test.ts Quick action command building (14 tests)
+    quickActions.test.ts Quick action command building (15 tests)
   suite/
     index.ts             VS Code extension integration tests
     runExtensionTests.ts  Test runner using @vscode/test-electron
