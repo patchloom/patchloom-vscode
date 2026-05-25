@@ -126,12 +126,13 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 
 ## Contributing
 
+Requires Node.js 20 or newer.
+
 ```bash
 npm install
-npm run compile
-npm test
+npm run check          # full gate: compile + test + package
 ```
 
 Open the repo in VS Code and press `F5` to launch the Extension Development Host.
 
-Package with `npm run package` (creates a `.vsix` using `@vscode/vsce`).
+Run `npm run check` before every commit. It compiles, runs all unit tests, and packages the `.vsix`.

@@ -13,6 +13,8 @@ Patchloom for VS Code is the official VS Code extension for [Patchloom](https://
 | `npm run watch` | Watch mode for extension source |
 | `npm run test:unit` | Run unit tests (`node --test ./out-test/test/unit/*.test.js`) |
 | `npm run test:extension` | Run VS Code extension integration tests |
+| `npm run test:ui` | Run ExTester UI tests (downloads VS Code if needed) |
+| `npm run test:all` | Compile + unit tests + extension integration tests |
 | `npm run test` | Compile + compile-tests + unit tests |
 | `npm run package` | Package the `.vsix` using `@vscode/vsce` |
 | `npm run check` | Full CI gate: test + package |
@@ -49,6 +51,10 @@ test/
   suite/
     index.ts             VS Code extension integration tests
     runExtensionTests.ts  Test runner using @vscode/test-electron
+  ui/
+    extension.test.ts    ExTester UI tests (status bar, command palette)
+scripts/
+  hide-test-vscode.sh   macOS: patch test VS Code to suppress window activation
 ```
 
 ## Architecture conventions
@@ -89,4 +95,5 @@ All I/O-dependent functions accept an `inputs` object with injectable callbacks 
 - Pure helpers with injected I/O for testability.
 - Keep `extension.ts` thin. No business logic in the entrypoint.
 - `npm run check` is the full gate. Nothing merges unless it passes.
+- All relative imports must use `.js` extensions (`from "./foo.js"`, not `from "./foo"`). Required by `moduleResolution: "node16"`.
 - All commits require a `Signed-off-by` line (DCO). Use `git commit -s`.
