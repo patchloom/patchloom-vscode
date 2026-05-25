@@ -2,7 +2,7 @@ import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchlo
 import { buildStatusDetails, preferredStatusAction } from "../status/details.js";
 import { inspectWorkspaceReadiness } from "../workspace/readiness.js";
 
-export { buildStatusDetails, preferredStatusAction, type SetupAction } from "../status/details";
+export { buildStatusDetails, preferredStatusAction, type SetupAction } from "../status/details.js";
 
 export async function showStatus(): Promise<void> {
   const vscode = await import("vscode");
