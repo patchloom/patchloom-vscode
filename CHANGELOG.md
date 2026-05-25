@@ -14,7 +14,9 @@
 - `Patchloom: Initialize Project` creates or diffs `AGENTS.md` from `patchloom agent-rules`
 - `Patchloom: Setup Workspace` walks through binary, AGENTS.md, and MCP config readiness
 - `Patchloom: Configure MCP` injects Patchloom MCP server config into VS Code, Cursor, and Windsurf targets
-- `Patchloom: Quick Action` builds common patchloom CLI commands from an interactive picker
+- `Patchloom: Quick Action` builds CLI commands from an interactive picker with six operations: replace, tidy, doc set, search, create, and doc get
+- `Patchloom: Batch Apply` opens a JSON plan template and executes all operations atomically via `patchloom batch`
+- `Patchloom: Show Output` opens the Patchloom output channel where all CLI invocations and results are logged
 - Multi-root workspaces prompt for the target folder when no editor is active
 
 ### Managed install safety
