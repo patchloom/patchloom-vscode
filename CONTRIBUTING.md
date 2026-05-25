@@ -20,8 +20,8 @@ npm test
 
 1. Fork the repo and create a feature branch from `main`.
 2. Make your changes.
-3. Run `npm run check` before committing. This is the full CI gate:
-   compile, unit tests, extension tests, and packaging.
+3. Run `npm run check` before committing. This is the local gate:
+   compile, unit tests, and packaging.
 4. Commit with a [DCO sign-off](#dco-sign-off).
 5. Open a pull request against `main`.
 
