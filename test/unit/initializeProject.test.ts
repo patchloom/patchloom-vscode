@@ -262,8 +262,16 @@ test("inspectMcpTargets reports configured targets", async () => {
     }
   });
 
-  assert.equal(targets.some((target) => target.kind === "vscode-workspace" && target.configured), true);
-  assert.equal(targets.some((target) => target.kind === "windsurf-user"), true);
+  assert.equal(targets.length, 3, "should return vscode-workspace, cursor-workspace, windsurf-user");
+  const vscode = targets.find((t) => t.kind === "vscode-workspace");
+  const cursor = targets.find((t) => t.kind === "cursor-workspace");
+  const windsurf = targets.find((t) => t.kind === "windsurf-user");
+  assert.ok(vscode);
+  assert.equal(vscode.configured, true, "vscode-workspace should be configured");
+  assert.ok(cursor);
+  assert.equal(cursor.configured, false, "cursor-workspace should not be configured");
+  assert.ok(windsurf);
+  assert.equal(windsurf.configured, false, "windsurf-user should not be configured");
 });
 
 test("configureMcpTargets creates or updates only the selected target kinds", async () => {
