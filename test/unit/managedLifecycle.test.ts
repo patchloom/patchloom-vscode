@@ -14,7 +14,7 @@ import {
   promoteManagedInstallBinary,
   resolveManagedInstallTransactionPaths,
   type ManagedInstallFailure
-} from "../../src/install/managed";
+} from "../../src/install/managed.js";
 
 async function withTempDir(fn: (dir: string) => Promise<void>): Promise<void> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-managed-test-"));

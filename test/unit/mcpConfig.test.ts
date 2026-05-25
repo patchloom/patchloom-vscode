@@ -7,7 +7,7 @@ import {
   configureMcpTargets,
   inspectMcpTargets,
   resolveMcpTargets
-} from "../../src/mcp/config";
+} from "../../src/mcp/config.js";
 
 async function withTempDir(fn: (dir: string) => Promise<void>): Promise<void> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-mcp-test-"));

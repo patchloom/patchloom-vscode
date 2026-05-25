@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import * as path from "node:path";
-import { formatError } from "../util";
+import { formatError } from "../util.js";
 
 export const PATCHLOOM_RELEASE_REPO = "patchloom/patchloom";
 export const PATCHLOOM_MANAGED_INSTALL_DIR = "patchloom-managed";

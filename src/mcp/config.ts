@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { configuredBinaryPathFromSetting } from "../binary/patchloom";
+import { configuredBinaryPathFromSetting } from "../binary/patchloom.js";
 
 export type McpTargetKind = "vscode-workspace" | "cursor-workspace" | "windsurf-user";
 

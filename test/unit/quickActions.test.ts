@@ -7,7 +7,7 @@ import {
   isStructuredDocumentPath,
   retargetQuickAction,
   withApplyFlag
-} from "../../src/commands/quickActions";
+} from "../../src/commands/quickActions.js";
 
 test("buildReplaceQuickAction builds a replace command for one file", () => {
   const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");

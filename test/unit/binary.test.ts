@@ -10,7 +10,7 @@ import {
   MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
   parsePatchloomVersion,
   resolvePatchloomStatusWithInputs
-} from "../../src/binary/patchloom";
+} from "../../src/binary/patchloom.js";
 import {
   assertTrustedManagedInstallDownloadUrl,
   buildManagedInstallReleaseAssets,
@@ -33,9 +33,9 @@ import {
   resolveManagedInstallTransactionPaths,
   setManagedInstallFailure,
   verifyManagedInstallArchiveChecksum
-} from "../../src/install/managed";
-import { resolveMcpTargets } from "../../src/mcp/config";
-import { defaultWorkspaceFolderIndex, describeWorkspaceEnvironment } from "../../src/workspace/readiness";
+} from "../../src/install/managed.js";
+import { resolveMcpTargets } from "../../src/mcp/config.js";
+import { defaultWorkspaceFolderIndex, describeWorkspaceEnvironment } from "../../src/workspace/readiness.js";
 
 test("resolvePatchloomStatusWithInputs prefers patchloom.path over PATH", async () => {
   const status = await resolvePatchloomStatusWithInputs({

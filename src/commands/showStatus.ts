@@ -1,6 +1,6 @@
-import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
-import { buildStatusDetails, preferredStatusAction } from "../status/details";
-import { inspectWorkspaceReadiness } from "../workspace/readiness";
+import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { buildStatusDetails, preferredStatusAction } from "../status/details.js";
+import { inspectWorkspaceReadiness } from "../workspace/readiness.js";
 
 export { buildStatusDetails, preferredStatusAction, type SetupAction } from "../status/details";
 

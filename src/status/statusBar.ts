@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
-import { buildStatusDetails, preferredStatusAction } from "./details";
-import { inspectWorkspaceReadiness } from "../workspace/readiness";
+import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { buildStatusDetails, preferredStatusAction } from "./details.js";
+import { inspectWorkspaceReadiness } from "../workspace/readiness.js";
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 

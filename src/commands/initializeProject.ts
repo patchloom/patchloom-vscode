@@ -1,9 +1,9 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
-import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
-import { formatError } from "../util";
-import { activeWorkspaceFolder } from "../workspace/readiness";
+import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { formatError } from "../util.js";
+import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
 const execFileAsync = promisify(execFile);
 const encoder = new TextEncoder();
@@ -13,7 +13,7 @@ export type AgentsFileState = "missing" | "up_to_date" | "different";
 
 export async function initializeProject(): Promise<void> {
   const vscode = await import("vscode");
-  const { refreshStatusBar } = await import("../status/statusBar");
+  const { refreshStatusBar } = await import("../status/statusBar.js");
   const folder = await activeWorkspaceFolder({
     promptIfMany: true,
     placeHolder: "Select the workspace folder to initialize for Patchloom"

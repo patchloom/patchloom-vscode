@@ -4,9 +4,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
-import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
-import { formatError } from "../util";
-import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness";
+import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { formatError } from "../util.js";
+import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 
 const execFileAsync = promisify(execFile);
 const STRUCTURED_FILE_EXTENSIONS = new Set([".json", ".yaml", ".yml", ".toml"]);
@@ -274,7 +274,7 @@ async function previewAndMaybeApply(
 
   const document = await vscode.workspace.openTextDocument(target.uri);
   await vscode.window.showTextDocument(document, { preview: false });
-  const { refreshStatusBar } = await import("../status/statusBar");
+  const { refreshStatusBar } = await import("../status/statusBar.js");
   await refreshStatusBar();
   await vscode.window.showInformationMessage(`Applied Patchloom quick action to ${target.relativePath}.`);
 }

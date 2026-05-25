@@ -8,8 +8,8 @@ import {
   getManagedInstallRoot,
   inspectManagedInstallStatus,
   ManagedInstallStatus
-} from "../install/managed";
-import { formatError } from "../util";
+} from "../install/managed.js";
+import { formatError } from "../util.js";
 
 const execFileAsync = promisify(execFile);
 

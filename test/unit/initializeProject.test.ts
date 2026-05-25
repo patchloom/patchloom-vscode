@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MINIMUM_SUPPORTED_PATCHLOOM_VERSION } from "../../src/binary/patchloom";
-import { classifyAgentsFile } from "../../src/commands/initializeProject";
-import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus";
-import { buildPatchloomMcpEntry, configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config";
+import { MINIMUM_SUPPORTED_PATCHLOOM_VERSION } from "../../src/binary/patchloom.js";
+import { classifyAgentsFile } from "../../src/commands/initializeProject.js";
+import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
+import { buildPatchloomMcpEntry, configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
 
 test("classifyAgentsFile returns missing when AGENTS.md does not exist", () => {
   assert.equal(classifyAgentsFile(undefined, "# Rules\n"), "missing");

@@ -3,8 +3,8 @@ import {
   describePatchloomSource,
   patchloomNeedsUpgrade,
   PatchloomStatus
-} from "../binary/patchloom";
-import { WorkspaceReadiness } from "../workspace/readiness";
+} from "../binary/patchloom.js";
+import { WorkspaceReadiness } from "../workspace/readiness.js";
 
 export interface SetupAction {
   readonly title: string;

@@ -1,11 +1,11 @@
 import * as vscode from "vscode";
-import { configureMcp } from "./commands/configureMcp";
-import { initializeProject } from "./commands/initializeProject";
-import { runQuickAction } from "./commands/quickActions";
-import { setupWorkspace, openPatchloomReleases, openPatchloomSettings } from "./commands/setupWorkspace";
-import { showStatus } from "./commands/showStatus";
-import { setManagedInstallRoot } from "./install/managed";
-import { disposeStatusBar, refreshStatusBar } from "./status/statusBar";
+import { configureMcp } from "./commands/configureMcp.js";
+import { initializeProject } from "./commands/initializeProject.js";
+import { runQuickAction } from "./commands/quickActions.js";
+import { setupWorkspace, openPatchloomReleases, openPatchloomSettings } from "./commands/setupWorkspace.js";
+import { showStatus } from "./commands/showStatus.js";
+import { setManagedInstallRoot } from "./install/managed.js";
+import { disposeStatusBar, refreshStatusBar } from "./status/statusBar.js";
 
 export function activate(context: vscode.ExtensionContext): void {
   setManagedInstallRoot(context.globalStorageUri.fsPath);

@@ -9,7 +9,7 @@ import {
   findOnPath,
   parsePatchloomVersion,
   resolvePatchloomStatusWithInputs
-} from "../../src/binary/patchloom";
+} from "../../src/binary/patchloom.js";
 
 async function withTempDir(fn: (dir: string) => Promise<void>): Promise<void> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-discovery-test-"));

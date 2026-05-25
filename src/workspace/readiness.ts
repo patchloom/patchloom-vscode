@@ -1,5 +1,5 @@
 import type * as VSCode from "vscode";
-import { inspectMcpTargets } from "../mcp/config";
+import { inspectMcpTargets } from "../mcp/config.js";
 
 export type WorkspaceEnvironmentSupport = "supported" | "limited" | "unverified";
 

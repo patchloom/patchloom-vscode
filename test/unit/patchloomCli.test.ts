@@ -20,11 +20,11 @@ import {
   parsePatchloomVersion,
   assessPatchloomCompatibility,
   resolvePatchloomStatusWithInputs
-} from "../../src/binary/patchloom";
-import { classifyAgentsFile } from "../../src/commands/initializeProject";
-import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus";
-import { buildReplaceQuickAction, retargetQuickAction, withApplyFlag } from "../../src/commands/quickActions";
-import { configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config";
+} from "../../src/binary/patchloom.js";
+import { classifyAgentsFile } from "../../src/commands/initializeProject.js";
+import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
+import { buildReplaceQuickAction, retargetQuickAction, withApplyFlag } from "../../src/commands/quickActions.js";
+import { configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
 
 const execFileAsync = promisify(execFile);
 

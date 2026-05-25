@@ -1,10 +1,10 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
-import { configureMcpTargets, inspectMcpTargets } from "../mcp/config";
-import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness";
-import { refreshStatusBar } from "../status/statusBar";
+import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { configureMcpTargets, inspectMcpTargets } from "../mcp/config.js";
+import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
+import { refreshStatusBar } from "../status/statusBar.js";
 
 export async function configureMcp(): Promise<void> {
   const status = await resolvePatchloomStatus();

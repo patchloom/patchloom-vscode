@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { PATCHLOOM_RELEASES_URL, patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom";
-import { describeWorkspaceEnvironment, inspectWorkspaceReadiness } from "../workspace/readiness";
+import { PATCHLOOM_RELEASES_URL, patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { describeWorkspaceEnvironment, inspectWorkspaceReadiness } from "../workspace/readiness.js";
 
 export async function setupWorkspace(): Promise<void> {
   const status = await resolvePatchloomStatus();
