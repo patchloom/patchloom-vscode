@@ -555,19 +555,24 @@ async function inputWorkspaceFileTarget(folder: VSCode.WorkspaceFolder): Promise
   }
 }
 
-function toWorkspaceFileTarget(folder: VSCode.WorkspaceFolder, absolutePath: string): WorkspaceFileTarget {
-  const workspaceRoot = path.resolve(folder.uri.fsPath);
+export function resolveWorkspaceRelativePath(workspaceRoot: string, absolutePath: string): string {
+  const resolvedRoot = path.resolve(workspaceRoot);
   const resolvedPath = path.resolve(absolutePath);
-  const relativePath = path.relative(workspaceRoot, resolvedPath);
+  const relativePath = path.relative(resolvedRoot, resolvedPath);
   if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
     throw new Error("File path must stay inside the current workspace folder.");
   }
+  return relativePath.split(path.sep).join("/");
+}
+
+function toWorkspaceFileTarget(folder: VSCode.WorkspaceFolder, absolutePath: string): WorkspaceFileTarget {
+  const relativePath = resolveWorkspaceRelativePath(folder.uri.fsPath, absolutePath);
 
   return {
     workspaceFolder: folder,
-    absolutePath: resolvedPath,
-    relativePath: relativePath.split(path.sep).join("/"),
-    uri: folder.uri.with({ path: path.posix.join(folder.uri.path, relativePath.split(path.sep).join("/")) })
+    absolutePath: path.resolve(absolutePath),
+    relativePath,
+    uri: folder.uri.with({ path: path.posix.join(folder.uri.path, relativePath) })
   };
 }
 

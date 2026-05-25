@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import path from "node:path";
 import {
   buildCreateQuickAction,
   buildDocGetQuickAction,
@@ -8,6 +9,7 @@ import {
   buildSearchQuickAction,
   buildTidyQuickAction,
   isStructuredDocumentPath,
+  resolveWorkspaceRelativePath,
   retargetQuickAction,
   withApplyFlag
 } from "../../src/commands/quickActions.js";
@@ -156,4 +158,72 @@ test("buildDocGetQuickAction builds a doc get command", () => {
   assert.equal(action.title, "Get scripts.test from package.json");
   assert.deepEqual(action.args, ["doc", "get", "/workspace/demo/package.json", "scripts.test"]);
   assert.deepEqual(action.targetArgIndices, [2]);
+});
+
+// --- #33: resolveWorkspaceRelativePath path containment ---
+
+test("resolveWorkspaceRelativePath accepts path inside workspace", () => {
+  const rel = resolveWorkspaceRelativePath("/workspace/demo", "/workspace/demo/src/file.ts");
+  assert.equal(rel, "src/file.ts");
+});
+
+test("resolveWorkspaceRelativePath accepts nested subdirectory", () => {
+  const rel = resolveWorkspaceRelativePath("/workspace/demo", "/workspace/demo/a/b/c/d.txt");
+  assert.equal(rel, "a/b/c/d.txt");
+});
+
+test("resolveWorkspaceRelativePath rejects traversal with ..", () => {
+  assert.throws(
+    () => resolveWorkspaceRelativePath("/workspace/demo", "/workspace/demo/../../etc/passwd"),
+    { message: "File path must stay inside the current workspace folder." }
+  );
+});
+
+test("resolveWorkspaceRelativePath rejects absolute path outside workspace", () => {
+  assert.throws(
+    () => resolveWorkspaceRelativePath("/workspace/demo", "/tmp/evil.txt"),
+    { message: "File path must stay inside the current workspace folder." }
+  );
+});
+
+test("resolveWorkspaceRelativePath rejects workspace root itself", () => {
+  assert.throws(
+    () => resolveWorkspaceRelativePath("/workspace/demo", "/workspace/demo"),
+    { message: "File path must stay inside the current workspace folder." }
+  );
+});
+
+// --- #32: edge-case builder tests ---
+
+test("buildSearchQuickAction with empty pattern produces valid args", () => {
+  const action = buildSearchQuickAction("/workspace/demo", "");
+  assert.deepEqual(action.args, ["search", "", "/workspace/demo"]);
+});
+
+test("buildSearchQuickAction with regex special characters", () => {
+  const action = buildSearchQuickAction("/workspace/demo", "foo.*bar\\(baz\\)");
+  assert.deepEqual(action.args, ["search", "foo.*bar\\(baz\\)", "/workspace/demo"]);
+});
+
+test("buildCreateQuickAction with spaces in path", () => {
+  const action = buildCreateQuickAction("/workspace/my project/src/new file.ts");
+  assert.equal(action.title, "Create new file.ts");
+  assert.deepEqual(action.args, ["create", "/workspace/my project/src/new file.ts"]);
+});
+
+test("buildDocGetQuickAction with deeply nested selector", () => {
+  const action = buildDocGetQuickAction("/workspace/demo/config.yaml", "a.b.c.d.e");
+  assert.equal(action.title, "Get a.b.c.d.e from config.yaml");
+  assert.deepEqual(action.args, ["doc", "get", "/workspace/demo/config.yaml", "a.b.c.d.e"]);
+});
+
+test("buildCreateQuickAction with unicode filename", () => {
+  const action = buildCreateQuickAction("/workspace/demo/docs/日本語.md");
+  assert.equal(action.title, "Create 日本語.md");
+  assert.deepEqual(action.args, ["create", "/workspace/demo/docs/日本語.md"]);
+});
+
+test("buildSearchQuickAction with unicode pattern", () => {
+  const action = buildSearchQuickAction("/workspace/demo", "café");
+  assert.deepEqual(action.args, ["search", "café", "/workspace/demo"]);
 });
