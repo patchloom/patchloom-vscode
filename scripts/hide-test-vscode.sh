@@ -30,6 +30,12 @@ for plist in \
   fi
 
   plutil -insert LSUIElement -bool true "$plist"
+
+  # Re-sign the .app bundle after modifying Info.plist.
+  # macOS kills apps whose code signature no longer matches.
+  app_bundle="${plist%/Contents/Info.plist}"
+  codesign --force --deep --sign - "$app_bundle" 2>/dev/null || true
+
   patched=$((patched + 1))
   echo "Patched: $plist"
 done
