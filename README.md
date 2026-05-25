@@ -52,7 +52,24 @@ The status bar shows binary readiness and CLI version at a glance. Click it to s
 
 ### Quick actions
 
-`Patchloom: Quick Action` builds common CLI commands (replace, tidy, doc set) from an interactive picker. Select the operation, pick a target file, and the extension assembles the command with a diff preview before applying.
+`Patchloom: Quick Action` opens an interactive picker with six operations:
+
+| Action | What it does |
+|--------|-------------|
+| **Replace text** | Literal text replacement with diff preview before applying |
+| **Tidy file** | Whitespace and newline cleanup with diff preview |
+| **Set structured value** | Update a JSON, YAML, or TOML key with diff preview |
+| **Search text** | Find pattern matches across workspace files (results in output channel) |
+| **Create file** | Scaffold a new file and open it in the editor |
+| **Read structured value** | Read a JSON/YAML/TOML key and copy to clipboard |
+
+### Batch operations
+
+`Patchloom: Batch Apply` opens a JSON plan template where you can compose multiple operations (replace, tidy, doc set). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
+
+### Output channel
+
+All CLI invocations, arguments, and output are logged to the **Patchloom** output channel. Run `Patchloom: Show Output` to open it. Useful for debugging and copying full error messages for bug reports.
 
 ### Compatibility diagnostics
 
@@ -68,6 +85,8 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | `Patchloom: Initialize Project` | Generate or diff `AGENTS.md` from `patchloom agent-rules` |
 | `Patchloom: Configure MCP` | Inject Patchloom MCP server config into editor config files |
 | `Patchloom: Quick Action` | Build a Patchloom CLI command from an interactive picker |
+| `Patchloom: Batch Apply` | Open a JSON batch plan and execute all operations atomically |
+| `Patchloom: Show Output` | Open the Patchloom output channel for CLI logs and diagnostics |
 | `Patchloom: Show Status` | Display binary readiness, version, compatibility, and workspace state |
 | `Patchloom: Open Settings` | Jump to Patchloom extension settings |
 | `Patchloom: Open Releases` | Open the Patchloom releases page in a browser |
