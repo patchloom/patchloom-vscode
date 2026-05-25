@@ -93,6 +93,18 @@ test("isStructuredDocumentPath handles uppercase extensions", () => {
   assert.equal(isStructuredDocumentPath("README.MD"), false);
 });
 
+test("isStructuredDocumentPath rejects files without extensions", () => {
+  assert.equal(isStructuredDocumentPath("Makefile"), false);
+  assert.equal(isStructuredDocumentPath(""), false);
+  assert.equal(isStructuredDocumentPath("file."), false);
+});
+
+test("isStructuredDocumentPath rejects dotfiles without basenames", () => {
+  assert.equal(isStructuredDocumentPath(".json"), false);
+  assert.equal(isStructuredDocumentPath(".yaml"), false);
+  assert.equal(isStructuredDocumentPath(".env"), false);
+});
+
 test("buildTidyQuickAction with a single fix omits unselected flags", () => {
   const action = buildTidyQuickAction("/workspace/demo/file.txt", ["normalize-eol-lf"]);
 

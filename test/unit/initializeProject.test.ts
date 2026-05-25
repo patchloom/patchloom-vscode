@@ -4,6 +4,23 @@ import { MINIMUM_SUPPORTED_PATCHLOOM_VERSION } from "../../src/binary/patchloom.
 import { classifyAgentsFile } from "../../src/commands/initializeProject.js";
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import { buildPatchloomMcpEntry, configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
+import { formatError } from "../../src/util.js";
+
+test("formatError extracts message from Error instances", () => {
+  assert.equal(formatError(new Error("disk full")), "disk full");
+});
+
+test("formatError converts non-Error values to strings", () => {
+  assert.equal(formatError("raw string"), "raw string");
+  assert.equal(formatError(42), "42");
+  assert.equal(formatError(null), "null");
+  assert.equal(formatError(undefined), "undefined");
+});
+
+test("formatError falls back to String for Error with empty message", () => {
+  const err = new Error("");
+  assert.equal(formatError(err), String(err));
+});
 
 test("classifyAgentsFile returns missing when AGENTS.md does not exist", () => {
   assert.equal(classifyAgentsFile(undefined, "# Rules\n"), "missing");
