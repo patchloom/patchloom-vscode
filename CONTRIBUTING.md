@@ -83,4 +83,4 @@ For security vulnerabilities, see [SECURITY.md](SECURITY.md).
 ## License
 
 By contributing, you agree that your contributions will be licensed under
-the same terms as the project: [MIT](LICENSE.txt).
+the same terms as the project: [MIT](LICENSE).
