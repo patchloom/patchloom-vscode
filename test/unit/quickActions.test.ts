@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildCreateQuickAction,
+  buildDocGetQuickAction,
   buildDocSetQuickAction,
   buildReplaceQuickAction,
+  buildSearchQuickAction,
   buildTidyQuickAction,
   isStructuredDocumentPath,
   retargetQuickAction,
@@ -115,4 +118,36 @@ test("buildTidyQuickAction with a single fix omits unselected flags", () => {
     "--normalize-eol",
     "lf"
   ]);
+});
+
+test("buildSearchQuickAction builds a search command without glob", () => {
+  const action = buildSearchQuickAction("/workspace/demo", "TODO");
+
+  assert.equal(action.title, 'Search for "TODO"');
+  assert.deepEqual(action.args, ["search", "TODO", "/workspace/demo"]);
+  assert.deepEqual(action.targetArgIndices, [2]);
+});
+
+test("buildSearchQuickAction includes glob when provided", () => {
+  const action = buildSearchQuickAction("/workspace/demo", "TODO", "*.ts");
+
+  assert.equal(action.title, 'Search for "TODO"');
+  assert.deepEqual(action.args, ["search", "TODO", "--glob", "*.ts", "/workspace/demo"]);
+  assert.deepEqual(action.targetArgIndices, [4]);
+});
+
+test("buildCreateQuickAction builds a create command", () => {
+  const action = buildCreateQuickAction("/workspace/demo/src/newfile.ts");
+
+  assert.equal(action.title, "Create newfile.ts");
+  assert.deepEqual(action.args, ["create", "/workspace/demo/src/newfile.ts"]);
+  assert.deepEqual(action.targetArgIndices, [1]);
+});
+
+test("buildDocGetQuickAction builds a doc get command", () => {
+  const action = buildDocGetQuickAction("/workspace/demo/package.json", "scripts.test");
+
+  assert.equal(action.title, "Get scripts.test from package.json");
+  assert.deepEqual(action.args, ["doc", "get", "/workspace/demo/package.json", "scripts.test"]);
+  assert.deepEqual(action.targetArgIndices, [2]);
 });

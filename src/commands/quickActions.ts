@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
 import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { getPatchloomLog } from "../logging/outputChannel.js";
 import { formatError } from "../util.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 
@@ -168,6 +169,128 @@ export async function runQuickAction(): Promise<void> {
 
         await previewAndMaybeApply(binaryPath, target, buildDocSetQuickAction(target.absolutePath, selector, value));
       }
+    },
+    {
+      label: "Search text across files",
+      description: "Find pattern matches in workspace files",
+      detail: "Builds `patchloom search <pattern> [--glob <glob>] <workspace>`",
+      run: async () => {
+        const folder = await activeWorkspaceFolder({
+          promptIfMany: true,
+          placeHolder: "Select workspace folder for Patchloom search"
+        });
+        if (!folder) {
+          await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom search.");
+          return;
+        }
+
+        const pattern = await vscode.window.showInputBox({
+          prompt: "Search pattern",
+          placeHolder: "TODO|FIXME",
+          validateInput: (value) => value.length > 0 ? undefined : "Pattern is required."
+        });
+        if (pattern === undefined) {
+          return;
+        }
+
+        const glob = await vscode.window.showInputBox({
+          prompt: "File glob (optional, leave empty for all files)",
+          placeHolder: "*.ts"
+        });
+        if (glob === undefined) {
+          return;
+        }
+
+        const action = buildSearchQuickAction(folder.uri.fsPath, pattern, glob || undefined);
+        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
+        const log = getPatchloomLog();
+
+        if (result.exitCode === 3) {
+          await vscode.window.showInformationMessage(`No matches found for "${pattern}".`);
+        } else if (result.exitCode !== 0) {
+          await vscode.window.showErrorMessage(`Patchloom search failed: ${formatPatchloomOutput(result)}`);
+        } else {
+          log?.show();
+          await vscode.window.showInformationMessage("Search results displayed in the Patchloom output channel.");
+        }
+      }
+    },
+    {
+      label: "Create a new file",
+      description: "Scaffold a new file in the workspace",
+      detail: "Builds `patchloom create <path>`",
+      run: async () => {
+        const folder = await activeWorkspaceFolder({
+          promptIfMany: true,
+          placeHolder: "Select workspace folder for Patchloom create"
+        });
+        if (!folder) {
+          await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom create.");
+          return;
+        }
+
+        const relativePath = await vscode.window.showInputBox({
+          prompt: "File path relative to workspace",
+          placeHolder: "src/newfile.ts",
+          validateInput: (value) => value.trim().length > 0 ? undefined : "Path is required."
+        });
+        if (relativePath === undefined) {
+          return;
+        }
+
+        const absolutePath = path.resolve(folder.uri.fsPath, relativePath.trim());
+        const action = buildCreateQuickAction(absolutePath);
+        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
+
+        if (result.exitCode !== 0) {
+          await vscode.window.showErrorMessage(`Patchloom create failed: ${formatPatchloomOutput(result)}`);
+          return;
+        }
+
+        const uri = vscode.Uri.file(absolutePath);
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc, { preview: false });
+        await vscode.window.showInformationMessage(`Created ${relativePath.trim()}.`);
+      }
+    },
+    {
+      label: "Read structured value",
+      description: "Read a value from JSON, YAML, or TOML",
+      detail: "Builds `patchloom doc get <file> <selector>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc get");
+        if (!target) {
+          return;
+        }
+
+        if (!isStructuredDocumentPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc get.`
+          );
+          return;
+        }
+
+        const selector = await vscode.window.showInputBox({
+          prompt: "Selector path",
+          placeHolder: "scripts.test",
+          validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
+        });
+        if (selector === undefined) {
+          return;
+        }
+
+        const action = buildDocGetQuickAction(target.absolutePath, selector);
+        const result = await executePatchloom(binaryPath, action.args, target.workspaceFolder.uri.fsPath);
+
+        if (result.exitCode !== 0) {
+          await vscode.window.showErrorMessage(`Patchloom doc get failed: ${formatPatchloomOutput(result)}`);
+          return;
+        }
+
+        const value = result.stdout.trim();
+        await vscode.env.clipboard.writeText(value);
+        await vscode.window.showInformationMessage(`${selector} = ${value} (copied to clipboard)`);
+      }
     }
   ];
 
@@ -216,6 +339,40 @@ export function buildDocSetQuickAction(targetPath: string, selector: string, val
     targetPath,
     targetArgIndices: [2],
     args: ["doc", "set", targetPath, selector, value]
+  };
+}
+
+export function buildSearchQuickAction(workspacePath: string, pattern: string, glob?: string): PlannedQuickAction {
+  const args: string[] = ["search", pattern];
+  if (glob) {
+    args.push("--glob", glob);
+  }
+  args.push(workspacePath);
+  const targetIndex = args.length - 1;
+
+  return {
+    title: `Search for "${pattern}"`,
+    targetPath: workspacePath,
+    targetArgIndices: [targetIndex],
+    args
+  };
+}
+
+export function buildCreateQuickAction(filePath: string): PlannedQuickAction {
+  return {
+    title: `Create ${path.basename(filePath)}`,
+    targetPath: filePath,
+    targetArgIndices: [1],
+    args: ["create", filePath]
+  };
+}
+
+export function buildDocGetQuickAction(targetPath: string, selector: string): PlannedQuickAction {
+  return {
+    title: `Get ${selector} from ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["doc", "get", targetPath, selector]
   };
 }
 
@@ -445,6 +602,9 @@ async function executePatchloom(
   args: readonly string[],
   cwd: string
 ): Promise<PatchloomCommandResult> {
+  const log = getPatchloomLog();
+  log?.logCommand(binaryPath, args, cwd);
+
   try {
     const { stdout, stderr } = await execFileAsync(binaryPath, args, {
       cwd,
@@ -452,20 +612,20 @@ async function executePatchloom(
       maxBuffer: 8 * 1024 * 1024,
       windowsHide: true
     });
-    return {
-      exitCode: 0,
-      stdout,
-      stderr
-    };
+    const result: PatchloomCommandResult = { exitCode: 0, stdout, stderr };
+    log?.logResult(result.exitCode, result.stdout, result.stderr);
+    return result;
   } catch (error) {
     const execFailure = asExecFailure(error);
-    return {
+    const result: PatchloomCommandResult = {
       exitCode: execFailure ? execFailure.exitCode : 1,
       stdout: execFailure ? execFailure.stdout : "",
       stderr: execFailure
         ? execFailure.stderr || execFailure.message
         : formatError(error)
     };
+    log?.logResult(result.exitCode, result.stdout, result.stderr);
+    return result;
   }
 }
 

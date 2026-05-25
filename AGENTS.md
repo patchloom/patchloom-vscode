@@ -31,23 +31,27 @@ src/
   commands/
     configureMcp.ts      Configure MCP command: multi-target MCP config injection
     initializeProject.ts Initialize Project command: generate/diff AGENTS.md
-    quickActions.ts       Quick Action command: replace, tidy, doc set with diff preview
+    quickActions.ts       Quick Action command: replace, tidy, doc set, search, create, doc get
+    batchApply.ts        Batch Apply command: atomic multi-operation plan via JSON
     setupWorkspace.ts     Setup Workspace command: guided readiness walkthrough
     showStatus.ts         Show Status command: diagnostics display
   install/managed.ts     Managed install safety: checksum, staging, promotion, rollback, persistence
+  logging/outputChannel.ts  Output channel wrapper: log, logCommand, logResult, show, dispose
   mcp/config.ts          MCP config file operations: inspect, configure, resolve targets
   status/details.ts      Status presentation: buildStatusDetails, preferredStatusAction
   status/statusBar.ts    Status bar item: create, refresh, dispose
   workspace/readiness.ts Workspace readiness: environment detection, folder selection
 test/
   unit/                  Unit tests (node:test, dependency-injected, no VS Code API)
+    batchApply.test.ts   Batch template and operation count parsing (6 tests)
     binary.test.ts       Binary discovery, managed install, compatibility, workspace env (38 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (10 tests)
     initializeProject.test.ts  Status display, agents file classification, formatError (18 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (12 tests)
     mcpConfig.test.ts    MCP config with real temp directories (9 tests)
+    outputChannel.test.ts Output channel logging wrapper (7 tests)
     patchloomCli.test.ts Patchloom CLI integration tests with real binary (23 tests)
-    quickActions.test.ts Quick action command building (10 tests)
+    quickActions.test.ts Quick action command building (14 tests)
   suite/
     index.ts             VS Code extension integration tests
     runExtensionTests.ts  Test runner using @vscode/test-electron

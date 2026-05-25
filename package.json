@@ -48,7 +48,9 @@
     "onCommand:patchloom.quickAction",
     "onCommand:patchloom.openPatchloomSettings",
     "onCommand:patchloom.openPatchloomReleases",
-    "onCommand:patchloom.showStatus"
+    "onCommand:patchloom.showStatus",
+    "onCommand:patchloom.batchApply",
+    "onCommand:patchloom.showOutput"
   ],
   "contributes": {
     "commands": [
@@ -85,6 +87,16 @@
       {
         "command": "patchloom.showStatus",
         "title": "Show Status",
+        "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.batchApply",
+        "title": "Batch Apply",
+        "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.showOutput",
+        "title": "Show Output",
         "category": "Patchloom"
       }
     ],
