@@ -49,7 +49,7 @@ test/
     initializeProject.test.ts  Status display, agents file classification, formatError (18 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (12 tests)
     mcpConfig.test.ts    MCP config with real temp directories (9 tests)
-    outputChannel.test.ts Output channel logging wrapper (10 tests)
+    outputChannel.test.ts Output channel logging wrapper (13 tests)
     patchloomCli.test.ts Patchloom CLI integration tests with real binary (23 tests)
     quickActions.test.ts Quick action command building, path containment (26 tests)
   suite/
