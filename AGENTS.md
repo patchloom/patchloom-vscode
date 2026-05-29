@@ -46,7 +46,7 @@ test/
     batchApply.test.ts   Batch template and operation count parsing (10 tests)
     binary.test.ts       Binary discovery, managed install, compatibility, workspace env (38 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
-    initializeProject.test.ts  Status display, agents file classification, formatError (18 tests)
+    initializeProject.test.ts  Status display, agents file classification, formatError (19 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (12 tests)
     mcpConfig.test.ts    MCP config with real temp directories (9 tests)
     outputChannel.test.ts Output channel logging wrapper (13 tests)
@@ -59,6 +59,19 @@ test/
     extension.test.ts    ExTester UI tests (status bar, command palette)
 scripts/
   hide-test-vscode.sh   macOS: patch test VS Code to suppress window activation
+.github/
+  CODEOWNERS               Owner for all files
+  copilot-instructions.md  Pointer to AGENTS.md for GitHub Copilot
+  dependabot.yml           Dependabot config: npm + github-actions, weekly
+  ISSUE_TEMPLATE/
+    bug-report.yml         Structured bug report form
+    config.yml             Issue template chooser config
+    feature-request.yml    Feature request form
+  PULL_REQUEST_TEMPLATE.md PR template
+  workflows/
+    ci.yml                 CI: unit tests, build, integration tests (self-hosted)
+    dependabot-auto-merge.yml  Auto-merge minor/patch Dependabot PRs
+    security.yml           Security: npm audit (weekly + on push/PR)
 ```
 
 ## Architecture conventions
