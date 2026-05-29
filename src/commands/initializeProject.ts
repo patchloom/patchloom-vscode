@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
 import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { getPatchloomLog } from "../logging/outputChannel.js";
 import { formatError } from "../util.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
@@ -102,12 +103,16 @@ export function classifyAgentsFile(existingContent: string | undefined, generate
 }
 
 async function generateAgentRules(binaryPath: string, cwd: string): Promise<string> {
-  const { stdout } = await execFileAsync(binaryPath, ["agent-rules"], {
+  const log = getPatchloomLog();
+  const args = ["agent-rules"];
+  log?.logCommand(binaryPath, args, cwd);
+  const { stdout, stderr } = await execFileAsync(binaryPath, args, {
     cwd,
     timeout: 10_000,
     maxBuffer: 1024 * 1024,
     windowsHide: true
   });
+  log?.logResult(0, stdout, stderr);
   return stdout.endsWith("\n") ? stdout : `${stdout}\n`;
 }
 
