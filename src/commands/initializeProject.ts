@@ -48,7 +48,7 @@ export async function initializeProject(): Promise<void> {
   try {
     rules = await generateAgentRules(status.binaryPath, folder.uri.fsPath);
   } catch (error) {
-    await vscode.window.showErrorMessage(`Failed to run patchloom agent-rules: ${formatError(error)}`);
+    await vscode.window.showErrorMessage(`Failed to run patchloom agent-rules in ${folder.name}: ${formatError(error)}`);
     return;
   }
 
@@ -106,14 +106,19 @@ async function generateAgentRules(binaryPath: string, cwd: string): Promise<stri
   const log = getPatchloomLog();
   const args = ["agent-rules"];
   log?.logCommand(binaryPath, args, cwd);
-  const { stdout, stderr } = await execFileAsync(binaryPath, args, {
-    cwd,
-    timeout: 10_000,
-    maxBuffer: 1024 * 1024,
-    windowsHide: true
-  });
-  log?.logResult(0, stdout, stderr);
-  return stdout.endsWith("\n") ? stdout : `${stdout}\n`;
+  try {
+    const { stdout, stderr } = await execFileAsync(binaryPath, args, {
+      cwd,
+      timeout: 10_000,
+      maxBuffer: 1024 * 1024,
+      windowsHide: true
+    });
+    log?.logResult(0, stdout, stderr);
+    return stdout.endsWith("\n") ? stdout : `${stdout}\n`;
+  } catch (error) {
+    log?.logResult(1, "", formatError(error));
+    throw error;
+  }
 }
 
 async function readTextFileIfExists(uri: VSCode.Uri): Promise<string | undefined> {
