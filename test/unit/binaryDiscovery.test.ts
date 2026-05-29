@@ -168,6 +168,21 @@ test("comparePatchloomVersions compares prerelease identifiers correctly", () =>
   assert.ok(comparePatchloomVersions("0.1.0", "0.1.0-rc.1") > 0);
 });
 
+test("comparePatchloomVersions ignores build metadata per SemVer 2.0", () => {
+  // Build metadata MUST be ignored in precedence (SemVer 2.0 spec §10)
+  assert.equal(comparePatchloomVersions("1.0.0+build1", "1.0.0+build2"), 0);
+  assert.equal(comparePatchloomVersions("1.0.0-alpha+build", "1.0.0-alpha"), 0);
+  assert.ok(comparePatchloomVersions("1.0.0+build", "1.0.0-alpha+build") > 0);
+});
+
+test("comparePatchloomVersions handles long prerelease chains", () => {
+  // Multi-segment prerelease with mixed numeric and string
+  assert.ok(comparePatchloomVersions("1.0.0-alpha.beta.1", "1.0.0-alpha.beta.2") < 0);
+  assert.ok(comparePatchloomVersions("1.0.0-alpha.beta.gamma", "1.0.0-alpha.beta.delta") > 0);
+  // Shorter chain < longer chain when prefix matches
+  assert.ok(comparePatchloomVersions("1.0.0-alpha.beta", "1.0.0-alpha.beta.1") < 0);
+});
+
 test("assessPatchloomCompatibility correctly identifies supported versions", () => {
   const supported = assessPatchloomCompatibility("patchloom 0.1.0");
   assert.equal(supported.compatibility, "supported");
