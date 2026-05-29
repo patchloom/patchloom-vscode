@@ -147,6 +147,27 @@ test("comparePatchloomVersions handles major, minor, and patch differences", () 
   assert.equal(comparePatchloomVersions("1.2.3", "1.2.3"), 0);
 });
 
+test("comparePatchloomVersions compares prerelease identifiers correctly", () => {
+  // Two prereleases: numeric comparison
+  assert.ok(comparePatchloomVersions("0.1.0-alpha.1", "0.1.0-alpha.2") < 0);
+  assert.ok(comparePatchloomVersions("0.1.0-alpha.10", "0.1.0-alpha.2") > 0);
+
+  // Two prereleases: string comparison
+  assert.ok(comparePatchloomVersions("0.1.0-alpha", "0.1.0-beta") < 0);
+
+  // Numeric identifier < string identifier
+  assert.ok(comparePatchloomVersions("0.1.0-1", "0.1.0-alpha") < 0);
+
+  // Shorter prerelease < longer prerelease when prefix matches
+  assert.ok(comparePatchloomVersions("0.1.0-alpha", "0.1.0-alpha.1") < 0);
+
+  // Both prereleases equal
+  assert.equal(comparePatchloomVersions("0.1.0-beta.1", "0.1.0-beta.1"), 0);
+
+  // Release > prerelease
+  assert.ok(comparePatchloomVersions("0.1.0", "0.1.0-rc.1") > 0);
+});
+
 test("assessPatchloomCompatibility correctly identifies supported versions", () => {
   const supported = assessPatchloomCompatibility("patchloom 0.1.0");
   assert.equal(supported.compatibility, "supported");
