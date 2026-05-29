@@ -31,5 +31,6 @@
 ### Infrastructure
 
 - Automated test harness with unit tests and VS Code extension integration tests
-- CI on self-hosted runner with npm audit security scanning
+- CI on self-hosted runner with npm audit security scanning (weekly schedule)
+- Dependabot auto-merge for minor and patch dependency updates
 - Extension packaging with `@vscode/vsce`
