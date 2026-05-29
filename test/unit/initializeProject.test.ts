@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { MINIMUM_SUPPORTED_PATCHLOOM_VERSION } from "../../src/binary/patchloom.js";
-import { classifyAgentsFile } from "../../src/commands/initializeProject.js";
+import { classifyAgentsFile, generateAgentRules } from "../../src/commands/initializeProject.js";
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import { buildPatchloomMcpEntry, configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
+import { setPatchloomLog } from "../../src/logging/outputChannel.js";
 import { formatCliOutput, formatError } from "../../src/util.js";
 
 test("formatError extracts message from Error instances", () => {
@@ -333,4 +334,33 @@ test("configureMcpTargets creates or updates only the selected target kinds", as
   assert.match(writes.get(cursorPath) ?? "", /patchloom/);
   assert.match(writes.get(cursorPath) ?? "", /mcp-server/);
   assert.match(writes.get(cursorPath) ?? "", /other/);
+});
+
+test("generateAgentRules logs error to output channel on CLI failure", async () => {
+  const logged: { exitCode: number; stdout: string; stderr: string }[] = [];
+  const commands: { binary: string; args: readonly string[]; cwd: string }[] = [];
+  setPatchloomLog({
+    log() {},
+    logCommand(binary, args, cwd) { commands.push({ binary, args, cwd }); },
+    logResult(exitCode, stdout, stderr) { logged.push({ exitCode, stdout, stderr }); },
+    show() {},
+    dispose() {}
+  });
+  try {
+    await assert.rejects(
+      () => generateAgentRules("/nonexistent/patchloom", "/tmp"),
+      (err: Error) => {
+        assert.match(err.message, /ENOENT|not found|No such file/i);
+        return true;
+      }
+    );
+    assert.equal(commands.length, 1, "logCommand should be called once");
+    assert.equal(commands[0].binary, "/nonexistent/patchloom");
+    assert.deepEqual(commands[0].args, ["agent-rules"]);
+    assert.equal(commands[0].cwd, "/tmp");
+    assert.equal(logged.length, 1, "logResult should be called once on failure");
+    assert.equal(logged[0].exitCode, 1);
+  } finally {
+    setPatchloomLog(undefined);
+  }
 });

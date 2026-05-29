@@ -102,7 +102,7 @@ export function classifyAgentsFile(existingContent: string | undefined, generate
     : "different";
 }
 
-async function generateAgentRules(binaryPath: string, cwd: string): Promise<string> {
+export async function generateAgentRules(binaryPath: string, cwd: string): Promise<string> {
   const log = getPatchloomLog();
   const args = ["agent-rules"];
   log?.logCommand(binaryPath, args, cwd);
