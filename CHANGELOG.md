@@ -34,6 +34,5 @@
 - CI on self-hosted runner with npm audit security scanning (weekly schedule)
 - Trivy filesystem vulnerability and misconfiguration scanning
 - Gitleaks secret detection across full commit history
-- Cross-platform unit test matrix (Ubuntu, Windows, macOS)
 - Dependabot auto-merge for minor and patch dependency updates
 - Extension packaging with `@vscode/vsce`
