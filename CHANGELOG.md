@@ -31,5 +31,6 @@
 ### Infrastructure
 
 - Automated test harness with unit tests and VS Code extension integration tests
-- CI on self-hosted runner
+- Cross-platform CI matrix (Ubuntu, macOS, Windows) for unit tests
+- Self-hosted runner for build, packaging, and integration tests
 - Extension packaging with `@vscode/vsce`
