@@ -130,6 +130,12 @@
     "package": "vsce package",
     "check": "npm run test && npm run package"
   },
+  "overrides": {
+    "mocha": {
+      "diff": "^8.0.3",
+      "serialize-javascript": "^7.0.5"
+    }
+  },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^25.9.1",
