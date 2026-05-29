@@ -69,9 +69,9 @@ scripts/
     feature-request.yml    Feature request form
   PULL_REQUEST_TEMPLATE.md PR template
   workflows/
-    ci.yml                 CI: unit tests, build, integration tests (self-hosted)
+    ci.yml                 CI: unit tests (self-hosted + cross-platform matrix), build, integration tests
     dependabot-auto-merge.yml  Auto-merge minor/patch Dependabot PRs
-    security.yml           Security: npm audit (weekly + on push/PR)
+    security.yml           Security: npm audit, Trivy fs scan, Gitleaks (weekly + on push/PR)
 ```
 
 ## Architecture conventions
