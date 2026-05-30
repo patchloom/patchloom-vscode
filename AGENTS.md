@@ -44,7 +44,7 @@ src/
 test/
   unit/                  Unit tests (node:test, dependency-injected, no VS Code API)
     batchApply.test.ts   Batch template and operation count parsing (10 tests)
-    binary.test.ts       Binary discovery, managed install, compatibility, workspace env (38 tests)
+    binary.test.ts       Binary discovery, managed install, compatibility, workspace env (41 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
     initializeProject.test.ts  Status display, agents file classification, formatError (19 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (12 tests)
