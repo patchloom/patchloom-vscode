@@ -6,6 +6,9 @@ import test from "node:test";
 import {
   assessPatchloomCompatibility,
   comparePatchloomVersions,
+  configuredBinaryPathFromSetting,
+  describePatchloomCompatibility,
+  describePatchloomSource,
   findOnPath,
   MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
   parsePatchloomVersion,
@@ -643,4 +646,26 @@ test("resolvePatchloomStatusWithInputs falls back to a managed install when pres
   assert.equal(status.source, "managed");
   assert.equal(status.binaryPath, "/managed/install/0.1.0/managed-bin/patchloom");
   assert.equal(status.managedInstall?.exists, true);
+});
+
+test("configuredBinaryPathFromSetting trims whitespace and returns undefined for empty values", () => {
+  assert.equal(configuredBinaryPathFromSetting("/usr/local/bin/patchloom"), "/usr/local/bin/patchloom");
+  assert.equal(configuredBinaryPathFromSetting("  /custom/patchloom  "), "/custom/patchloom");
+  assert.equal(configuredBinaryPathFromSetting(""), undefined);
+  assert.equal(configuredBinaryPathFromSetting("   "), undefined);
+  assert.equal(configuredBinaryPathFromSetting(undefined), undefined);
+});
+
+test("describePatchloomSource maps all source types to labels", () => {
+  assert.equal(describePatchloomSource("setting"), "patchloom.path");
+  assert.equal(describePatchloomSource("path"), "PATH");
+  assert.equal(describePatchloomSource("managed"), "managed install");
+  assert.equal(describePatchloomSource("missing"), "not found");
+});
+
+test("describePatchloomCompatibility maps all compatibility levels to labels", () => {
+  assert.equal(describePatchloomCompatibility("supported"), "supported");
+  assert.equal(describePatchloomCompatibility("unsupported"), "upgrade required");
+  assert.equal(describePatchloomCompatibility("unknown"), "unable to verify");
+  assert.equal(describePatchloomCompatibility(undefined), "unknown");
 });
