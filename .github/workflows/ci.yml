@@ -14,11 +14,10 @@ concurrency:
 
 jobs:
   unit-test:
-    runs-on:
-      - self-hosted
-      - macOS
-      - ARM64
-      - patchloom-vscode
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
       - name: Checkout
