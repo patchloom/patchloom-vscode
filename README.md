@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/banner.png" alt="Patchloom for VS Code" width="640">
+  <img src="images/logo-512.png" alt="Patchloom logo" width="200">
 </p>
 
 # Patchloom for VS Code

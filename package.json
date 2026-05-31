@@ -17,9 +17,9 @@
     "vscode": "^1.90.0",
     "node": ">=20"
   },
-  "icon": "images/icon.png",
+  "icon": "images/logo-512.png",
   "galleryBanner": {
-    "color": "#1e1e2e",
+    "color": "#0d1b2a",
     "theme": "dark"
   },
   "categories": [
