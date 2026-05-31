@@ -12,7 +12,9 @@ permissions:
 jobs:
   fossa:
     name: License compliance
-    if: ${{ !github.event.repository.private && secrets.FOSSA_API_KEY != '' }}
+    if: ${{ !github.event.repository.private }}
+    env:
+      FOSSA_API_KEY: ${{ secrets.FOSSA_API_KEY }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
