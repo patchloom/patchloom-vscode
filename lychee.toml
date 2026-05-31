@@ -1,0 +1,19 @@
+# lychee link checker configuration
+# https://lychee.cli.rs/usage/config/
+
+# Exclude private GitHub links that require authentication
+exclude = [
+  "https://github.com/patchloom/patchloom-vscode/security/advisories/new",
+]
+
+# Accept 429 (rate limited) as valid
+accept = [200, 429]
+
+# Timeout per request
+timeout = 30
+
+# Max concurrent requests
+max_concurrency = 4
+
+# Skip fragments (anchors) to reduce false positives
+include_fragments = false
