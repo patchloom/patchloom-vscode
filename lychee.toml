@@ -1,9 +1,10 @@
 # lychee link checker configuration
 # https://lychee.cli.rs/usage/config/
 
-# Exclude private GitHub links that require authentication
+# Exclude patchloom GitHub links (private repos return 404 unauthenticated).
+# Remove these exclusions once the repos are public.
 exclude = [
-  "https://github.com/patchloom/patchloom-vscode/security/advisories/new",
+  "https://github.com/patchloom/",
 ]
 
 # Accept 429 (rate limited) as valid
