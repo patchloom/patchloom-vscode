@@ -140,7 +140,7 @@
     "compile-uitests": "tsc -p ./tsconfig.uitest.json",
     "watch": "tsc -watch -p ./",
     "test:unit": "node --test ./out-test/test/unit/*.test.js",
-    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-exclude='out-test/src/extension*' --test-coverage-exclude='out-test/src/commands/showStatus*' --test-coverage-exclude='out-test/src/commands/configureMcp*' --test-coverage-exclude='out-test/src/commands/setupWorkspace*' --test-coverage-exclude='out-test/src/status/statusBar*' ./out-test/test/unit/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-exclude='out-test/src/extension*' --test-coverage-exclude='out-test/src/commands/showStatus*' --test-coverage-exclude='out-test/src/commands/configureMcp*' --test-coverage-exclude='out-test/src/commands/setupWorkspace*' --test-coverage-exclude='out-test/src/status/statusBar*' --test-coverage-exclude='out-test/test/unit/patchloomCli*' ./out-test/test/unit/*.test.js",
     "test:extension": "node ./out-test/test/suite/runExtensionTests.js",
     "test:ui": "npm run compile && npm run compile-uitests && extest setup-and-run './out-uitest/test/ui/*.test.js' --code_version max --extensions_dir .vscode-test/extensions",
     "test": "npm run compile && npm run compile-tests && npm run test:unit",
