@@ -779,7 +779,7 @@ async function defaultReadFileContent(filePath: string): Promise<string> {
   return (await import("node:fs/promises")).readFile(filePath, "utf8");
 }
 
-async function streamingSha256(filePath: string): Promise<string> {
+export async function streamingSha256(filePath: string): Promise<string> {
   const hash = createHash("sha256");
   await pipeline(createReadStream(filePath), hash);
   return hash.digest("hex");

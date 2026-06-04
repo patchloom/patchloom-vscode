@@ -11,12 +11,14 @@ import {
   describePatchloomSource,
   findOnPath,
   MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
+  patchloomNeedsUpgrade,
   parsePatchloomVersion,
   resolvePatchloomStatusWithInputs
 } from "../../src/binary/patchloom.js";
 import {
   assertTrustedManagedInstallDownloadUrl,
   buildManagedInstallReleaseAssets,
+  isTrustedManagedInstallDownloadUrl,
   calculateSha256Hex,
   clearManagedInstallFailure,
   clearManagedInstallFailureRecord,
@@ -672,4 +674,69 @@ test("describePatchloomCompatibility maps all compatibility levels to labels", (
   assert.equal(describePatchloomCompatibility("unsupported"), "upgrade required");
   assert.equal(describePatchloomCompatibility("unknown"), "unable to verify");
   assert.equal(describePatchloomCompatibility(undefined), "unknown");
+});
+
+// --- patchloomNeedsUpgrade tests ---
+
+test("patchloomNeedsUpgrade returns true only for unsupported compatibility", () => {
+  assert.equal(patchloomNeedsUpgrade({ compatibility: "unsupported" } as any), true);
+  assert.equal(patchloomNeedsUpgrade({ compatibility: "supported" } as any), false);
+  assert.equal(patchloomNeedsUpgrade({ compatibility: "unknown" } as any), false);
+  assert.equal(patchloomNeedsUpgrade({ compatibility: undefined } as any), false);
+});
+
+// --- isTrustedManagedInstallDownloadUrl tests ---
+
+test("isTrustedManagedInstallDownloadUrl accepts valid GitHub release URLs", () => {
+  assert.equal(
+    isTrustedManagedInstallDownloadUrl("https://github.com/patchloom/patchloom/releases/download/v0.1.0/archive.tar.xz"),
+    true
+  );
+  assert.equal(
+    isTrustedManagedInstallDownloadUrl("https://github.com/patchloom/patchloom/releases/download/v1.2.3/patchloom-x86_64.zip"),
+    true
+  );
+});
+
+test("isTrustedManagedInstallDownloadUrl rejects non-HTTPS URLs", () => {
+  assert.equal(
+    isTrustedManagedInstallDownloadUrl("http://github.com/patchloom/patchloom/releases/download/v0.1.0/x"),
+    false
+  );
+});
+
+test("isTrustedManagedInstallDownloadUrl rejects non-GitHub hosts", () => {
+  assert.equal(
+    isTrustedManagedInstallDownloadUrl("https://evil.com/patchloom/patchloom/releases/download/v0.1.0/x"),
+    false
+  );
+});
+
+test("isTrustedManagedInstallDownloadUrl rejects wrong repo path", () => {
+  assert.equal(
+    isTrustedManagedInstallDownloadUrl("https://github.com/other/repo/releases/download/v0.1.0/x"),
+    false
+  );
+});
+
+test("isTrustedManagedInstallDownloadUrl rejects malformed URLs", () => {
+  assert.equal(isTrustedManagedInstallDownloadUrl("not-a-url"), false);
+  assert.equal(isTrustedManagedInstallDownloadUrl(""), false);
+});
+
+test("isTrustedManagedInstallDownloadUrl respects custom repo parameter", () => {
+  assert.equal(
+    isTrustedManagedInstallDownloadUrl(
+      "https://github.com/custom/repo/releases/download/v1.0.0/file.tar.xz",
+      "custom/repo"
+    ),
+    true
+  );
+  assert.equal(
+    isTrustedManagedInstallDownloadUrl(
+      "https://github.com/patchloom/patchloom/releases/download/v1.0.0/file.tar.xz",
+      "custom/repo"
+    ),
+    false
+  );
 });
