@@ -3,9 +3,14 @@ name: Auto-approve
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: auto-approve-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   auto-approve:
@@ -15,9 +20,14 @@ jobs:
       contents: write
       pull-requests: write
     if: >
-      github.actor == 'SebTardif' ||
-      github.actor == 'dependabot[bot]'
+      github.event.pull_request.user.login == 'SebTardif' ||
+      github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+
       - uses: hmarr/auto-approve-action@f0939ea97e9205ef24d872e76833fa908a770363 # v4.0.0
 
       - name: Enable auto-merge

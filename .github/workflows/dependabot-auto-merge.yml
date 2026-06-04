@@ -2,11 +2,12 @@ name: Dependabot Auto-Merge
 
 on:
   pull_request_target:
+  workflow_dispatch:
 
 permissions: {}
 
 concurrency:
-  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  group: dependabot-auto-merge-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -14,11 +15,16 @@ jobs:
     name: Auto-merge Dependabot PRs
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: github.actor == 'dependabot[bot]'
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     permissions:
       contents: write
       pull-requests: write
     steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+
       - name: Fetch Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
