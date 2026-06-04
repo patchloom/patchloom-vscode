@@ -79,7 +79,11 @@ test("findOnPath deduplicates PATH entries", async () => {
     });
 
     assert.equal(found, fakeBinary);
-    assert.equal(checkCount, 1, "should only check each directory once");
+    // On Windows, findOnPath checks 4 candidate names per directory
+    // (patchloom.exe, .cmd, .bat, patchloom); on Unix just 1.
+    // Dedup reduces 3 identical dirs to 1, so: 4 checks (win) or 1 (unix).
+    const expectedChecks = process.platform === "win32" ? 4 : 1;
+    assert.equal(checkCount, expectedChecks, "should only check each directory once");
   });
 });
 
