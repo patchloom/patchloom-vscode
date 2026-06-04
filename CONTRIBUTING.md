@@ -34,6 +34,7 @@ npm test
 | `npm run compile-tests` | Compile test source |
 | `npm test` | Compile + run all tests |
 | `npm run test:unit` | Unit tests only |
+| `npm run test:coverage` | Unit tests with 80% line coverage threshold |
 | `npm run test:extension` | VS Code extension integration tests |
 | `npm run package` | Package the `.vsix` |
 
