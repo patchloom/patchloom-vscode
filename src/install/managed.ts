@@ -1,8 +1,9 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createWriteStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
 import * as https from "node:https";
 import * as path from "node:path";
+import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
 import { formatError } from "../util.js";
 
@@ -554,6 +555,8 @@ export async function performManagedInstall(inputs: PerformManagedInstallInputs)
   const extractArchive = inputs.extractArchive ?? extractManagedInstallArchive;
   const readContent = inputs.readFileContent ?? defaultReadFileContent;
 
+  let txPaths: ManagedInstallTransactionPaths | undefined;
+
   try {
     report("fetching-version");
     const version = inputs.version
@@ -561,7 +564,7 @@ export async function performManagedInstall(inputs: PerformManagedInstallInputs)
       : await fetchVersion({ repo: inputs.repo });
 
     const assets = buildManagedInstallReleaseAssets(version, target, inputs.repo);
-    const txPaths = resolveManagedInstallTransactionPaths(inputs.installRoot, version, target);
+    txPaths = resolveManagedInstallTransactionPaths(inputs.installRoot, version, target);
 
     assertTrustedManagedInstallDownloadUrl(assets.archiveDownloadUrl, inputs.repo);
     assertTrustedManagedInstallDownloadUrl(assets.checksumDownloadUrl, inputs.repo);
@@ -580,8 +583,14 @@ export async function performManagedInstall(inputs: PerformManagedInstallInputs)
 
     report("verifying");
     const checksumContent = await readContent(txPaths.stagedChecksumPath);
-    const archiveContent = await (await import("node:fs/promises")).readFile(txPaths.stagedArchivePath);
-    verifyManagedInstallArchiveChecksum(archiveContent, checksumContent, assets.archiveFileName);
+    const expectedSha256 = resolveManagedInstallChecksum(checksumContent, assets.archiveFileName);
+    const actualSha256 = await streamingSha256(txPaths.stagedArchivePath);
+    if (expectedSha256 !== actualSha256) {
+      throw new ManagedInstallVerificationError(
+        "checksum-mismatch",
+        `Checksum mismatch for ${assets.archiveFileName}. Expected ${expectedSha256}, got ${actualSha256}.`
+      );
+    }
 
     report("extracting");
     await extractArchive({
@@ -610,6 +619,13 @@ export async function performManagedInstall(inputs: PerformManagedInstallInputs)
       failure,
       inputs.failurePersistence ?? { storageRoot: inputs.installRoot }
     );
+    if (txPaths) {
+      try {
+        await clearManagedInstallStaging({ paths: txPaths });
+      } catch {
+        // Best-effort cleanup; the failure is already persisted
+      }
+    }
     throw error;
   }
 }
@@ -719,13 +735,17 @@ async function defaultFetchJson(url: string): Promise<{ tag_name: string }> {
   return response.json() as Promise<{ tag_name: string }>;
 }
 
-async function defaultDownloadToFile(url: string, destPath: string): Promise<void> {
+async function defaultDownloadToFile(url: string, destPath: string, redirectsRemaining = 5): Promise<void> {
   return new Promise((resolve, reject) => {
     const file = createWriteStream(destPath);
-    const request = https.get(url, { headers: { "User-Agent": "patchloom-vscode" } }, (response) => {
+    const request = https.get(url, { headers: { "User-Agent": "patchloom-vscode" }, timeout: 30_000 }, (response) => {
       if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         file.close();
-        defaultDownloadToFile(response.headers.location, destPath).then(resolve, reject);
+        if (redirectsRemaining <= 0) {
+          reject(new Error(`Download failed: too many redirects for ${url}`));
+          return;
+        }
+        defaultDownloadToFile(response.headers.location, destPath, redirectsRemaining - 1).then(resolve, reject);
         return;
       }
       if (response.statusCode && response.statusCode >= 400) {
@@ -738,6 +758,11 @@ async function defaultDownloadToFile(url: string, destPath: string): Promise<voi
         file.close();
         resolve();
       });
+    });
+    request.on("timeout", () => {
+      request.destroy();
+      file.close();
+      reject(new Error(`Download timed out for ${url}`));
     });
     request.on("error", (error) => {
       file.close();
@@ -756,4 +781,10 @@ async function defaultExecCommand(cmd: string, args: string[], cwd: string): Pro
 
 async function defaultReadFileContent(filePath: string): Promise<string> {
   return (await import("node:fs/promises")).readFile(filePath, "utf8");
+}
+
+async function streamingSha256(filePath: string): Promise<string> {
+  const hash = createHash("sha256");
+  await pipeline(createReadStream(filePath), hash);
+  return hash.digest("hex");
 }
