@@ -94,6 +94,9 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | `Patchloom: Batch Apply` | Open a JSON batch plan and execute all operations atomically |
 | `Patchloom: Show Output` | Open the Patchloom output channel for CLI logs and diagnostics |
 | `Patchloom: Show Status` | Display binary readiness, version, compatibility, and workspace state |
+| `Patchloom: Install Patchloom` | Download and install the Patchloom CLI with checksum verification |
+| `Patchloom: Update Patchloom` | Update a managed Patchloom install to the latest release |
+| `Patchloom: Reinstall Patchloom` | Re-download and reinstall the managed Patchloom binary |
 | `Patchloom: Open Settings` | Jump to Patchloom extension settings |
 | `Patchloom: Open Releases` | Open the Patchloom releases page in a browser |
 
