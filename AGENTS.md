@@ -16,8 +16,9 @@ Patchloom for VS Code is the official VS Code extension for [Patchloom](https://
 | `npm run test:ui` | Run ExTester UI tests (downloads VS Code if needed) |
 | `npm run test:all` | Compile + unit tests + extension integration tests |
 | `npm run test` | Compile + compile-tests + unit tests |
+| `npm run test:coverage` | Unit tests with line coverage (80% threshold) |
 | `npm run package` | Package the `.vsix` using `@vscode/vsce` |
-| `npm run check` | Full CI gate: test + package |
+| `npm run check` | Full CI gate: test + coverage + package |
 
 Always run `npm run check` before committing.
 
