@@ -1,0 +1,24 @@
+name: Post-merge CI trigger
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions: {}
+
+jobs:
+  trigger:
+    name: Trigger CI on main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event.pull_request.merged == true
+    permissions:
+      actions: write
+    steps:
+      - name: Trigger workflows on main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run ci.yml --ref main --repo "${{ github.repository }}"
+          gh workflow run security.yml --ref main --repo "${{ github.repository }}"
+          gh workflow run scorecard.yml --ref main --repo "${{ github.repository }}"

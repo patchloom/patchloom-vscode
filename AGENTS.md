@@ -74,6 +74,7 @@ scripts/
     ci.yml                 CI: unit tests, build, integration tests (self-hosted)
     auto-approve.yml           Auto-approve PRs from SebTardif and dependabot[bot]
     dependabot-auto-merge.yml  Auto-merge minor/patch Dependabot PRs
+    post-merge.yml             Trigger CI/security/scorecard on main after auto-merge
     scorecard.yml              OpenSSF Scorecard analysis (weekly + on push)
     security.yml               Security: npm audit, Trivy fs scan, Gitleaks (weekly + on push/PR)
 ```
