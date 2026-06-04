@@ -45,7 +45,7 @@ src/
 test/
   unit/                  Unit tests (node:test, dependency-injected, no VS Code API)
     batchApply.test.ts   Batch template and operation count parsing (10 tests)
-    binary.test.ts       Binary discovery, managed install, compatibility, workspace env (41 tests)
+    binary.test.ts       Binary discovery, managed install, compatibility, workspace env (48 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
     initializeProject.test.ts  Status display, agents file classification, formatError (19 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (12 tests)
@@ -53,6 +53,7 @@ test/
     outputChannel.test.ts Output channel logging wrapper (13 tests)
     patchloomCli.test.ts Patchloom CLI integration tests with real binary (23 tests)
     quickActions.test.ts Quick action command building, path containment (26 tests)
+    downloadIntegration.test.ts  HTTP download, redirect, streaming SHA-256 (9 tests)
   suite/
     index.ts             VS Code extension integration tests
     runExtensionTests.ts  Test runner using @vscode/test-electron
@@ -71,8 +72,10 @@ scripts/
   PULL_REQUEST_TEMPLATE.md PR template
   workflows/
     ci.yml                 CI: unit tests, build, integration tests (self-hosted)
+    auto-approve.yml           Auto-approve PRs from SebTardif and dependabot[bot]
     dependabot-auto-merge.yml  Auto-merge minor/patch Dependabot PRs
-    security.yml           Security: npm audit, Trivy fs scan, Gitleaks (weekly + on push/PR)
+    scorecard.yml              OpenSSF Scorecard analysis (weekly + on push)
+    security.yml               Security: npm audit, Trivy fs scan, Gitleaks (weekly + on push/PR)
 ```
 
 ## Architecture conventions
@@ -115,3 +118,4 @@ All I/O-dependent functions accept an `inputs` object with injectable callbacks 
 - `npm run check` is the full gate. Nothing merges unless it passes.
 - All relative imports must use `.js` extensions (`from "./foo.js"`, not `from "./foo"`). Required by `moduleResolution: "node16"`.
 - All commits require a `Signed-off-by` line (DCO). Use `git commit -s`.
+- When adding commands to `package.json`, update the expected count in `test/suite/index.ts`.
