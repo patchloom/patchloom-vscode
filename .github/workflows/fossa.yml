@@ -16,6 +16,7 @@ concurrency:
 jobs:
   fossa:
     name: License compliance
+    if: secrets.FOSSA_API_KEY != ''
     env:
       FOSSA_API_KEY: ${{ secrets.FOSSA_API_KEY }}
     runs-on: ubuntu-latest
