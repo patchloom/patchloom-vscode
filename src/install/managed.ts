@@ -534,11 +534,7 @@ export async function extractManagedInstallArchive(inputs: ExtractArchiveInputs)
   const execCommand = inputs.execCommand ?? defaultExecCommand;
   await ensureDir(inputs.destDir);
 
-  if (inputs.format === ".zip") {
-    await execCommand("tar", ["xf", inputs.archivePath, "-C", inputs.destDir], inputs.destDir);
-  } else {
-    await execCommand("tar", ["xf", inputs.archivePath, "-C", inputs.destDir], inputs.destDir);
-  }
+  await execCommand("tar", ["xf", inputs.archivePath, "-C", inputs.destDir], inputs.destDir);
 }
 
 export async function performManagedInstall(inputs: PerformManagedInstallInputs): Promise<ManagedInstallResult> {
