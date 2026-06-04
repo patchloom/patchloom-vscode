@@ -5,9 +5,7 @@ on:
     - cron: "0 6 * * *"
   workflow_dispatch:
 
-permissions:
-  issues: write
-  pull-requests: write
+permissions: {}
 
 concurrency:
   group: stale
@@ -18,7 +16,15 @@ jobs:
     name: Close stale issues and PRs
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      issues: write
+      pull-requests: write
     steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+
       - name: Run stale bot
         uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
         with:
