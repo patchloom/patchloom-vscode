@@ -1,6 +1,12 @@
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { createWriteStream } from "node:fs";
+import * as https from "node:https";
 import * as path from "node:path";
+import { promisify } from "node:util";
 import { formatError } from "../util.js";
+
+const execFileAsync = promisify(execFile);
 
 export const PATCHLOOM_RELEASE_REPO = "patchloom/patchloom";
 export const PATCHLOOM_MANAGED_INSTALL_DIR = "patchloom-managed";
@@ -454,6 +460,177 @@ export async function inspectManagedInstallStatus(
   };
 }
 
+export interface FetchLatestReleaseInputs {
+  readonly repo?: string;
+  readonly fetchJson?: (url: string) => Promise<{ tag_name: string }>;
+}
+
+export interface DownloadToFileInputs {
+  readonly url: string;
+  readonly destPath: string;
+  readonly ensureDir?: (dirPath: string) => Promise<void>;
+  readonly download?: (url: string, destPath: string) => Promise<void>;
+}
+
+export interface ExtractArchiveInputs {
+  readonly archivePath: string;
+  readonly destDir: string;
+  readonly format: PatchloomArchiveFormat;
+  readonly ensureDir?: (dirPath: string) => Promise<void>;
+  readonly execCommand?: (cmd: string, args: string[], cwd: string) => Promise<void>;
+}
+
+export interface PerformManagedInstallInputs {
+  readonly installRoot: string;
+  readonly version?: string;
+  readonly platform?: NodeJS.Platform;
+  readonly arch?: NodeJS.Architecture;
+  readonly repo?: string;
+  readonly onProgress?: (stage: ManagedInstallStage) => void;
+  readonly fetchLatestVersion?: (inputs?: FetchLatestReleaseInputs) => Promise<string>;
+  readonly downloadFile?: (inputs: DownloadToFileInputs) => Promise<void>;
+  readonly extractArchive?: (inputs: ExtractArchiveInputs) => Promise<void>;
+  readonly readFileContent?: (filePath: string) => Promise<string>;
+  readonly failurePersistence?: ManagedInstallFailurePersistenceInputs;
+}
+
+export interface ManagedInstallResult {
+  readonly version: string;
+  readonly binaryPath: string;
+  readonly target: ManagedInstallTarget;
+}
+
+export type ManagedInstallStage =
+  | "fetching-version"
+  | "downloading-archive"
+  | "downloading-checksum"
+  | "verifying"
+  | "extracting"
+  | "installing";
+
+export async function fetchLatestReleaseVersion(
+  inputs: FetchLatestReleaseInputs = {}
+): Promise<string> {
+  const repo = inputs.repo ?? PATCHLOOM_RELEASE_REPO;
+  const fetchJson = inputs.fetchJson ?? defaultFetchJson;
+  const data = await fetchJson(`https://api.github.com/repos/${repo}/releases/latest`);
+  const tag = data.tag_name;
+  if (!tag) {
+    throw new Error("GitHub API returned a release with no tag_name.");
+  }
+  return normalizeReleaseVersion(tag);
+}
+
+export async function downloadToFile(inputs: DownloadToFileInputs): Promise<void> {
+  const ensureDir = inputs.ensureDir ?? defaultEnsureDir;
+  const download = inputs.download ?? defaultDownloadToFile;
+  await ensureDir(path.dirname(inputs.destPath));
+  await download(inputs.url, inputs.destPath);
+}
+
+export async function extractManagedInstallArchive(inputs: ExtractArchiveInputs): Promise<void> {
+  const ensureDir = inputs.ensureDir ?? defaultEnsureDir;
+  const execCommand = inputs.execCommand ?? defaultExecCommand;
+  await ensureDir(inputs.destDir);
+
+  if (inputs.format === ".zip") {
+    await execCommand("tar", ["xf", inputs.archivePath, "-C", inputs.destDir], inputs.destDir);
+  } else {
+    await execCommand("tar", ["xf", inputs.archivePath, "-C", inputs.destDir], inputs.destDir);
+  }
+}
+
+export async function performManagedInstall(inputs: PerformManagedInstallInputs): Promise<ManagedInstallResult> {
+  const platform = inputs.platform ?? process.platform;
+  const arch = inputs.arch ?? process.arch;
+  const target = detectManagedInstallTarget(platform, arch);
+  if (!target) {
+    throw new Error(`Unsupported platform/architecture: ${platform}/${arch}`);
+  }
+
+  const report = inputs.onProgress ?? (() => {});
+  const fetchVersion = inputs.fetchLatestVersion ?? fetchLatestReleaseVersion;
+  const downloadFile = inputs.downloadFile ?? downloadToFile;
+  const extractArchive = inputs.extractArchive ?? extractManagedInstallArchive;
+  const readContent = inputs.readFileContent ?? defaultReadFileContent;
+
+  try {
+    report("fetching-version");
+    const version = inputs.version
+      ? normalizeReleaseVersion(inputs.version)
+      : await fetchVersion({ repo: inputs.repo });
+
+    const assets = buildManagedInstallReleaseAssets(version, target, inputs.repo);
+    const txPaths = resolveManagedInstallTransactionPaths(inputs.installRoot, version, target);
+
+    assertTrustedManagedInstallDownloadUrl(assets.archiveDownloadUrl, inputs.repo);
+    assertTrustedManagedInstallDownloadUrl(assets.checksumDownloadUrl, inputs.repo);
+
+    report("downloading-checksum");
+    await downloadFile({
+      url: assets.checksumDownloadUrl,
+      destPath: txPaths.stagedChecksumPath
+    });
+
+    report("downloading-archive");
+    await downloadFile({
+      url: assets.archiveDownloadUrl,
+      destPath: txPaths.stagedArchivePath
+    });
+
+    report("verifying");
+    const checksumContent = await readContent(txPaths.stagedChecksumPath);
+    const archiveContent = await (await import("node:fs/promises")).readFile(txPaths.stagedArchivePath);
+    verifyManagedInstallArchiveChecksum(archiveContent, checksumContent, assets.archiveFileName);
+
+    report("extracting");
+    await extractArchive({
+      archivePath: txPaths.stagedArchivePath,
+      destDir: txPaths.stagingRoot,
+      format: target.archiveFormat
+    });
+
+    report("installing");
+    await promoteManagedInstallBinary({
+      paths: txPaths,
+      failurePersistence: inputs.failurePersistence ?? { storageRoot: inputs.installRoot }
+    });
+
+    await clearManagedInstallStaging({ paths: txPaths });
+
+    return { version, binaryPath: txPaths.binaryPath, target };
+  } catch (error) {
+    const stage = classifyInstallFailureStage(error);
+    const failure: ManagedInstallFailure = {
+      stage: stage.stage,
+      reason: stage.reason,
+      message: formatError(error)
+    };
+    await persistManagedInstallFailure(
+      failure,
+      inputs.failurePersistence ?? { storageRoot: inputs.installRoot }
+    );
+    throw error;
+  }
+}
+
+function classifyInstallFailureStage(error: unknown): { stage: ManagedInstallFailureStage; reason: ManagedInstallFailure["reason"] } {
+  if (error instanceof ManagedInstallVerificationError) {
+    return { stage: "verify", reason: error.reason };
+  }
+  const message = formatError(error).toLowerCase();
+  if (message.includes("download") || message.includes("fetch") || message.includes("network")) {
+    return { stage: "download", reason: "download-failed" };
+  }
+  if (message.includes("extract") || message.includes("tar") || message.includes("archive")) {
+    return { stage: "extract", reason: "extract-failed" };
+  }
+  if (message.includes("replace") || message.includes("promote") || message.includes("rename")) {
+    return { stage: "replace", reason: "replace-failed" };
+  }
+  return { stage: "download", reason: "download-failed" };
+}
+
 export function normalizeReleaseVersion(version: string): string {
   return version.replace(/^v/, "").trim();
 }
@@ -530,4 +707,53 @@ async function defaultRemoveFile(filePath: string): Promise<void> {
 
 async function defaultRemoveDir(dirPath: string): Promise<void> {
   await (await import("node:fs/promises")).rm(dirPath, { recursive: true, force: true });
+}
+
+async function defaultFetchJson(url: string): Promise<{ tag_name: string }> {
+  const response = await fetch(url, {
+    headers: { "Accept": "application/vnd.github+json", "User-Agent": "patchloom-vscode" }
+  });
+  if (!response.ok) {
+    throw new Error(`GitHub API request failed: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<{ tag_name: string }>;
+}
+
+async function defaultDownloadToFile(url: string, destPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const file = createWriteStream(destPath);
+    const request = https.get(url, { headers: { "User-Agent": "patchloom-vscode" } }, (response) => {
+      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        file.close();
+        defaultDownloadToFile(response.headers.location, destPath).then(resolve, reject);
+        return;
+      }
+      if (response.statusCode && response.statusCode >= 400) {
+        file.close();
+        reject(new Error(`Download failed: ${response.statusCode} ${response.statusMessage} for ${url}`));
+        return;
+      }
+      response.pipe(file);
+      file.on("finish", () => {
+        file.close();
+        resolve();
+      });
+    });
+    request.on("error", (error) => {
+      file.close();
+      reject(new Error(`Download failed for ${url}: ${formatError(error)}`));
+    });
+    file.on("error", (error) => {
+      file.close();
+      reject(new Error(`Failed to write download to ${destPath}: ${formatError(error)}`));
+    });
+  });
+}
+
+async function defaultExecCommand(cmd: string, args: string[], cwd: string): Promise<void> {
+  await execFileAsync(cmd, args, { cwd, timeout: 60_000, windowsHide: true });
+}
+
+async function defaultReadFileContent(filePath: string): Promise<string> {
+  return (await import("node:fs/promises")).readFile(filePath, "utf8");
 }

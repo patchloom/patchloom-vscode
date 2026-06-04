@@ -102,6 +102,40 @@ test("preferredStatusAction points missing binary users to settings", () => {
   });
 });
 
+test("preferredStatusAction suggests install when binary missing with managed install available", () => {
+  const action = preferredStatusAction(
+    {
+      ready: false,
+      source: "missing",
+      message: "Patchloom binary not found.",
+      managedInstall: {
+        exists: false,
+        binaryPath: "/tmp/patchloom-managed/0.1.0/managed-bin/patchloom",
+        version: "0.1.0",
+        target: {
+          platform: "darwin",
+          arch: "arm64",
+          targetTriple: "aarch64-apple-darwin",
+          archiveFormat: ".tar.xz"
+        }
+      }
+    },
+    {
+      hasWorkspace: true,
+      workspaceName: "demo",
+      hasAgentsFile: false,
+      workspaceCount: 1,
+      environmentLabel: "Local",
+      environmentSupport: "supported"
+    }
+  );
+
+  assert.deepEqual(action, {
+    title: "Install Patchloom",
+    command: "patchloom.installBinary"
+  });
+});
+
 test("buildStatusDetails includes compatibility upgrade guidance", () => {
   const details = buildStatusDetails({
     ready: true,

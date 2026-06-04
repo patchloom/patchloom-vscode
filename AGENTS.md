@@ -31,6 +31,7 @@ src/
   commands/
     configureMcp.ts      Configure MCP command: multi-target MCP config injection
     initializeProject.ts Initialize Project command: generate/diff AGENTS.md
+    managedInstall.ts    Managed Install commands: install, update, reinstall Patchloom binary
     quickActions.ts       Quick Action command: replace, tidy, doc set, search, create, doc get
     batchApply.ts        Batch Apply command: atomic multi-operation plan via JSON
     setupWorkspace.ts     Setup Workspace command: guided readiness walkthrough

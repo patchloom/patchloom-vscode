@@ -46,6 +46,12 @@ export function buildStatusDetails(status: PatchloomStatus, workspaceReadiness?:
 
 export function preferredStatusAction(status: PatchloomStatus, workspaceReadiness?: WorkspaceReadiness): SetupAction | undefined {
   if (!status.ready) {
+    if (status.source === "missing" && status.managedInstall && !status.managedInstall.exists) {
+      return {
+        title: "Install Patchloom",
+        command: "patchloom.installBinary"
+      };
+    }
     return {
       title: "Open Settings",
       command: "patchloom.openPatchloomSettings"

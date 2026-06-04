@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { batchApply } from "./commands/batchApply.js";
 import { configureMcp } from "./commands/configureMcp.js";
 import { initializeProject } from "./commands/initializeProject.js";
+import { installPatchloom, updatePatchloom, reinstallPatchloom } from "./commands/managedInstall.js";
 import { runQuickAction } from "./commands/quickActions.js";
 import { setupWorkspace, openPatchloomReleases, openPatchloomSettings } from "./commands/setupWorkspace.js";
 import { showStatus } from "./commands/showStatus.js";
@@ -25,6 +26,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("patchloom.openPatchloomSettings", openPatchloomSettings),
     vscode.commands.registerCommand("patchloom.openPatchloomReleases", openPatchloomReleases),
     vscode.commands.registerCommand("patchloom.showStatus", showStatus),
+    vscode.commands.registerCommand("patchloom.installBinary", installPatchloom),
+    vscode.commands.registerCommand("patchloom.updateBinary", updatePatchloom),
+    vscode.commands.registerCommand("patchloom.reinstallBinary", reinstallPatchloom),
     new vscode.Disposable(disposeStatusBar),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("patchloom")) {

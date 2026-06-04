@@ -8,12 +8,16 @@ import {
   clearManagedInstallFailureRecord,
   clearManagedInstallStaging,
   detectManagedInstallTarget,
+  extractManagedInstallArchive,
+  fetchLatestReleaseVersion,
   inspectManagedInstallStatus,
   loadManagedInstallFailure,
+  performManagedInstall,
   persistManagedInstallFailure,
   promoteManagedInstallBinary,
   resolveManagedInstallTransactionPaths,
-  type ManagedInstallFailure
+  type ManagedInstallFailure,
+  type ManagedInstallStage
 } from "../../src/install/managed.js";
 
 async function withTempDir(fn: (dir: string) => Promise<void>): Promise<void> {
@@ -284,5 +288,206 @@ test("loadManagedInstallFailure returns undefined for valid JSON with wrong shap
 
     const loaded = await loadManagedInstallFailure({ storageRoot });
     assert.equal(loaded, undefined, "valid JSON with wrong shape should return undefined");
+  });
+});
+
+// --- fetchLatestReleaseVersion tests ---
+
+test("fetchLatestReleaseVersion extracts version from GitHub API response", async () => {
+  const version = await fetchLatestReleaseVersion({
+    fetchJson: async () => ({ tag_name: "v0.2.0" })
+  });
+  assert.equal(version, "0.2.0");
+});
+
+test("fetchLatestReleaseVersion strips leading v from tag", async () => {
+  const version = await fetchLatestReleaseVersion({
+    fetchJson: async () => ({ tag_name: "v1.0.0-beta.1" })
+  });
+  assert.equal(version, "1.0.0-beta.1");
+});
+
+test("fetchLatestReleaseVersion throws on missing tag_name", async () => {
+  await assert.rejects(
+    () => fetchLatestReleaseVersion({
+      fetchJson: async () => ({ tag_name: "" })
+    }),
+    /no tag_name/
+  );
+});
+
+test("fetchLatestReleaseVersion throws on API failure", async () => {
+  await assert.rejects(
+    () => fetchLatestReleaseVersion({
+      fetchJson: async () => { throw new Error("HTTP 503"); }
+    }),
+    /HTTP 503/
+  );
+});
+
+// --- extractManagedInstallArchive tests ---
+
+test("extractManagedInstallArchive invokes tar with correct arguments for tar.xz", async () => {
+  const calls: { cmd: string; args: string[]; cwd: string }[] = [];
+  await extractManagedInstallArchive({
+    archivePath: "/tmp/archive.tar.xz",
+    destDir: "/tmp/staging",
+    format: ".tar.xz",
+    ensureDir: async () => {},
+    execCommand: async (cmd, args, cwd) => { calls.push({ cmd, args, cwd }); }
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].cmd, "tar");
+  assert.deepEqual(calls[0].args, ["xf", "/tmp/archive.tar.xz", "-C", "/tmp/staging"]);
+});
+
+test("extractManagedInstallArchive invokes tar for zip format on Windows", async () => {
+  const calls: { cmd: string; args: string[] }[] = [];
+  await extractManagedInstallArchive({
+    archivePath: "C:\\tmp\\archive.zip",
+    destDir: "C:\\tmp\\staging",
+    format: ".zip",
+    ensureDir: async () => {},
+    execCommand: async (cmd, args) => { calls.push({ cmd, args }); }
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].cmd, "tar");
+  assert.ok(calls[0].args.includes("xf"));
+});
+
+// --- performManagedInstall tests ---
+
+test("performManagedInstall runs full pipeline with injected I/O", async () => {
+  await withTempDir(async (installRoot) => {
+    const target = detectManagedInstallTarget("darwin", "arm64");
+    assert.ok(target);
+
+    const stages: ManagedInstallStage[] = [];
+    // SHA-256 of "fake-archive-content"
+    const checksumContent = "fd3d4b42292957ad0b649621615962140c857fbf7342038d6cc6b2b1ab8c3411  patchloom-aarch64-apple-darwin.tar.xz\n";
+
+    const result = await performManagedInstall({
+      installRoot,
+      version: "0.1.0",
+      platform: "darwin",
+      arch: "arm64",
+      onProgress: (stage) => { stages.push(stage); },
+      downloadFile: async (inputs) => {
+        await fs.mkdir(path.dirname(inputs.destPath), { recursive: true });
+        if (inputs.url.endsWith(".sha256")) {
+          await fs.writeFile(inputs.destPath, checksumContent, "utf8");
+        } else {
+          // Write archive content that matches the checksum
+          await fs.writeFile(inputs.destPath, "fake-archive-content", "utf8");
+        }
+      },
+      extractArchive: async (inputs) => {
+        // Simulate extraction: create the binary in staging
+        const txPaths = resolveManagedInstallTransactionPaths(installRoot, "0.1.0", target);
+        await fs.mkdir(path.dirname(txPaths.stagedBinaryPath), { recursive: true });
+        await fs.writeFile(txPaths.stagedBinaryPath, "#!/bin/sh\necho patchloom 0.1.0\n", { mode: 0o755 });
+      },
+      readFileContent: async (filePath) => {
+        return fs.readFile(filePath, "utf8");
+      },
+      failurePersistence: { storageRoot: installRoot }
+    });
+
+    assert.equal(result.version, "0.1.0");
+    assert.ok(result.binaryPath.includes("managed-bin"));
+    assert.equal(result.target.targetTriple, "aarch64-apple-darwin");
+
+    // Verify progress stages were reported
+    assert.ok(stages.includes("downloading-checksum"));
+    assert.ok(stages.includes("downloading-archive"));
+    assert.ok(stages.includes("extracting"));
+    assert.ok(stages.includes("installing"));
+
+    // Verify the binary was promoted to the live path
+    const binaryContent = await fs.readFile(result.binaryPath, "utf8");
+    assert.match(binaryContent, /patchloom 0\.1\.0/);
+  });
+});
+
+test("performManagedInstall persists failure on checksum mismatch", async () => {
+  await withTempDir(async (installRoot) => {
+    const target = detectManagedInstallTarget("linux", "x64");
+    assert.ok(target);
+    clearManagedInstallFailure();
+
+    // Checksum file says one hash, but archive content will produce a different hash
+    const wrongChecksum = "0000000000000000000000000000000000000000000000000000000000000000  patchloom-x86_64-unknown-linux-gnu.tar.xz\n";
+
+    await assert.rejects(
+      () => performManagedInstall({
+        installRoot,
+        version: "0.1.0",
+        platform: "linux",
+        arch: "x64",
+        downloadFile: async (inputs) => {
+          await fs.mkdir(path.dirname(inputs.destPath), { recursive: true });
+          if (inputs.url.endsWith(".sha256")) {
+            await fs.writeFile(inputs.destPath, wrongChecksum, "utf8");
+          } else {
+            await fs.writeFile(inputs.destPath, "actual-archive-data", "utf8");
+          }
+        },
+        readFileContent: async (filePath) => fs.readFile(filePath, "utf8"),
+        failurePersistence: { storageRoot: installRoot }
+      }),
+      /Checksum mismatch/
+    );
+
+    const failure = await loadManagedInstallFailure({ storageRoot: installRoot });
+    assert.ok(failure);
+    assert.equal(failure.stage, "verify");
+    assert.equal(failure.reason, "checksum-mismatch");
+  });
+});
+
+test("performManagedInstall throws for unsupported platform", async () => {
+  await assert.rejects(
+    () => performManagedInstall({
+      installRoot: "/tmp/fake",
+      platform: "freebsd" as NodeJS.Platform,
+      arch: "arm" as NodeJS.Architecture
+    }),
+    /Unsupported platform/
+  );
+});
+
+test("performManagedInstall fetches latest version when none specified", async () => {
+  await withTempDir(async (installRoot) => {
+    const target = detectManagedInstallTarget("darwin", "arm64");
+    assert.ok(target);
+
+    // SHA-256 of "fake-archive"
+    const checksumContent = "806166f1698bd2415adafa8e02c7c2a89d393a60978d0ac27efc9ec3265ab5c5  patchloom-aarch64-apple-darwin.tar.xz\n";
+
+    const result = await performManagedInstall({
+      installRoot,
+      platform: "darwin",
+      arch: "arm64",
+      fetchLatestVersion: async () => "0.3.0",
+      downloadFile: async (inputs) => {
+        await fs.mkdir(path.dirname(inputs.destPath), { recursive: true });
+        if (inputs.url.endsWith(".sha256")) {
+          await fs.writeFile(inputs.destPath, checksumContent, "utf8");
+        } else {
+          await fs.writeFile(inputs.destPath, "fake-archive", "utf8");
+        }
+      },
+      extractArchive: async (inputs) => {
+        const txPaths = resolveManagedInstallTransactionPaths(installRoot, "0.3.0", target);
+        await fs.mkdir(path.dirname(txPaths.stagedBinaryPath), { recursive: true });
+        await fs.writeFile(txPaths.stagedBinaryPath, "binary-0.3.0", { mode: 0o755 });
+      },
+      readFileContent: async (filePath) => fs.readFile(filePath, "utf8"),
+      failurePersistence: { storageRoot: installRoot }
+    });
+
+    assert.equal(result.version, "0.3.0");
   });
 });

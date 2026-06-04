@@ -50,7 +50,10 @@
     "onCommand:patchloom.openPatchloomReleases",
     "onCommand:patchloom.showStatus",
     "onCommand:patchloom.batchApply",
-    "onCommand:patchloom.showOutput"
+    "onCommand:patchloom.showOutput",
+    "onCommand:patchloom.installBinary",
+    "onCommand:patchloom.updateBinary",
+    "onCommand:patchloom.reinstallBinary"
   ],
   "contributes": {
     "commands": [
@@ -97,6 +100,21 @@
       {
         "command": "patchloom.showOutput",
         "title": "Show Output",
+        "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.installBinary",
+        "title": "Install Patchloom",
+        "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.updateBinary",
+        "title": "Update Patchloom",
+        "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.reinstallBinary",
+        "title": "Reinstall Patchloom",
         "category": "Patchloom"
       }
     ],
