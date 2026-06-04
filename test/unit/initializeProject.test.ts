@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import * as path from "node:path";
 import test from "node:test";
 import { MINIMUM_SUPPORTED_PATCHLOOM_VERSION } from "../../src/binary/patchloom.js";
 import { classifyAgentsFile, generateAgentRules } from "../../src/commands/initializeProject.js";
@@ -290,7 +291,7 @@ test("inspectMcpTargets reports configured targets", async () => {
     workspaceFolderPath: "/workspace/demo",
     homeDir: "/Users/demo",
     readFile: async (filePath) => {
-      if (filePath.endsWith(".vscode/mcp.json")) {
+      if (filePath.endsWith(path.join(".vscode", "mcp.json"))) {
         return '{"servers":{"patchloom":{"command":"patchloom","args":["mcp-server"]}}}';
       }
       return undefined;
@@ -317,7 +318,7 @@ test("configureMcpTargets creates or updates only the selected target kinds", as
     includeKinds: ["cursor-workspace"],
     patchloomPathSetting: "/custom/patchloom",
     readFile: async (filePath) => {
-      if (filePath.endsWith(".cursor/mcp.json")) {
+      if (filePath.endsWith(path.join(".cursor", "mcp.json"))) {
         return '{"servers":{"other":{"command":"other"}}}';
       }
       return undefined;
@@ -328,9 +329,9 @@ test("configureMcpTargets creates or updates only the selected target kinds", as
   });
 
   assert.equal(results.length, 1);
-  const cursorPath = "/workspace/demo/.cursor/mcp.json";
+  const cursorPath = path.join("/workspace/demo", ".cursor", "mcp.json");
   assert.equal(writes.has(cursorPath), true);
-  assert.equal(writes.has("/workspace/demo/.vscode/mcp.json"), false);
+  assert.equal(writes.has(path.join("/workspace/demo", ".vscode", "mcp.json")), false);
   assert.match(writes.get(cursorPath) ?? "", /patchloom/);
   assert.match(writes.get(cursorPath) ?? "", /mcp-server/);
   assert.match(writes.get(cursorPath) ?? "", /other/);

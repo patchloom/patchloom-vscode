@@ -25,17 +25,17 @@ test("findOnPath discovers a real executable in a temp directory", async () => {
     const fakeBinary = path.join(dir, "patchloom");
     await fs.writeFile(fakeBinary, "#!/bin/sh\necho patchloom 0.1.0\n", { mode: 0o755 });
 
-    const found = await findOnPath(dir, "linux");
+    const found = await findOnPath(dir, process.platform);
     assert.equal(found, fakeBinary);
   });
 });
 
-test("findOnPath skips non-executable files", async () => {
+test("findOnPath skips non-executable files", { skip: process.platform === "win32" ? "Windows does not enforce Unix file permissions" : undefined }, async () => {
   await withTempDir(async (dir) => {
     const fakeBinary = path.join(dir, "patchloom");
     await fs.writeFile(fakeBinary, "#!/bin/sh\necho patchloom 0.1.0\n", { mode: 0o644 });
 
-    const found = await findOnPath(dir, "linux");
+    const found = await findOnPath(dir, process.platform);
     assert.equal(found, undefined);
   });
 });
@@ -50,7 +50,8 @@ test("findOnPath searches multiple PATH directories in order", async () => {
     await fs.writeFile(path.join(firstDir, "patchloom"), "#!/bin/sh\necho first\n", { mode: 0o755 });
     await fs.writeFile(path.join(secondDir, "patchloom"), "#!/bin/sh\necho second\n", { mode: 0o755 });
 
-    const found = await findOnPath(`${firstDir}:${secondDir}`, "linux");
+    const pathSep = process.platform === "win32" ? ";" : ":";
+    const found = await findOnPath(`${firstDir}${pathSep}${secondDir}`, process.platform);
     assert.equal(found, path.join(firstDir, "patchloom"), "should find the first match in PATH order");
   });
 });
@@ -66,7 +67,8 @@ test("findOnPath deduplicates PATH entries", async () => {
     await fs.writeFile(fakeBinary, "#!/bin/sh\necho v1\n", { mode: 0o755 });
     let checkCount = 0;
 
-    const found = await findOnPath(`${dir}:${dir}:${dir}`, "linux", async (candidate) => {
+    const pathSep = process.platform === "win32" ? ";" : ":";
+    const found = await findOnPath(`${dir}${pathSep}${dir}${pathSep}${dir}`, process.platform, async (candidate) => {
       checkCount++;
       try {
         await fs.access(candidate, fs.constants.X_OK);
