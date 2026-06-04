@@ -18,12 +18,7 @@ concurrency:
 jobs:
   npm-audit:
     name: npm audit
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on:
-      - self-hosted
-      - macOS
-      - ARM64
-      - patchloom-vscode
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout
@@ -45,12 +40,7 @@ jobs:
 
   trivy:
     name: Trivy vulnerability scan
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on:
-      - self-hosted
-      - macOS
-      - ARM64
-      - patchloom-vscode
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -68,16 +58,16 @@ jobs:
         run: npm ci
 
       - name: Run Trivy filesystem scan
-        run: trivy fs --scanners vuln,misconfig --severity HIGH,CRITICAL --exit-code 1 .
+        uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # v0.32.0
+        with:
+          scan-type: fs
+          scanners: vuln,misconfig
+          severity: HIGH,CRITICAL
+          exit-code: "1"
 
   gitleaks:
     name: Gitleaks secret detection
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on:
-      - self-hosted
-      - macOS
-      - ARM64
-      - patchloom-vscode
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout
@@ -87,11 +77,12 @@ jobs:
           fetch-depth: 0
 
       - name: Run Gitleaks
-        run: gitleaks detect --source . --verbose
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
   codeql:
     name: CodeQL analysis
-    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -115,7 +106,7 @@ jobs:
 
   dependency-review:
     name: Dependency review
-    if: ${{ !github.event.repository.private && github.event_name == 'pull_request' }}
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

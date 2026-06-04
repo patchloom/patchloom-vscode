@@ -14,12 +14,7 @@ concurrency:
 
 jobs:
   unit-test:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on:
-      - self-hosted
-      - macOS
-      - ARM64
-      - patchloom-vscode
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -40,12 +35,7 @@ jobs:
         run: npm test
 
   build:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on:
-      - self-hosted
-      - macOS
-      - ARM64
-      - patchloom-vscode
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -69,13 +59,8 @@ jobs:
         run: npm run package
 
   integration-test:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     needs: [unit-test, build]
-    runs-on:
-      - self-hosted
-      - macOS
-      - ARM64
-      - patchloom-vscode
+    runs-on: macos-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
