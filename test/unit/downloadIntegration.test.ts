@@ -1,38 +1,25 @@
 import assert from "node:assert/strict";
-import { execSync } from "node:child_process";
 import * as fs from "node:fs/promises";
-import * as https from "node:https";
+import * as http from "node:http";
 import type { AddressInfo } from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 import test, { after, before, describe } from "node:test";
 import {
   calculateSha256Hex,
+  createDownloader,
   downloadToFile,
+  type HttpGetFn,
   performManagedInstall,
   streamingSha256
 } from "../../src/install/managed.js";
 
-let server: https.Server;
+let server: http.Server;
 let baseUrl: string;
-let certDir: string;
-let originalTlsReject: string | undefined;
+let testDownload: (url: string, destPath: string, redirectsRemaining?: number) => Promise<void>;
 
 before(async () => {
-  certDir = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-cert-"));
-  const keyPath = path.join(certDir, "key.pem");
-  const certPath = path.join(certDir, "cert.pem");
-  execSync(
-    `openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -days 1 -nodes -subj "/CN=localhost" 2>/dev/null`
-  );
-
-  const key = await fs.readFile(keyPath, "utf8");
-  const cert = await fs.readFile(certPath, "utf8");
-
-  originalTlsReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
-  server = https.createServer({ key, cert }, (req, res) => {
+  server = http.createServer((req, res) => {
     if (req.url === "/ok") {
       res.writeHead(200, { "Content-Type": "application/octet-stream" });
       res.end("download-content");
@@ -57,20 +44,16 @@ before(async () => {
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", () => {
       const addr = server.address() as AddressInfo;
-      baseUrl = `https://127.0.0.1:${addr.port}`;
+      baseUrl = `http://127.0.0.1:${addr.port}`;
       resolve();
     });
   });
+
+  testDownload = createDownloader(http.get.bind(http) as HttpGetFn);
 });
 
 after(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
-  if (originalTlsReject === undefined) {
-    delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-  } else {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalTlsReject;
-  }
-  await fs.rm(certDir, { recursive: true, force: true });
 });
 
 async function withTempDir(fn: (dir: string) => Promise<void>): Promise<void> {
@@ -84,11 +67,11 @@ async function withTempDir(fn: (dir: string) => Promise<void>): Promise<void> {
 
 // --- downloadToFile with real defaultDownloadToFile ---
 
-describe("downloadToFile with default HTTPS implementation", () => {
+describe("downloadToFile with createDownloader over HTTP", () => {
   test("downloads content to the destination file", async () => {
     await withTempDir(async (dir) => {
       const dest = path.join(dir, "output.bin");
-      await downloadToFile({ url: `${baseUrl}/ok`, destPath: dest });
+      await downloadToFile({ url: `${baseUrl}/ok`, destPath: dest, download: testDownload });
       const content = await fs.readFile(dest, "utf8");
       assert.equal(content, "download-content");
     });
@@ -97,7 +80,7 @@ describe("downloadToFile with default HTTPS implementation", () => {
   test("follows redirects and delivers final content", async () => {
     await withTempDir(async (dir) => {
       const dest = path.join(dir, "redirected.bin");
-      await downloadToFile({ url: `${baseUrl}/redirect-chain`, destPath: dest });
+      await downloadToFile({ url: `${baseUrl}/redirect-chain`, destPath: dest, download: testDownload });
       const content = await fs.readFile(dest, "utf8");
       assert.equal(content, "download-content");
     });
@@ -107,7 +90,7 @@ describe("downloadToFile with default HTTPS implementation", () => {
     await withTempDir(async (dir) => {
       const dest = path.join(dir, "loop.bin");
       await assert.rejects(
-        () => downloadToFile({ url: `${baseUrl}/redirect-loop`, destPath: dest }),
+        () => downloadToFile({ url: `${baseUrl}/redirect-loop`, destPath: dest, download: testDownload }),
         /too many redirects/
       );
     });
@@ -117,7 +100,7 @@ describe("downloadToFile with default HTTPS implementation", () => {
     await withTempDir(async (dir) => {
       const dest = path.join(dir, "error.bin");
       await assert.rejects(
-        () => downloadToFile({ url: `${baseUrl}/error-500`, destPath: dest }),
+        () => downloadToFile({ url: `${baseUrl}/error-500`, destPath: dest, download: testDownload }),
         /500/
       );
     });
@@ -126,7 +109,7 @@ describe("downloadToFile with default HTTPS implementation", () => {
   test("creates parent directories for the destination", async () => {
     await withTempDir(async (dir) => {
       const dest = path.join(dir, "nested", "subdir", "file.bin");
-      await downloadToFile({ url: `${baseUrl}/ok`, destPath: dest });
+      await downloadToFile({ url: `${baseUrl}/ok`, destPath: dest, download: testDownload });
       const content = await fs.readFile(dest, "utf8");
       assert.equal(content, "download-content");
     });

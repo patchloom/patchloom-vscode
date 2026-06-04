@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
+import type { IncomingMessage, ClientRequest } from "node:http";
 import * as https from "node:https";
 import * as path from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -731,45 +732,60 @@ async function defaultFetchJson(url: string): Promise<{ tag_name: string }> {
   return response.json() as Promise<{ tag_name: string }>;
 }
 
-async function defaultDownloadToFile(url: string, destPath: string, redirectsRemaining = 5): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const file = createWriteStream(destPath);
-    const request = https.get(url, { headers: { "User-Agent": "patchloom-vscode" }, timeout: 30_000 }, (response) => {
-      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-        file.close();
-        if (redirectsRemaining <= 0) {
-          reject(new Error(`Download failed: too many redirects for ${url}`));
+export type HttpGetFn = (
+  url: string,
+  options: object,
+  callback: (response: IncomingMessage) => void
+) => ClientRequest;
+
+export function createDownloader(
+  get: HttpGetFn
+): (url: string, destPath: string, redirectsRemaining?: number) => Promise<void> {
+  function download(url: string, destPath: string, redirectsRemaining = 5): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const file = createWriteStream(destPath);
+      const request = get(url, { headers: { "User-Agent": "patchloom-vscode" }, timeout: 30_000 }, (response) => {
+        if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+          file.close();
+          if (redirectsRemaining <= 0) {
+            reject(new Error(`Download failed: too many redirects for ${url}`));
+            return;
+          }
+          download(response.headers.location, destPath, redirectsRemaining - 1).then(resolve, reject);
           return;
         }
-        defaultDownloadToFile(response.headers.location, destPath, redirectsRemaining - 1).then(resolve, reject);
-        return;
-      }
-      if (response.statusCode && response.statusCode >= 400) {
+        if (response.statusCode && response.statusCode >= 400) {
+          file.close();
+          reject(new Error(`Download failed: ${response.statusCode} ${response.statusMessage} for ${url}`));
+          return;
+        }
+        response.pipe(file);
+        file.on("finish", () => {
+          file.close();
+          resolve();
+        });
+      });
+      request.on("timeout", () => {
+        request.destroy();
         file.close();
-        reject(new Error(`Download failed: ${response.statusCode} ${response.statusMessage} for ${url}`));
-        return;
-      }
-      response.pipe(file);
-      file.on("finish", () => {
+        reject(new Error(`Download timed out for ${url}`));
+      });
+      request.on("error", (error) => {
         file.close();
-        resolve();
+        reject(new Error(`Download failed for ${url}: ${formatError(error)}`));
+      });
+      file.on("error", (error) => {
+        file.close();
+        reject(new Error(`Failed to write download to ${destPath}: ${formatError(error)}`));
       });
     });
-    request.on("timeout", () => {
-      request.destroy();
-      file.close();
-      reject(new Error(`Download timed out for ${url}`));
-    });
-    request.on("error", (error) => {
-      file.close();
-      reject(new Error(`Download failed for ${url}: ${formatError(error)}`));
-    });
-    file.on("error", (error) => {
-      file.close();
-      reject(new Error(`Failed to write download to ${destPath}: ${formatError(error)}`));
-    });
-  });
+  }
+  return download;
 }
+
+const defaultDownloadToFile = createDownloader(
+  https.get.bind(https) as HttpGetFn
+);
 
 async function defaultExecCommand(cmd: string, args: string[], cwd: string): Promise<void> {
   await execFileAsync(cmd, args, { cwd, timeout: 60_000, windowsHide: true });
