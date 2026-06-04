@@ -1,0 +1,48 @@
+name: DCO
+
+on:
+  pull_request:
+    branches: [main]
+  merge_group: {}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dco-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dco:
+    name: DCO sign-off
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check DCO sign-off
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha }}
+        run: |
+          for sha in $(git rev-list "${BASE_SHA}"..HEAD); do
+            # Skip merge commits (GitHub's auto-created PR merge ref)
+            parents=$(git log -1 --format='%P' "$sha")
+            if [[ "$parents" == *" "* ]]; then
+              continue
+            fi
+            author=$(git log -1 --format='%an' "$sha")
+            if [[ "$author" == *"[bot]" ]]; then
+              echo "Skipping bot commit $sha by $author"
+              continue
+            fi
+            if ! git log -1 --format='%B' "$sha" | grep -qi '^Signed-off-by:'; then
+              echo "::error::Commit $sha by $author is missing Signed-off-by"
+              exit 1
+            fi
+          done
+          echo "All commits have DCO sign-off"

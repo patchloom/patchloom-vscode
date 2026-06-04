@@ -5,6 +5,8 @@
 # Patchloom for VS Code
 
 [![CI](https://github.com/patchloom/patchloom-vscode/actions/workflows/ci.yml/badge.svg)](https://github.com/patchloom/patchloom-vscode/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/patchloom/patchloom-vscode/blob/main/LICENSE)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/patchloom/patchloom-vscode/badge)](https://securityscorecards.dev/viewer/?uri=github.com/patchloom/patchloom-vscode)
 
 The official VS Code extension for [Patchloom](https://github.com/patchloom/patchloom). Set up your workspace for AI agent workflows in seconds: detect the CLI, generate agent rules, configure MCP servers, and run structured file operations from the command palette.
 

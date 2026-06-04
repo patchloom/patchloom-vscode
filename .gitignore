@@ -4,3 +4,8 @@ out-test/
 out-uitest/
 *.vsix
 .vscode-test/
+.DS_Store
+.env
+.env.*
+*.pem
+*.key

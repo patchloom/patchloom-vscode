@@ -9,3 +9,13 @@ tsconfig.test.json
 tsconfig.uitest.json
 .github/**
 **/*.tsbuildinfo
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SUPPORT.md
+SECURITY.md
+GOVERNANCE.md
+ROADMAP.md
+Agents.md
+Claude.md
+lychee.toml
+scripts/**
