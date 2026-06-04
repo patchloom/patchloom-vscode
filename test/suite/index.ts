@@ -10,7 +10,10 @@ const EXPECTED_COMMANDS = [
   "patchloom.showOutput",
   "patchloom.openPatchloomSettings",
   "patchloom.openPatchloomReleases",
-  "patchloom.showStatus"
+  "patchloom.showStatus",
+  "patchloom.installBinary",
+  "patchloom.updateBinary",
+  "patchloom.reinstallBinary"
 ];
 
 export async function run(): Promise<void> {
