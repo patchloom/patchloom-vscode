@@ -8,7 +8,6 @@
 [![Security](https://github.com/patchloom/patchloom-vscode/actions/workflows/security.yml/badge.svg)](https://github.com/patchloom/patchloom-vscode/actions/workflows/security.yml)
 [![Tests](https://img.shields.io/badge/tests-193%20passing-brightgreen)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/patchloom/patchloom-vscode/blob/main/LICENSE)
-
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/patchloom/patchloom-vscode/badge)](https://securityscorecards.dev/viewer/?uri=github.com/patchloom/patchloom-vscode)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13100/badge)](https://www.bestpractices.dev/projects/13100)
 [![FOSSA Status](https://img.shields.io/badge/license%20scan-FOSSA-blue)](https://app.fossa.com/projects/git%2Bgithub.com%2Fpatchloom%2Fpatchloom-vscode)
