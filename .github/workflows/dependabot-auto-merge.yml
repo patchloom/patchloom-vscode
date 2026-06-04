@@ -3,9 +3,7 @@ name: Dependabot Auto-Merge
 on:
   pull_request_target:
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 concurrency:
   group: dependabot-auto-merge-${{ github.event.pull_request.number }}
@@ -17,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
