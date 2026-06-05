@@ -12,7 +12,9 @@
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/patchloom/patchloom-vscode/badge)](https://securityscorecards.dev/viewer/?uri=github.com/patchloom/patchloom-vscode)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13100/badge)](https://www.bestpractices.dev/projects/13100)
 [![FOSSA Status](https://img.shields.io/badge/license%20scan-FOSSA-blue)](https://app.fossa.com/projects/git%2Bgithub.com%2Fpatchloom%2Fpatchloom-vscode)
+[![Release](https://img.shields.io/github/v/release/patchloom/patchloom-vscode?logo=github&sort=semver)](https://github.com/patchloom/patchloom-vscode/releases/latest)
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/patchloom.patchloom)](https://marketplace.visualstudio.com/items?itemName=patchloom.patchloom)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/patchloom.patchloom)](https://marketplace.visualstudio.com/items?itemName=patchloom.patchloom)
 [![Open VSX](https://img.shields.io/open-vsx/v/patchloom/patchloom)](https://open-vsx.org/extension/patchloom/patchloom)
 
 The official VS Code extension for [Patchloom](https://github.com/patchloom/patchloom). Set up your workspace for AI agent workflows in seconds: detect the CLI, generate agent rules, configure MCP servers, and run structured file operations from the command palette.
