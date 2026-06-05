@@ -41,7 +41,42 @@ jobs:
 
       - name: Check code coverage
         if: matrix.os == 'ubuntu-latest'
-        run: npm run test:coverage
+        id: coverage
+        run: |
+          output=$(npm run test:coverage 2>&1)
+          echo "$output"
+          pct=$(echo "$output" | grep 'all files' | head -1 | awk -F'|' '{gsub(/[[:space:]]/, "", $2); print $2}')
+          echo "percentage=$pct" >> "$GITHUB_OUTPUT"
+
+      - name: Determine badge color
+        if: matrix.os == 'ubuntu-latest'
+        id: color
+        run: |
+          pct="${{ steps.coverage.outputs.percentage }}"
+          int_pct=${pct%.*}
+          if [ "$int_pct" -ge 90 ]; then
+            echo "color=brightgreen" >> "$GITHUB_OUTPUT"
+          elif [ "$int_pct" -ge 80 ]; then
+            echo "color=green" >> "$GITHUB_OUTPUT"
+          elif [ "$int_pct" -ge 70 ]; then
+            echo "color=yellowgreen" >> "$GITHUB_OUTPUT"
+          elif [ "$int_pct" -ge 60 ]; then
+            echo "color=yellow" >> "$GITHUB_OUTPUT"
+          else
+            echo "color=red" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update coverage badge
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: schneegans/dynamic-badges-action@0e50b8bad39e7e1afd3e4e9c2b7dd145fad07501 # v1.8.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: d01e4551b744b77e2927555e43a4b935
+          filename: coverage.json
+          label: coverage
+          message: ${{ steps.coverage.outputs.percentage }}%
+          color: ${{ steps.color.outputs.color }}
 
   build:
     runs-on: ubuntu-latest

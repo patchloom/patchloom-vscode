@@ -6,6 +6,7 @@
 
 [![CI](https://github.com/patchloom/patchloom-vscode/actions/workflows/ci.yml/badge.svg)](https://github.com/patchloom/patchloom-vscode/actions/workflows/ci.yml)
 [![Security](https://github.com/patchloom/patchloom-vscode/actions/workflows/security.yml/badge.svg)](https://github.com/patchloom/patchloom-vscode/actions/workflows/security.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/SebTardif/d01e4551b744b77e2927555e43a4b935/raw/coverage.json)](https://github.com/patchloom/patchloom-vscode/actions/workflows/ci.yml)
 [![VS Code Marketplace](https://vsmarketplacebadges.dev/version/patchloom.patchloom.svg)](https://marketplace.visualstudio.com/items?itemName=patchloom.patchloom)
 [![Open VSX](https://img.shields.io/open-vsx/v/patchloom/patchloom)](https://open-vsx.org/extension/patchloom/patchloom)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/patchloom/patchloom-vscode/badge)](https://securityscorecards.dev/viewer/?uri=github.com/patchloom/patchloom-vscode)
