@@ -155,9 +155,14 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 
 ---
 
+## Requirements
+
+- VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.1.0 or newer
+
 ## Contributing
 
-Requires Node.js 20 or newer.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide. Quick start:
 
 ```bash
 npm install
@@ -165,5 +170,3 @@ npm run check          # full gate: compile + test + package
 ```
 
 Open the repo in VS Code and press `F5` to launch the Extension Development Host.
-
-Run `npm run check` before every commit. It compiles, runs all unit tests, and packages the `.vsix`.
