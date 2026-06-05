@@ -2,7 +2,11 @@ export function formatError(error: unknown): string {
   if (error instanceof Error && error.message.length > 0) {
     return error.message;
   }
-  return String(error);
+  try {
+    return String(error);
+  } catch {
+    return "[unknown error]";
+  }
 }
 
 export function formatCliOutput(result: { exitCode: number; stdout: string; stderr: string }): string {
