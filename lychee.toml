@@ -10,8 +10,10 @@ timeout = 30
 # Max concurrent requests
 max_concurrency = 4
 
-# Exclude store URLs that return 404 until first publish
+# Exclude URLs that return 404 until first publish.
+# Remove these exclusions after the first successful release.
 exclude = [
   "https://marketplace.visualstudio.com/items\\?itemName=patchloom\\.patchloom",
   "https://open-vsx.org/extension/patchloom/patchloom",
+  "https://github.com/patchloom/patchloom-vscode/compare/patchloom-v",
 ]
