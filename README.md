@@ -35,10 +35,6 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 
 ### Agent rules generation
 
-<p align="center">
-  <img src="images/command-palette.png" alt="Patchloom commands in the command palette" width="600">
-</p>
-
 `Patchloom: Initialize Project` generates an `AGENTS.md` file from `patchloom agent-rules`. If one already exists, the extension opens a diff so you can merge updates manually.
 
 ### MCP server configuration
@@ -50,10 +46,6 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 - **Windsurf** (`~/.codeium/windsurf/mcp_config.json`)
 
 ### Status bar
-
-<p align="center">
-  <img src="images/status-bar.png" alt="Patchloom status bar indicator" width="600">
-</p>
 
 The status bar shows binary readiness and CLI version at a glance. Click it to see full diagnostics.
 
