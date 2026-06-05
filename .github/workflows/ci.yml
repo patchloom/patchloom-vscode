@@ -68,10 +68,15 @@ jobs:
 
   integration-test:
     needs: [unit-test, build]
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
       - name: Harden runner
+        if: runner.os == 'Linux'
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
@@ -87,7 +92,12 @@ jobs:
       - name: Compile extension and tests
         run: npm run compile && npm run compile-tests
 
+      - name: Run extension integration tests (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:extension
+
       - name: Run extension integration tests
+        if: runner.os != 'Linux'
         run: npm run test:extension
 
       - name: Setup UI test VS Code
@@ -96,5 +106,10 @@ jobs:
       - name: Patch test VS Code to run as background app
         run: bash scripts/hide-test-vscode.sh
 
+      - name: Run UI tests (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npx extest run-tests './out-uitest/test/ui/*.test.js' --extensions_dir .vscode-test/extensions
+
       - name: Run UI tests
+        if: runner.os != 'Linux'
         run: npx extest run-tests './out-uitest/test/ui/*.test.js' --extensions_dir .vscode-test/extensions
