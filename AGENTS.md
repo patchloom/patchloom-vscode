@@ -77,7 +77,10 @@ scripts/
     dependabot-auto-merge.yml  Auto-merge minor/patch Dependabot PRs
     post-merge.yml             Trigger CI/security/scorecard on main after auto-merge
     scorecard.yml              OpenSSF Scorecard analysis (weekly + on push)
+    release.yml                Release: release-please + .vsix packaging and upload
     security.yml               Security: npm audit, Trivy fs scan, Gitleaks (weekly + on push/PR)
+release-please-config.json   Release-please configuration (node release type)
+.release-please-manifest.json  Current version tracking for release-please
 ```
 
 ## Architecture conventions
