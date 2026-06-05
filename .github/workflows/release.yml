@@ -60,10 +60,12 @@ jobs:
       # one-time browser setup (aex.dev.azure.com, PAT scopes, Open VSX agreement
       # + create-namespace + ownership claim), secret names, and troubleshooting.
       - name: Publish to VS Code Marketplace
+        if: ${{ secrets.VSCE_PAT != '' }}
         run: npx @vscode/vsce publish --packagePath patchloom.vsix
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
       - name: Publish to Open VSX
+        if: ${{ secrets.OVSX_PAT != '' }}
         run: npx ovsx publish patchloom.vsix
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
