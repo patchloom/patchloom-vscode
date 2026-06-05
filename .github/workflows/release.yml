@@ -56,6 +56,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ needs.release-please.outputs.tag_name }}" patchloom.vsix
+      # See ~/.grok/skills/vsce-publish/SKILL.md (or /vsce-publish) for the full
+      # one-time browser setup (aex.dev.azure.com, PAT scopes, Open VSX agreement
+      # + create-namespace + ownership claim), secret names, and troubleshooting.
       - name: Publish to VS Code Marketplace
         run: npx @vscode/vsce publish --packagePath patchloom.vsix
         env:
