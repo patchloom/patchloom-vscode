@@ -15,7 +15,12 @@ SUPPORT.md
 SECURITY.md
 GOVERNANCE.md
 ROADMAP.md
-Agents.md
-Claude.md
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.gitignore
+.nvmrc
+.release-please-manifest.json
+release-please-config.json
 lychee.toml
 scripts/**

@@ -12,16 +12,23 @@
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/patchloom/patchloom-vscode/badge)](https://securityscorecards.dev/viewer/?uri=github.com/patchloom/patchloom-vscode)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13100/badge)](https://www.bestpractices.dev/projects/13100)
 [![FOSSA Status](https://img.shields.io/badge/license%20scan-FOSSA-blue)](https://app.fossa.com/projects/git%2Bgithub.com%2Fpatchloom%2Fpatchloom-vscode)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/patchloom.patchloom)](https://marketplace.visualstudio.com/items?itemName=patchloom.patchloom)
+[![Open VSX](https://img.shields.io/open-vsx/v/patchloom/patchloom)](https://open-vsx.org/extension/patchloom/patchloom)
 
 The official VS Code extension for [Patchloom](https://github.com/patchloom/patchloom). Set up your workspace for AI agent workflows in seconds: detect the CLI, generate agent rules, configure MCP servers, and run structured file operations from the command palette.
 
 ---
 
+## Install
+
+Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=patchloom.patchloom) or the [Open VSX Registry](https://open-vsx.org/extension/patchloom/patchloom).
+
+Or search for **Patchloom** in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+X`).
+
 ## Get started in 30 seconds
 
-1. Install the [Patchloom CLI](https://github.com/patchloom/patchloom/releases)
-2. Install this extension
-3. Open a project and run **Patchloom: Setup Workspace**
+1. Install the [Patchloom CLI](https://github.com/patchloom/patchloom/releases) (or run **Patchloom: Install Patchloom** from the command palette)
+2. Open a project and run **Patchloom: Setup Workspace**
 
 The extension finds the CLI automatically. If it's not on `PATH`, point `patchloom.path` to it in settings.
 
@@ -148,9 +155,14 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 
 ---
 
+## Requirements
+
+- VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.1.0 or newer
+
 ## Contributing
 
-Requires Node.js 20 or newer.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide. Quick start:
 
 ```bash
 npm install
@@ -158,5 +170,3 @@ npm run check          # full gate: compile + test + package
 ```
 
 Open the repo in VS Code and press `F5` to launch the Extension Development Host.
-
-Run `npm run check` before every commit. It compiles, runs all unit tests, and packages the `.vsix`.
