@@ -56,3 +56,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ needs.release-please.outputs.tag_name }}" patchloom.vsix
+      - name: Publish to VS Code Marketplace
+        run: npx @vscode/vsce publish --packagePath patchloom.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      - name: Publish to Open VSX
+        run: npx ovsx publish patchloom.vsix
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
