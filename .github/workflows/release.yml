@@ -41,6 +41,9 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
     steps:
       - uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
         with:
@@ -60,12 +63,8 @@ jobs:
       # one-time browser setup (aex.dev.azure.com, PAT scopes, Open VSX agreement
       # + create-namespace + ownership claim), secret names, and troubleshooting.
       - name: Publish to VS Code Marketplace
-        if: ${{ secrets.VSCE_PAT != '' }}
+        if: env.VSCE_PAT != ''
         run: npx @vscode/vsce publish --packagePath patchloom.vsix
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
       - name: Publish to Open VSX
-        if: ${{ secrets.OVSX_PAT != '' }}
+        if: env.OVSX_PAT != ''
         run: npx ovsx publish patchloom.vsix
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
