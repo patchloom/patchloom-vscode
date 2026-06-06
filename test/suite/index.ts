@@ -13,7 +13,8 @@ const EXPECTED_COMMANDS = [
   "patchloom.showStatus",
   "patchloom.installBinary",
   "patchloom.updateBinary",
-  "patchloom.reinstallBinary"
+  "patchloom.reinstallBinary",
+  "patchloom.verifyMcp"
 ];
 
 export async function run(): Promise<void> {

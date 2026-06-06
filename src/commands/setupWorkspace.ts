@@ -37,32 +37,34 @@ export async function setupWorkspace(): Promise<void> {
 
   if (readiness.hasAgentsFile === false) {
     const choice = await vscode.window.showInformationMessage(
-      "AGENTS.md is missing for this workspace. Create it now from patchloom agent-rules?",
-      "Initialize Project"
+      "Step 1/2: AGENTS.md is missing for this workspace. Create it now from patchloom agent-rules?",
+      "Initialize Project",
+      "Skip"
     );
     if (choice === "Initialize Project") {
       await vscode.commands.executeCommand("patchloom.initializeProject");
     }
-    return;
   }
 
   if (readiness.hasMcpConfig === false) {
     const choice = await vscode.window.showInformationMessage(
-      "Patchloom MCP config is missing. Configure supported editors now?",
-      "Configure MCP"
+      `${readiness.hasAgentsFile === false ? "Step 2/2: " : ""}Patchloom MCP config is missing. Configure supported editors now?`,
+      "Configure MCP",
+      "Skip"
     );
     if (choice === "Configure MCP") {
       await vscode.commands.executeCommand("patchloom.configureMcp");
     }
-    return;
   }
 
-  const environment = describeWorkspaceEnvironment(vscode.env.remoteName);
-  const environmentSuffix = environment.note ? ` ${environment.note}` : "";
-  const workspaceTarget = readiness.workspaceName ? ` for ${readiness.workspaceName}` : "";
-  await vscode.window.showInformationMessage(
-    `Patchloom workspace setup looks good${workspaceTarget}. Binary, AGENTS.md, and MCP config are already in place.${environmentSuffix}`
-  );
+  if (readiness.hasAgentsFile !== false && readiness.hasMcpConfig !== false) {
+    const environment = describeWorkspaceEnvironment(vscode.env.remoteName);
+    const environmentSuffix = environment.note ? ` ${environment.note}` : "";
+    const workspaceTarget = readiness.workspaceName ? ` for ${readiness.workspaceName}` : "";
+    await vscode.window.showInformationMessage(
+      `Patchloom workspace setup looks good${workspaceTarget}. Binary, AGENTS.md, and MCP config are already in place.${environmentSuffix}`
+    );
+  }
 }
 
 export async function openPatchloomSettings(): Promise<void> {
