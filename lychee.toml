@@ -16,6 +16,4 @@ exclude = [
   "https://marketplace.visualstudio.com/items\\?itemName=patchloom\\.patchloom",
   "https://open-vsx.org/extension/patchloom/patchloom",
   "https://github.com/patchloom/patchloom-vscode/compare/patchloom-v",
-  # Badge SVG endpoints are unreliable for link checking (transient 500s)
-  "https://vsmarketplacebadges\\.dev/",
 ]

@@ -74,3 +74,20 @@ jobs:
       - name: Publish to Open VSX
         if: env.OVSX_PAT != ''
         run: npx ovsx publish patchloom.vsix
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${TAG_NAME#patchloom-}" >> "$GITHUB_OUTPUT"
+        env:
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+      - name: Update version badge
+        continue-on-error: true
+        uses: schneegans/dynamic-badges-action@0e50b8bad39e7e1afd3e4e9c2b7dd145fad07501 # v1.8.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: d01e4551b744b77e2927555e43a4b935
+          filename: version.json
+          label: VS Code Marketplace
+          message: ${{ steps.version.outputs.version }}
+          color: blue
+          namedLogo: visualstudiocode
+          logoColor: white
