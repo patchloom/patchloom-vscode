@@ -36,7 +36,7 @@ jobs:
         if: github.event.pull_request.user.login != 'patchloom-release[bot]'
         id: app-token
         with:
-          app-id: ${{ secrets.APP_ID }}
+          client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Enable auto-merge
