@@ -52,7 +52,17 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 
 ### Status bar
 
-The status bar shows binary readiness and CLI version at a glance. Click it to see full diagnostics.
+The status bar shows MCP and binary readiness at a glance:
+
+- **$(plug) Patchloom MCP** when the MCP server is configured
+- **$(check) Patchloom** when the binary is ready but MCP is not yet set up
+- **$(warning) Patchloom** when the binary is missing or needs an upgrade
+
+Click it to see full diagnostics, including per-editor MCP configuration status (VS Code, Cursor, Windsurf).
+
+### Verify MCP Server
+
+`Patchloom: Verify MCP Server` spawns `patchloom mcp-server`, sends a JSON-RPC `initialize` handshake, and confirms the server responds correctly. Reports the server name and version on success, or a diagnostic error on failure.
 
 ### Quick actions
 
@@ -92,6 +102,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | `Patchloom: Batch Apply` | Open a JSON batch plan and execute all operations atomically |
 | `Patchloom: Show Output` | Open the Patchloom output channel for CLI logs and diagnostics |
 | `Patchloom: Show Status` | Display binary readiness, version, compatibility, and workspace state |
+| `Patchloom: Verify MCP Server` | Spawn the MCP server and verify it responds to a JSON-RPC initialize request |
 | `Patchloom: Install Patchloom` | Download and install the Patchloom CLI with checksum verification |
 | `Patchloom: Update Patchloom` | Update a managed Patchloom install to the latest release |
 | `Patchloom: Reinstall Patchloom` | Re-download and reinstall the managed Patchloom binary |
