@@ -21,9 +21,11 @@ export async function refreshStatusBar(): Promise<void> {
   const workspaceReadiness = await inspectWorkspaceReadiness();
   const action = preferredStatusAction(status, workspaceReadiness);
 
-  statusBarItem.text = status.ready && !patchloomNeedsUpgrade(status)
-    ? "$(check) Patchloom"
-    : "$(warning) Patchloom";
+  statusBarItem.text = !status.ready || patchloomNeedsUpgrade(status)
+    ? "$(warning) Patchloom"
+    : workspaceReadiness?.hasMcpConfig
+      ? "$(plug) Patchloom MCP"
+      : "$(check) Patchloom";
   statusBarItem.command = action?.command ?? "patchloom.showStatus";
   statusBarItem.tooltip = buildStatusDetails(status, workspaceReadiness);
   statusBarItem.show();

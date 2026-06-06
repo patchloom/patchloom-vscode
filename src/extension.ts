@@ -6,6 +6,7 @@ import { installPatchloom, updatePatchloom, reinstallPatchloom } from "./command
 import { runQuickAction } from "./commands/quickActions.js";
 import { setupWorkspace, openPatchloomReleases, openPatchloomSettings } from "./commands/setupWorkspace.js";
 import { showStatus } from "./commands/showStatus.js";
+import { verifyMcp } from "./commands/verifyMcp.js";
 import { setManagedInstallRoot } from "./install/managed.js";
 import { createPatchloomLog, getPatchloomLog, setPatchloomLog } from "./logging/outputChannel.js";
 import { disposeStatusBar, refreshStatusBar } from "./status/statusBar.js";
@@ -29,6 +30,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("patchloom.installBinary", installPatchloom),
     vscode.commands.registerCommand("patchloom.updateBinary", updatePatchloom),
     vscode.commands.registerCommand("patchloom.reinstallBinary", reinstallPatchloom),
+    vscode.commands.registerCommand("patchloom.verifyMcp", verifyMcp),
     new vscode.Disposable(disposeStatusBar),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("patchloom")) {

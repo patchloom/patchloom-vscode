@@ -1,5 +1,5 @@
 import type * as VSCode from "vscode";
-import { inspectMcpTargets } from "../mcp/config.js";
+import { inspectMcpTargets, type McpTargetStatus } from "../mcp/config.js";
 
 export type WorkspaceEnvironmentSupport = "supported" | "limited" | "unverified";
 
@@ -16,6 +16,7 @@ export interface WorkspaceReadiness {
   readonly hasWorkspace: boolean;
   readonly hasAgentsFile?: boolean;
   readonly hasMcpConfig?: boolean;
+  readonly mcpTargets?: readonly McpTargetStatus[];
   readonly workspaceCount: number;
   readonly environmentLabel: string;
   readonly environmentSupport: WorkspaceEnvironmentSupport;
@@ -40,11 +41,13 @@ export async function inspectWorkspaceReadiness(options: WorkspaceReadinessOptio
   });
   const workspaceCount = vscode.workspace.workspaceFolders?.length ?? 0;
   if (!folder) {
+    const targets = await inspectMcpTargets({
+      includeUserTarget: environment.supportsUserMcpConfig
+    });
     return {
       hasWorkspace: false,
-      hasMcpConfig: (await inspectMcpTargets({
-        includeUserTarget: environment.supportsUserMcpConfig
-      })).some((target) => target.configured),
+      hasMcpConfig: targets.some((target) => target.configured),
+      mcpTargets: targets,
       workspaceCount,
       environmentLabel: environment.label,
       environmentSupport: environment.support,
@@ -52,7 +55,7 @@ export async function inspectWorkspaceReadiness(options: WorkspaceReadinessOptio
     };
   }
 
-  const mcpTargets = await inspectMcpTargets({
+  const targets = await inspectMcpTargets({
     workspaceFolderPath: folder.uri.fsPath,
     includeUserTarget: environment.supportsUserMcpConfig
   });
@@ -61,7 +64,8 @@ export async function inspectWorkspaceReadiness(options: WorkspaceReadinessOptio
     workspaceName: folder.name,
     hasWorkspace: true,
     hasAgentsFile: await fileExists(vscode.Uri.joinPath(folder.uri, "AGENTS.md")),
-    hasMcpConfig: mcpTargets.some((target) => target.configured),
+    hasMcpConfig: targets.some((target) => target.configured),
+    mcpTargets: targets,
     workspaceCount,
     environmentLabel: environment.label,
     environmentSupport: environment.support,

@@ -51,7 +51,8 @@
     "onCommand:patchloom.showOutput",
     "onCommand:patchloom.installBinary",
     "onCommand:patchloom.updateBinary",
-    "onCommand:patchloom.reinstallBinary"
+    "onCommand:patchloom.reinstallBinary",
+    "onCommand:patchloom.verifyMcp"
   ],
   "contributes": {
     "commands": [
@@ -113,6 +114,11 @@
       {
         "command": "patchloom.reinstallBinary",
         "title": "Reinstall Patchloom",
+        "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.verifyMcp",
+        "title": "Verify MCP Server",
         "category": "Patchloom"
       }
     ],

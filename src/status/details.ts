@@ -4,6 +4,7 @@ import {
   patchloomNeedsUpgrade,
   PatchloomStatus
 } from "../binary/patchloom.js";
+import type { McpTargetStatus } from "../mcp/config.js";
 import { WorkspaceReadiness } from "../workspace/readiness.js";
 
 export interface SetupAction {
@@ -38,9 +39,7 @@ export function buildStatusDetails(status: PatchloomStatus, workspaceReadiness?:
     workspaceReadiness?.hasAgentsFile === undefined
       ? undefined
       : `AGENTS.md: ${workspaceReadiness.hasAgentsFile ? "present" : "missing"}`,
-    workspaceReadiness?.hasMcpConfig === undefined
-      ? undefined
-      : `MCP config: ${workspaceReadiness.hasMcpConfig ? "present" : "missing"}`
+    ...formatMcpTargetDetails(workspaceReadiness?.mcpTargets)
   ].filter((line): line is string => Boolean(line)).join("\n");
 }
 
@@ -80,4 +79,15 @@ export function preferredStatusAction(status: PatchloomStatus, workspaceReadines
   }
 
   return undefined;
+}
+
+function formatMcpTargetDetails(targets?: readonly McpTargetStatus[]): string[] {
+  if (!targets || targets.length === 0) {
+    return ["MCP config: no targets available"];
+  }
+
+  return targets.map((target) => {
+    const icon = target.configured ? "\u2713" : "\u2717";
+    return `MCP ${target.label}: ${icon} ${target.configured ? "configured" : "not configured"}`;
+  });
 }
