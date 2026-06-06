@@ -19,6 +19,7 @@ jobs:
     if: github.event.pull_request.merged == true
     permissions:
       actions: write
+      contents: write
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -32,3 +33,13 @@ jobs:
           gh workflow run ci.yml --ref main --repo "${{ github.repository }}"
           gh workflow run security.yml --ref main --repo "${{ github.repository }}"
           gh workflow run scorecard.yml --ref main --repo "${{ github.repository }}"
+
+      - name: Auto-update open PR branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr list --base main --state open --json number --jq '.[].number' \
+            --repo "${{ github.repository }}" | while read -r pr; do
+            echo "Updating PR #$pr"
+            gh pr update-branch "$pr" --repo "${{ github.repository }}" || true
+          done
