@@ -28,6 +28,10 @@ Or search for **Patchloom** in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+
 1. Install the [Patchloom CLI](https://github.com/patchloom/patchloom/releases) (or run **Patchloom: Install Patchloom** from the command palette)
 2. Open a project and run **Patchloom: Setup Workspace**
 
+<p align="center">
+  <img src="images/setup-workspace-demo.gif" alt="Setup Workspace demo" width="800">
+</p>
+
 The extension finds the CLI automatically. If it's not on `PATH`, point `patchloom.path` to it in settings.
 
 ---
