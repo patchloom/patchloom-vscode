@@ -4,6 +4,7 @@ out-test/
 out-uitest/
 *.vsix
 .vscode-test/
+.patchloom/
 .DS_Store
 .env
 .env.*
