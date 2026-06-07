@@ -14,7 +14,8 @@ const EXPECTED_COMMANDS = [
   "patchloom.installBinary",
   "patchloom.updateBinary",
   "patchloom.reinstallBinary",
-  "patchloom.verifyMcp"
+  "patchloom.verifyMcp",
+  "patchloom.openDocumentation"
 ];
 
 export async function run(): Promise<void> {
@@ -62,18 +63,12 @@ export async function run(): Promise<void> {
   assert.ok(properties["patchloom.path"], "should contribute patchloom.path setting");
   assert.ok(properties["patchloom.showStatusBar"], "should contribute patchloom.showStatusBar setting");
 
-  // Activation events include onStartupFinished
+  // Activation events include content-based triggers
   const activationEvents = packageJson.activationEvents as string[];
-  assert.ok(activationEvents.includes("onStartupFinished"),
-    "should activate on startup finished");
-
-  // All contributed commands have corresponding activation events
-  for (const cmd of EXPECTED_COMMANDS) {
-    assert.ok(
-      activationEvents.includes("onStartupFinished") || activationEvents.includes(`onCommand:${cmd}`),
-      `command ${cmd} should be activatable`
-    );
-  }
+  assert.ok(activationEvents.includes("workspaceContains:**/AGENTS.md"),
+    "should activate on AGENTS.md presence");
+  assert.ok(activationEvents.includes("workspaceContains:**/.patchloom.toml"),
+    "should activate on .patchloom.toml presence");
 
   // Extension remains active throughout test lifecycle
   assert.ok(extension.isActive, "extension should still be active after assertions");
@@ -86,6 +81,12 @@ export async function run(): Promise<void> {
   const statusBarSchema = properties["patchloom.showStatusBar"] as Record<string, unknown>;
   assert.equal(statusBarSchema.type, "boolean", "patchloom.showStatusBar should be boolean type");
   assert.equal(statusBarSchema.default, true, "patchloom.showStatusBar default should be true");
+
+  // New settings contributed
+  assert.ok(properties["patchloom.enable"], "should contribute patchloom.enable setting");
+  assert.ok(properties["patchloom.trace.server"], "should contribute patchloom.trace.server setting");
+  assert.ok(properties["patchloom.env"], "should contribute patchloom.env setting");
+  assert.ok(properties["patchloom.managedInstall.autoUpdate"], "should contribute patchloom.managedInstall.autoUpdate setting");
 
   // Extension has required license and repo metadata
   assert.equal(packageJson.license, "MIT");

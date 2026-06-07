@@ -217,11 +217,11 @@ test("detectManagedInstallTarget maps supported platforms to release targets", (
 test("resolveManagedInstallPaths uses cargo-dist style archive names", () => {
   const target = detectManagedInstallTarget("darwin", "arm64");
   assert.ok(target);
-  const paths = resolveManagedInstallPaths("/managed/install", "0.1.0", target);
+  const paths = resolveManagedInstallPaths("/managed/install", target);
 
   assert.equal(paths.archiveFileName, "patchloom-aarch64-apple-darwin.tar.xz");
   assert.equal(paths.checksumFileName, "patchloom-aarch64-apple-darwin.tar.xz.sha256");
-  assert.equal(paths.binaryPath, path.join("/managed/install", "0.1.0", "managed-bin", "patchloom"));
+  assert.equal(paths.binaryPath, path.join("/managed/install", "managed-bin", "patchloom"));
 });
 
 test("buildManagedInstallReleaseAssets builds archive and checksum urls with patchloom-v tag", () => {
@@ -327,13 +327,13 @@ test("managed install constants use a stable storage directory name", () => {
 test("resolveManagedInstallTransactionPaths keeps staged files separate from the live binary", () => {
   const target = detectManagedInstallTarget("darwin", "arm64");
   assert.ok(target);
-  const paths = resolveManagedInstallTransactionPaths("/managed/install", "0.1.0", target);
+  const paths = resolveManagedInstallTransactionPaths("/managed/install", target);
 
-  assert.equal(paths.archivePath, path.join("/managed/install", "0.1.0", "patchloom-aarch64-apple-darwin.tar.xz"));
-  assert.equal(paths.stagedArchivePath, path.join("/managed/install", "0.1.0", ".staging", "patchloom-aarch64-apple-darwin.tar.xz"));
-  assert.equal(paths.stagedChecksumPath, path.join("/managed/install", "0.1.0", ".staging", "patchloom-aarch64-apple-darwin.tar.xz.sha256"));
-  assert.equal(paths.stagedBinaryPath, path.join("/managed/install", "0.1.0", ".staging", "managed-bin", "patchloom"));
-  assert.equal(paths.backupBinaryPath, `${path.join("/managed/install", "0.1.0", "managed-bin", "patchloom")}.bak`);
+  assert.equal(paths.archivePath, path.join("/managed/install", "patchloom-aarch64-apple-darwin.tar.xz"));
+  assert.equal(paths.stagedArchivePath, path.join("/managed/install", ".staging", "patchloom-aarch64-apple-darwin.tar.xz"));
+  assert.equal(paths.stagedChecksumPath, path.join("/managed/install", ".staging", "patchloom-aarch64-apple-darwin.tar.xz.sha256"));
+  assert.equal(paths.stagedBinaryPath, path.join("/managed/install", ".staging", "managed-bin", "patchloom"));
+  assert.equal(paths.backupBinaryPath, `${path.join("/managed/install", "managed-bin", "patchloom")}.bak`);
 });
 
 test("inspectManagedInstallStatus includes the last managed install failure for diagnostics", async () => {
@@ -348,15 +348,13 @@ test("inspectManagedInstallStatus includes the last managed install failure for 
   try {
     const status = await inspectManagedInstallStatus({
       installRoot: "/managed/install",
-      version: "v0.1.0",
       target,
       fileExists: async () => false
     });
 
     assert.deepEqual(status, {
       exists: false,
-      binaryPath: path.join("/managed/install", "0.1.0", "managed-bin", "patchloom"),
-      version: "0.1.0",
+      binaryPath: path.join("/managed/install", "managed-bin", "patchloom"),
       target,
       failure: {
         stage: "verify",
@@ -372,7 +370,7 @@ test("inspectManagedInstallStatus includes the last managed install failure for 
 test("clearManagedInstallStaging removes the entire staging directory", async () => {
   const target = detectManagedInstallTarget("darwin", "arm64");
   assert.ok(target);
-  const paths = resolveManagedInstallTransactionPaths("/managed/install", "0.1.0", target);
+  const paths = resolveManagedInstallTransactionPaths("/managed/install", target);
   const operations: string[] = [];
 
   await clearManagedInstallStaging({
@@ -390,7 +388,7 @@ test("clearManagedInstallStaging removes the entire staging directory", async ()
 test("promoteManagedInstallBinary replaces the live binary and clears stale backups", async () => {
   const target = detectManagedInstallTarget("darwin", "arm64");
   assert.ok(target);
-  const paths = resolveManagedInstallTransactionPaths("/managed/install", "0.1.0", target);
+  const paths = resolveManagedInstallTransactionPaths("/managed/install", target);
   const operations: string[] = [];
   const existing = new Set([
     paths.binaryPath,
@@ -432,7 +430,6 @@ test("promoteManagedInstallBinary replaces the live binary and clears stale back
 
   const status = await inspectManagedInstallStatus({
     installRoot: "/managed/install",
-    version: "v0.1.0",
     target,
     fileExists: async (filePath) => existing.has(filePath)
   });
@@ -443,7 +440,7 @@ test("promoteManagedInstallBinary replaces the live binary and clears stale back
 test("promoteManagedInstallBinary restores the previous binary when replacement fails", async () => {
   const target = detectManagedInstallTarget("darwin", "arm64");
   assert.ok(target);
-  const paths = resolveManagedInstallTransactionPaths("/managed/install", "0.1.0", target);
+  const paths = resolveManagedInstallTransactionPaths("/managed/install", target);
   const operations: string[] = [];
   const existing = new Set([
     paths.binaryPath,
@@ -495,7 +492,6 @@ test("promoteManagedInstallBinary restores the previous binary when replacement 
 
     const status = await inspectManagedInstallStatus({
       installRoot: "/managed/install",
-      version: "v0.1.0",
       target,
       fileExists: async (filePath) => existing.has(filePath)
     });
@@ -513,10 +509,9 @@ test("promoteManagedInstallBinary restores the previous binary when replacement 
 test("inspectManagedInstallStatus reports discovered managed binaries", async () => {
   const target = detectManagedInstallTarget("darwin", "arm64");
   assert.ok(target);
-  const expectedBinaryPath = path.join("/managed/install", "0.1.0", "managed-bin", "patchloom");
+  const expectedBinaryPath = path.join("/managed/install", "managed-bin", "patchloom");
   const status = await inspectManagedInstallStatus({
     installRoot: "/managed/install",
-    version: "v0.1.0",
     target,
     fileExists: async (filePath) => filePath === expectedBinaryPath
   });
@@ -524,7 +519,6 @@ test("inspectManagedInstallStatus reports discovered managed binaries", async ()
   assert.deepEqual(status, {
     exists: true,
     binaryPath: expectedBinaryPath,
-    version: "0.1.0",
     target
   });
 });
@@ -605,7 +599,6 @@ test("resolvePatchloomStatusWithInputs surfaces persisted managed install failur
       platform: "darwin",
       arch: "arm64",
       managedInstallRoot: storageRoot,
-      managedInstallVersion: "0.1.0",
       managedFileExists: async () => false,
       canExecute: async () => false,
       getVersion: async () => undefined
@@ -645,14 +638,13 @@ test("buildManagedInstallReleaseAssets normalizes patchloom-v prefixed versions"
 });
 
 test("resolvePatchloomStatusWithInputs falls back to a managed install when present", async () => {
-  const expectedBinaryPath = path.join("/managed/install", "0.1.0", "managed-bin", "patchloom");
+  const expectedBinaryPath = path.join("/managed/install", "managed-bin", "patchloom");
   const status = await resolvePatchloomStatusWithInputs({
     configuredPath: "",
     pathValue: "/usr/local/bin:/bin",
     platform: "darwin",
     arch: "arm64",
     managedInstallRoot: "/managed/install",
-    managedInstallVersion: "0.1.0",
     managedFileExists: async (filePath) => filePath === expectedBinaryPath,
     canExecute: async (candidate) => candidate === expectedBinaryPath,
     getVersion: async () => "patchloom 0.1.0"
@@ -768,4 +760,50 @@ test("isTrustedManagedInstallDownloadUrl respects custom repo parameter", () => 
     ),
     false
   );
+});
+
+test("resolvePatchloomStatusWithInputs skips PATH and setting in untrusted workspaces", async () => {
+  const expectedBinaryPath = path.join("/managed/install", "managed-bin", "patchloom");
+  const status = await resolvePatchloomStatusWithInputs({
+    configuredPath: "/evil/patchloom",
+    pathValue: "/evil/bin:/usr/local/bin",
+    platform: "darwin",
+    arch: "arm64",
+    managedInstallRoot: "/managed/install",
+    managedFileExists: async (filePath) => filePath === expectedBinaryPath,
+    canExecute: async (candidate) => candidate === expectedBinaryPath || candidate === "/evil/patchloom",
+    getVersion: async () => "patchloom 0.1.5",
+    isTrusted: false
+  });
+
+  assert.equal(status.ready, true);
+  assert.equal(status.source, "managed");
+  assert.equal(status.binaryPath, expectedBinaryPath);
+});
+
+test("resolvePatchloomStatusWithInputs reports restricted message when untrusted and no managed install", async () => {
+  const status = await resolvePatchloomStatusWithInputs({
+    configuredPath: "/evil/patchloom",
+    pathValue: "/evil/bin",
+    canExecute: async () => true,
+    getVersion: async () => "patchloom 0.1.5",
+    isTrusted: false
+  });
+
+  assert.equal(status.ready, false);
+  assert.equal(status.source, "missing");
+  assert.ok(status.message.includes("untrusted"));
+});
+
+test("resolvePatchloomStatusWithInputs allows setting and PATH in trusted workspaces", async () => {
+  const status = await resolvePatchloomStatusWithInputs({
+    configuredPath: "/custom/patchloom",
+    pathValue: "/usr/local/bin",
+    canExecute: async (candidate) => candidate === "/custom/patchloom",
+    getVersion: async () => "patchloom 0.1.5",
+    isTrusted: true
+  });
+
+  assert.equal(status.ready, true);
+  assert.equal(status.source, "setting");
 });

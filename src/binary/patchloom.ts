@@ -15,6 +15,7 @@ const execFileAsync = promisify(execFile);
 
 export const MINIMUM_SUPPORTED_PATCHLOOM_VERSION = "0.1.0";
 export const PATCHLOOM_RELEASES_URL = "https://github.com/patchloom/patchloom/releases";
+export const PATCHLOOM_DOCS_URL = "https://github.com/patchloom/patchloom#readme";
 
 export type PatchloomSource = "setting" | "path" | "managed" | "missing";
 export type PatchloomCompatibility = "supported" | "unsupported" | "unknown";
@@ -48,8 +49,8 @@ export interface PatchloomStatusInputs {
   readonly canExecute?: (binaryPath: string) => Promise<boolean>;
   readonly getVersion?: (binaryPath: string) => Promise<string | undefined>;
   readonly managedInstallRoot?: string;
-  readonly managedInstallVersion?: string;
   readonly managedFileExists?: (filePath: string) => Promise<boolean>;
+  readonly isTrusted?: boolean;
 }
 
 export async function resolvePatchloomStatus(): Promise<PatchloomStatus> {
@@ -61,18 +62,18 @@ export async function resolvePatchloomStatus(): Promise<PatchloomStatus> {
     platform: process.platform,
     arch: process.arch,
     managedInstallRoot,
-    managedInstallVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION
+    isTrusted: vscode.workspace.isTrusted
   });
 }
 
 export async function resolvePatchloomStatusWithInputs(inputs: PatchloomStatusInputs): Promise<PatchloomStatus> {
-  const configuredPath = configuredBinaryPathFromSetting(inputs.configuredPath);
+  const isTrusted = inputs.isTrusted ?? true;
+  const configuredPath = isTrusted ? configuredBinaryPathFromSetting(inputs.configuredPath) : undefined;
   const canExecute = inputs.canExecute ?? isExecutable;
   const getVersion = inputs.getVersion ?? readVersion;
   const managedInstall = inputs.managedInstallRoot
     ? await inspectManagedInstallStatus({
       installRoot: inputs.managedInstallRoot,
-      version: inputs.managedInstallVersion,
       target: detectManagedInstallTarget(inputs.platform, inputs.arch),
       fileExists: inputs.managedFileExists,
       failurePersistence: {
@@ -87,10 +88,12 @@ export async function resolvePatchloomStatusWithInputs(inputs: PatchloomStatusIn
     return withManagedInstallContext(status, managedInstall, diagnostics);
   }
 
-  const discoveredPath = await findOnPath(inputs.pathValue, inputs.platform, canExecute);
-  if (discoveredPath) {
-    const status = await inspectCandidate(discoveredPath, "path", canExecute, getVersion);
-    return withManagedInstallContext(status, managedInstall, diagnostics);
+  if (isTrusted) {
+    const discoveredPath = await findOnPath(inputs.pathValue, inputs.platform, canExecute);
+    if (discoveredPath) {
+      const status = await inspectCandidate(discoveredPath, "path", canExecute, getVersion);
+      return withManagedInstallContext(status, managedInstall, diagnostics);
+    }
   }
 
   if (managedInstall?.exists) {
@@ -98,12 +101,16 @@ export async function resolvePatchloomStatusWithInputs(inputs: PatchloomStatusIn
     return withManagedInstallContext(status, managedInstall, diagnostics);
   }
 
+  const notFoundMessage = !isTrusted
+    ? "Patchloom is restricted to the managed install in untrusted workspaces. Install via the managed installer or grant workspace trust."
+    : managedInstall
+      ? "Patchloom binary not found. Set patchloom.path, install patchloom on PATH, or install a managed Patchloom release."
+      : "Patchloom binary not found. Set patchloom.path or install patchloom on PATH.";
+
   return {
     ready: false,
     source: "missing",
-    message: managedInstall
-      ? `Patchloom binary not found. Set patchloom.path, install patchloom on PATH, or install a managed Patchloom release.`
-      : "Patchloom binary not found. Set patchloom.path or install patchloom on PATH.",
+    message: notFoundMessage,
     compatibility: "unknown",
     minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
     managedInstall,

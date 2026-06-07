@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { PATCHLOOM_RELEASES_URL, patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { PATCHLOOM_DOCS_URL, PATCHLOOM_RELEASES_URL, patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
 import { describeWorkspaceEnvironment, inspectWorkspaceReadiness } from "../workspace/readiness.js";
 
 export async function setupWorkspace(): Promise<void> {
@@ -73,4 +73,8 @@ export async function openPatchloomSettings(): Promise<void> {
 
 export async function openPatchloomReleases(): Promise<void> {
   await vscode.env.openExternal(vscode.Uri.parse(PATCHLOOM_RELEASES_URL));
+}
+
+export async function openDocumentation(): Promise<void> {
+  await vscode.env.openExternal(vscode.Uri.parse(PATCHLOOM_DOCS_URL));
 }

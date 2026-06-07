@@ -36,7 +36,6 @@ export interface ManagedInstallTarget {
 
 export interface ManagedInstallPaths {
   readonly installRoot: string;
-  readonly versionRoot: string;
   readonly archiveFileName: string;
   readonly archivePath: string;
   readonly checksumFileName: string;
@@ -69,14 +68,12 @@ export interface ManagedInstallFailure {
 export interface ManagedInstallStatus {
   readonly exists: boolean;
   readonly binaryPath: string;
-  readonly version?: string;
   readonly target: ManagedInstallTarget;
   readonly failure?: ManagedInstallFailure;
 }
 
 export interface ManagedInstallStatusInputs {
   readonly installRoot: string;
-  readonly version?: string;
   readonly target?: ManagedInstallTarget;
   readonly fileExists?: (filePath: string) => Promise<boolean>;
   readonly failurePersistence?: ManagedInstallFailurePersistenceInputs;
@@ -258,30 +255,26 @@ export function detectManagedInstallTarget(
 
 export function resolveManagedInstallPaths(
   installRoot: string,
-  version: string,
   target: ManagedInstallTarget
 ): ManagedInstallPaths {
   const archiveFileName = `patchloom-${target.targetTriple}${target.archiveFormat}`;
   const checksumFileName = `${archiveFileName}.sha256`;
-  const versionRoot = path.join(installRoot, version);
   return {
     installRoot,
-    versionRoot,
     archiveFileName,
-    archivePath: path.join(versionRoot, archiveFileName),
+    archivePath: path.join(installRoot, archiveFileName),
     checksumFileName,
-    checksumPath: path.join(versionRoot, checksumFileName),
-    binaryPath: path.join(versionRoot, PATCHLOOM_MANAGED_BINARY_DIR, managedBinaryName(target.platform))
+    checksumPath: path.join(installRoot, checksumFileName),
+    binaryPath: path.join(installRoot, PATCHLOOM_MANAGED_BINARY_DIR, managedBinaryName(target.platform))
   };
 }
 
 export function resolveManagedInstallTransactionPaths(
   installRoot: string,
-  version: string,
   target: ManagedInstallTarget
 ): ManagedInstallTransactionPaths {
-  const paths = resolveManagedInstallPaths(installRoot, version, target);
-  const stagingRoot = path.join(paths.versionRoot, ".staging");
+  const paths = resolveManagedInstallPaths(installRoot, target);
+  const stagingRoot = path.join(installRoot, ".staging");
   return {
     ...paths,
     stagingRoot,
@@ -298,7 +291,7 @@ export function buildManagedInstallReleaseAssets(
   repo = PATCHLOOM_RELEASE_REPO
 ): ManagedInstallReleaseAssets {
   const normalizedVersion = normalizeReleaseVersion(version);
-  const paths = resolveManagedInstallPaths(PATCHLOOM_MANAGED_INSTALL_DIR, normalizedVersion, target);
+  const paths = resolveManagedInstallPaths(PATCHLOOM_MANAGED_INSTALL_DIR, target);
   return {
     tagName: `patchloom-v${normalizedVersion}`,
     archiveFileName: paths.archiveFileName,
@@ -445,18 +438,16 @@ export async function inspectManagedInstallStatus(
   inputs: ManagedInstallStatusInputs
 ): Promise<ManagedInstallStatus | undefined> {
   const target = inputs.target ?? detectManagedInstallTarget();
-  const version = inputs.version ? normalizeReleaseVersion(inputs.version) : undefined;
-  if (!target || !version) {
+  if (!target) {
     return undefined;
   }
 
-  const paths = resolveManagedInstallPaths(inputs.installRoot, version, target);
+  const paths = resolveManagedInstallPaths(inputs.installRoot, target);
   const exists = await (inputs.fileExists ?? defaultFileExists)(paths.binaryPath);
   await loadManagedInstallFailure(inputs.failurePersistence);
   return {
     exists,
     binaryPath: paths.binaryPath,
-    version,
     target,
     ...(managedInstallFailure ? { failure: managedInstallFailure } : {})
   };
@@ -561,7 +552,7 @@ export async function performManagedInstall(inputs: PerformManagedInstallInputs)
       : await fetchVersion({ repo: inputs.repo });
 
     const assets = buildManagedInstallReleaseAssets(version, target, inputs.repo);
-    txPaths = resolveManagedInstallTransactionPaths(inputs.installRoot, version, target);
+    txPaths = resolveManagedInstallTransactionPaths(inputs.installRoot, target);
 
     assertTrustedManagedInstallDownloadUrl(assets.archiveDownloadUrl, inputs.repo);
     assertTrustedManagedInstallDownloadUrl(assets.checksumDownloadUrl, inputs.repo);
