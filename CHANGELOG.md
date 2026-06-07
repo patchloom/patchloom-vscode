@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.0.3](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.2...patchloom-v0.0.3) (2026-06-07)
+
+
+### Features
+
+* expand Quick Actions with markdown, doc mutations, and undo ([#117](https://github.com/patchloom/patchloom-vscode/issues/117)) ([3be2018](https://github.com/patchloom/patchloom-vscode/commit/3be20184f5cb96984d6237b325c352b5fd64b2d9)), closes [#114](https://github.com/patchloom/patchloom-vscode/issues/114) [#115](https://github.com/patchloom/patchloom-vscode/issues/115) [#116](https://github.com/patchloom/patchloom-vscode/issues/116)
+* expose remaining medium-priority CLI commands as Quick Actions ([#122](https://github.com/patchloom/patchloom-vscode/issues/122)) ([cf652a2](https://github.com/patchloom/patchloom-vscode/commit/cf652a28ba2144dcf3b7b1f30c5242616126f6e9)), closes [#120](https://github.com/patchloom/patchloom-vscode/issues/120)
+
+
+### Bug Fixes
+
+* exclude .patchloom/ from git tracking and VSIX package ([#121](https://github.com/patchloom/patchloom-vscode/issues/121)) ([84060fb](https://github.com/patchloom/patchloom-vscode/commit/84060fbe4837abee18e8e149e2090a7f1faaccc7)), closes [#119](https://github.com/patchloom/patchloom-vscode/issues/119)
+
 ## [0.0.2](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.1...patchloom-v0.0.2) (2026-06-07)
 
 
