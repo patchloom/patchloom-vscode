@@ -2,11 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildCreateQuickAction,
+  buildDocAppendQuickAction,
+  buildDocDeleteQuickAction,
   buildDocGetQuickAction,
+  buildDocMergeQuickAction,
   buildDocSetQuickAction,
+  buildMdReplaceSectionQuickAction,
+  buildMdTableAppendQuickAction,
+  buildMdUpsertBulletQuickAction,
   buildReplaceQuickAction,
   buildSearchQuickAction,
   buildTidyQuickAction,
+  buildUndoQuickAction,
+  isMarkdownPath,
   isStructuredDocumentPath,
   resolveWorkspaceRelativePath,
   retargetQuickAction,
@@ -225,4 +233,103 @@ test("buildCreateQuickAction with unicode filename", () => {
 test("buildSearchQuickAction with unicode pattern", () => {
   const action = buildSearchQuickAction("/workspace/demo", "café");
   assert.deepEqual(action.args, ["search", "café", "/workspace/demo"]);
+});
+
+// --- #115: doc mutation Quick Actions ---
+
+test("buildDocDeleteQuickAction builds a doc delete command", () => {
+  const action = buildDocDeleteQuickAction("/workspace/demo/config.yaml", "deprecated.key");
+
+  assert.equal(action.title, "Delete deprecated.key from config.yaml");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, ["doc", "delete", "/workspace/demo/config.yaml", "deprecated.key"]);
+});
+
+test("buildDocMergeQuickAction builds a doc merge command", () => {
+  const action = buildDocMergeQuickAction("/workspace/demo/package.json", '{"debug": true}');
+
+  assert.equal(action.title, "Merge into package.json");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, ["doc", "merge", "/workspace/demo/package.json", "--value", '{"debug": true}']);
+});
+
+test("buildDocAppendQuickAction builds a doc append command", () => {
+  const action = buildDocAppendQuickAction("/workspace/demo/config.yaml", "tags", '"v2"');
+
+  assert.equal(action.title, "Append to tags in config.yaml");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, ["doc", "append", "/workspace/demo/config.yaml", "tags", '"v2"']);
+});
+
+// --- #114: markdown Quick Actions ---
+
+test("buildMdTableAppendQuickAction builds a md table-append command", () => {
+  const action = buildMdTableAppendQuickAction("/workspace/demo/README.md", "## API", "| /users | List users |");
+
+  assert.equal(action.title, 'Append table row under "## API" in README.md');
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, [
+    "md", "table-append", "/workspace/demo/README.md",
+    "--heading", "## API",
+    "--row", "| /users | List users |"
+  ]);
+});
+
+test("buildMdUpsertBulletQuickAction builds a md upsert-bullet command", () => {
+  const action = buildMdUpsertBulletQuickAction("/workspace/demo/AGENTS.md", "## Rules", "Run make check");
+
+  assert.equal(action.title, 'Upsert bullet under "## Rules" in AGENTS.md');
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, [
+    "md", "upsert-bullet", "/workspace/demo/AGENTS.md",
+    "--heading", "## Rules",
+    "--bullet", "Run make check"
+  ]);
+});
+
+test("buildMdReplaceSectionQuickAction builds a md replace-section command", () => {
+  const action = buildMdReplaceSectionQuickAction("/workspace/demo/CHANGELOG.md", "## Unreleased", "- New feature");
+
+  assert.equal(action.title, 'Replace "## Unreleased" in CHANGELOG.md');
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, [
+    "md", "replace-section", "/workspace/demo/CHANGELOG.md",
+    "--heading", "## Unreleased",
+    "--content", "- New feature"
+  ]);
+});
+
+// --- #116: undo Quick Action ---
+
+test("buildUndoQuickAction builds an undo command", () => {
+  const action = buildUndoQuickAction("/workspace/demo");
+
+  assert.equal(action.title, "Undo last patchloom change");
+  assert.equal(action.targetPath, "/workspace/demo");
+  assert.deepEqual(action.targetArgIndices, []);
+  assert.deepEqual(action.args, ["undo", "--apply"]);
+});
+
+// --- isMarkdownPath ---
+
+test("isMarkdownPath recognizes markdown extensions", () => {
+  assert.equal(isMarkdownPath("README.md"), true);
+  assert.equal(isMarkdownPath("docs/guide.markdown"), true);
+  assert.equal(isMarkdownPath("blog/post.mdx"), true);
+  assert.equal(isMarkdownPath("config.yaml"), false);
+  assert.equal(isMarkdownPath("src/main.ts"), false);
+});
+
+test("isMarkdownPath handles uppercase extensions", () => {
+  assert.equal(isMarkdownPath("README.MD"), true);
+  assert.equal(isMarkdownPath("GUIDE.MARKDOWN"), true);
+});
+
+test("retargetQuickAction works with md commands", () => {
+  const action = buildMdTableAppendQuickAction("/workspace/demo/README.md", "## API", "| col |");
+  const retargeted = retargetQuickAction(action, "/tmp/preview/README.md");
+
+  assert.equal(retargeted.args[2], "/tmp/preview/README.md");
+  assert.equal(retargeted.args[0], "md");
+  assert.equal(retargeted.args[1], "table-append");
 });
