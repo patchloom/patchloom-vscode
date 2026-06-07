@@ -396,6 +396,196 @@ export async function runQuickAction(): Promise<void> {
       }
     },
     {
+      label: "Prepend to array",
+      description: "Prepend a value to a JSON, YAML, or TOML array",
+      detail: "Builds `patchloom doc prepend <file> <selector> <value>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc prepend");
+        if (!target) {
+          return;
+        }
+
+        if (!isStructuredDocumentPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc prepend.`
+          );
+          return;
+        }
+
+        const selector = await vscode.window.showInputBox({
+          prompt: "Selector path to the array",
+          placeHolder: "dependencies",
+          validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
+        });
+        if (selector === undefined) {
+          return;
+        }
+
+        const value = await vscode.window.showInputBox({
+          prompt: "Value to prepend",
+          placeHolder: '"new-item"',
+          validateInput: (input) => input.length > 0 ? undefined : "Value is required."
+        });
+        if (value === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildDocPrependQuickAction(target.absolutePath, selector, value));
+      }
+    },
+    {
+      label: "Ensure structured value",
+      description: "Idempotent set: only write if the key is missing",
+      detail: "Builds `patchloom doc ensure <file> <selector> <value>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc ensure");
+        if (!target) {
+          return;
+        }
+
+        if (!isStructuredDocumentPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc ensure.`
+          );
+          return;
+        }
+
+        const selector = await vscode.window.showInputBox({
+          prompt: "Selector path",
+          placeHolder: "server.port",
+          validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
+        });
+        if (selector === undefined) {
+          return;
+        }
+
+        const value = await vscode.window.showInputBox({
+          prompt: "Default value (set only if missing)",
+          placeHolder: "8080",
+          validateInput: (input) => input.length > 0 ? undefined : "Value is required."
+        });
+        if (value === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildDocEnsureQuickAction(target.absolutePath, selector, value));
+      }
+    },
+    {
+      label: "Move/rename key",
+      description: "Move or rename a selector path in JSON, YAML, or TOML",
+      detail: "Builds `patchloom doc move <file> <from> <to>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc move");
+        if (!target) {
+          return;
+        }
+
+        if (!isStructuredDocumentPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc move.`
+          );
+          return;
+        }
+
+        const from = await vscode.window.showInputBox({
+          prompt: "Source selector path",
+          placeHolder: "old.key",
+          validateInput: (value) => value.length > 0 ? undefined : "Source selector is required."
+        });
+        if (from === undefined) {
+          return;
+        }
+
+        const to = await vscode.window.showInputBox({
+          prompt: "Destination selector path",
+          placeHolder: "new.key",
+          validateInput: (value) => value.length > 0 ? undefined : "Destination selector is required."
+        });
+        if (to === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildDocMoveQuickAction(target.absolutePath, from, to));
+      }
+    },
+    {
+      label: "Insert after heading",
+      description: "Insert content after a markdown heading",
+      detail: "Builds `patchloom md insert-after-heading <file> --heading <h> --content <text>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a markdown file for Patchloom insert-after-heading");
+        if (!target) {
+          return;
+        }
+
+        if (!isMarkdownPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a markdown file.`
+          );
+          return;
+        }
+
+        const heading = await vscode.window.showInputBox({
+          prompt: "Heading to insert content after",
+          placeHolder: "## Installation",
+          validateInput: (value) => value.length > 0 ? undefined : "Heading is required."
+        });
+        if (heading === undefined) {
+          return;
+        }
+
+        const content = await vscode.window.showInputBox({
+          prompt: "Content to insert",
+          placeHolder: "New paragraph text",
+          validateInput: (value) => value.length > 0 ? undefined : "Content is required."
+        });
+        if (content === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildMdInsertAfterHeadingQuickAction(target.absolutePath, heading, content));
+      }
+    },
+    {
+      label: "Insert before heading",
+      description: "Insert content before a markdown heading",
+      detail: "Builds `patchloom md insert-before-heading <file> --heading <h> --content <text>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a markdown file for Patchloom insert-before-heading");
+        if (!target) {
+          return;
+        }
+
+        if (!isMarkdownPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a markdown file.`
+          );
+          return;
+        }
+
+        const heading = await vscode.window.showInputBox({
+          prompt: "Heading to insert content before",
+          placeHolder: "## Changelog",
+          validateInput: (value) => value.length > 0 ? undefined : "Heading is required."
+        });
+        if (heading === undefined) {
+          return;
+        }
+
+        const content = await vscode.window.showInputBox({
+          prompt: "Content to insert",
+          placeHolder: "New section text",
+          validateInput: (value) => value.length > 0 ? undefined : "Content is required."
+        });
+        if (content === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildMdInsertBeforeHeadingQuickAction(target.absolutePath, heading, content));
+      }
+    },
+    {
       label: "Append table row",
       description: "Append a row to a markdown table under a heading",
       detail: "Builds `patchloom md table-append <file> --heading <h> --row <row>`",
@@ -683,6 +873,51 @@ export function buildMdReplaceSectionQuickAction(targetPath: string, heading: st
     targetPath,
     targetArgIndices: [2],
     args: ["md", "replace-section", targetPath, "--heading", heading, "--content", content]
+  };
+}
+
+export function buildDocPrependQuickAction(targetPath: string, selector: string, value: string): PlannedQuickAction {
+  return {
+    title: `Prepend to ${selector} in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["doc", "prepend", targetPath, selector, value]
+  };
+}
+
+export function buildDocEnsureQuickAction(targetPath: string, selector: string, value: string): PlannedQuickAction {
+  return {
+    title: `Ensure ${selector} in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["doc", "ensure", targetPath, selector, value]
+  };
+}
+
+export function buildDocMoveQuickAction(targetPath: string, from: string, to: string): PlannedQuickAction {
+  return {
+    title: `Move ${from} to ${to} in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["doc", "move", targetPath, from, to]
+  };
+}
+
+export function buildMdInsertAfterHeadingQuickAction(targetPath: string, heading: string, content: string): PlannedQuickAction {
+  return {
+    title: `Insert after "${heading}" in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["md", "insert-after-heading", targetPath, "--heading", heading, "--content", content]
+  };
+}
+
+export function buildMdInsertBeforeHeadingQuickAction(targetPath: string, heading: string, content: string): PlannedQuickAction {
+  return {
+    title: `Insert before "${heading}" in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["md", "insert-before-heading", targetPath, "--heading", heading, "--content", content]
   };
 }
 

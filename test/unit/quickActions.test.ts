@@ -4,9 +4,14 @@ import {
   buildCreateQuickAction,
   buildDocAppendQuickAction,
   buildDocDeleteQuickAction,
+  buildDocEnsureQuickAction,
   buildDocGetQuickAction,
   buildDocMergeQuickAction,
+  buildDocMoveQuickAction,
+  buildDocPrependQuickAction,
   buildDocSetQuickAction,
+  buildMdInsertAfterHeadingQuickAction,
+  buildMdInsertBeforeHeadingQuickAction,
   buildMdReplaceSectionQuickAction,
   buildMdTableAppendQuickAction,
   buildMdUpsertBulletQuickAction,
@@ -308,6 +313,74 @@ test("buildUndoQuickAction builds an undo command", () => {
   assert.equal(action.targetPath, "/workspace/demo");
   assert.deepEqual(action.targetArgIndices, []);
   assert.deepEqual(action.args, ["undo", "--apply"]);
+});
+
+// --- #120: remaining Quick Actions ---
+
+test("buildDocPrependQuickAction builds a doc prepend command", () => {
+  const action = buildDocPrependQuickAction("/workspace/demo/config.yaml", "tags", '"priority"');
+
+  assert.equal(action.title, "Prepend to tags in config.yaml");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, ["doc", "prepend", "/workspace/demo/config.yaml", "tags", '"priority"']);
+});
+
+test("buildDocEnsureQuickAction builds a doc ensure command", () => {
+  const action = buildDocEnsureQuickAction("/workspace/demo/package.json", "scripts.test", "vitest");
+
+  assert.equal(action.title, "Ensure scripts.test in package.json");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, ["doc", "ensure", "/workspace/demo/package.json", "scripts.test", "vitest"]);
+});
+
+test("buildDocMoveQuickAction builds a doc move command", () => {
+  const action = buildDocMoveQuickAction("/workspace/demo/config.yaml", "old.key", "new.key");
+
+  assert.equal(action.title, "Move old.key to new.key in config.yaml");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, ["doc", "move", "/workspace/demo/config.yaml", "old.key", "new.key"]);
+});
+
+test("buildMdInsertAfterHeadingQuickAction builds a md insert-after-heading command", () => {
+  const action = buildMdInsertAfterHeadingQuickAction("/workspace/demo/README.md", "## Installation", "Run npm install");
+
+  assert.equal(action.title, 'Insert after "## Installation" in README.md');
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, [
+    "md", "insert-after-heading", "/workspace/demo/README.md",
+    "--heading", "## Installation",
+    "--content", "Run npm install"
+  ]);
+});
+
+test("buildMdInsertBeforeHeadingQuickAction builds a md insert-before-heading command", () => {
+  const action = buildMdInsertBeforeHeadingQuickAction("/workspace/demo/CHANGELOG.md", "## v1.0.0", "## v1.1.0\n\n- New feature");
+
+  assert.equal(action.title, 'Insert before "## v1.0.0" in CHANGELOG.md');
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, [
+    "md", "insert-before-heading", "/workspace/demo/CHANGELOG.md",
+    "--heading", "## v1.0.0",
+    "--content", "## v1.1.0\n\n- New feature"
+  ]);
+});
+
+test("retargetQuickAction works with doc move command", () => {
+  const action = buildDocMoveQuickAction("/workspace/demo/config.yaml", "old", "new");
+  const retargeted = retargetQuickAction(action, "/tmp/preview/config.yaml");
+
+  assert.equal(retargeted.args[2], "/tmp/preview/config.yaml");
+  assert.equal(retargeted.args[0], "doc");
+  assert.equal(retargeted.args[1], "move");
+});
+
+test("retargetQuickAction works with md insert-after-heading command", () => {
+  const action = buildMdInsertAfterHeadingQuickAction("/workspace/demo/README.md", "## Usage", "text");
+  const retargeted = retargetQuickAction(action, "/tmp/preview/README.md");
+
+  assert.equal(retargeted.args[2], "/tmp/preview/README.md");
+  assert.equal(retargeted.args[0], "md");
+  assert.equal(retargeted.args[1], "insert-after-heading");
 });
 
 // --- isMarkdownPath ---
