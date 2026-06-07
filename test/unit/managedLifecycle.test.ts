@@ -418,6 +418,7 @@ test("performManagedInstall persists failure on checksum mismatch", async () => 
     await assert.rejects(
       () => performManagedInstall({
         installRoot,
+        version: "0.1.0",
         platform: "linux",
         arch: "x64",
         downloadFile: async (inputs) => {
