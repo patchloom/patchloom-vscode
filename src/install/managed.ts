@@ -300,11 +300,11 @@ export function buildManagedInstallReleaseAssets(
   const normalizedVersion = normalizeReleaseVersion(version);
   const paths = resolveManagedInstallPaths(PATCHLOOM_MANAGED_INSTALL_DIR, normalizedVersion, target);
   return {
-    tagName: `v${normalizedVersion}`,
+    tagName: `patchloom-v${normalizedVersion}`,
     archiveFileName: paths.archiveFileName,
     checksumFileName: paths.checksumFileName,
-    archiveDownloadUrl: `https://github.com/${repo}/releases/download/v${normalizedVersion}/${paths.archiveFileName}`,
-    checksumDownloadUrl: `https://github.com/${repo}/releases/download/v${normalizedVersion}/${paths.checksumFileName}`
+    archiveDownloadUrl: `https://github.com/${repo}/releases/download/patchloom-v${normalizedVersion}/${paths.archiveFileName}`,
+    checksumDownloadUrl: `https://github.com/${repo}/releases/download/patchloom-v${normalizedVersion}/${paths.checksumFileName}`
   };
 }
 
@@ -645,7 +645,7 @@ function classifyInstallFailureStage(error: unknown): { stage: ManagedInstallFai
 }
 
 export function normalizeReleaseVersion(version: string): string {
-  return version.replace(/^v/, "").trim();
+  return version.replace(/^patchloom-v/, "").replace(/^v/, "").trim();
 }
 
 function managedBinaryName(platform: NodeJS.Platform): string {

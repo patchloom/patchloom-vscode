@@ -5,28 +5,19 @@ import { formatCliOutput } from "../util.js";
 import { getPatchloomLog } from "../logging/outputChannel.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
-export const BATCH_TEMPLATE = JSON.stringify({
-  operations: [
-    { op: "replace", file: "", from: "", to: "" },
-    { op: "tidy", file: "", fixes: ["ensure-final-newline"] },
-    { op: "doc-set", file: "", selector: "", value: "" }
-  ]
-}, null, 2) + "\n";
+export const BATCH_TEMPLATE = [
+  "replace src/example.ts \"old text\" \"new text\"",
+  "doc.set package.json version \"2.0.0\"",
+  "tidy.fix src/example.ts",
+  ""
+].join("\n");
 
 export function buildBatchTemplate(): string {
   return BATCH_TEMPLATE;
 }
 
 export function parseBatchOperationCount(plan: string): number {
-  try {
-    const parsed = JSON.parse(plan);
-    if (Array.isArray(parsed?.operations)) {
-      return parsed.operations.length;
-    }
-  } catch {
-    // Invalid JSON
-  }
-  return 0;
+  return plan.split("\n").filter((line) => line.trim().length > 0).length;
 }
 
 export async function batchApply(): Promise<void> {
@@ -62,7 +53,7 @@ export async function batchApply(): Promise<void> {
 
   const binaryPath = status.binaryPath;
   const doc = await vscode.workspace.openTextDocument({
-    language: "json",
+    language: "plaintext",
     content: BATCH_TEMPLATE
   });
   await vscode.window.showTextDocument(doc, { preview: false });
