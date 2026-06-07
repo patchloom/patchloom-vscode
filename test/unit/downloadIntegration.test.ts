@@ -183,8 +183,9 @@ describe("performManagedInstall staging cleanup", () => {
       try {
         await fs.access(capturedStagingDir);
         assert.fail("staging directory should have been removed after failure");
-      } catch (err: any) {
-        assert.equal(err.code, "ENOENT", "staging should not exist");
+      } catch (err: unknown) {
+        assert.ok(typeof err === "object" && err !== null && "code" in err, "expected fs error with code");
+        assert.equal((err as NodeJS.ErrnoException).code, "ENOENT", "staging should not exist");
       }
     });
   });
