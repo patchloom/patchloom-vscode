@@ -43,7 +43,7 @@ test("promoteManagedInstallBinary moves a staged binary to the live path with re
   await withTempDir(async (installRoot) => {
     const target = detectManagedInstallTarget("darwin", "arm64");
     assert.ok(target);
-    const paths = resolveManagedInstallTransactionPaths(installRoot, "0.1.0", target);
+    const paths = resolveManagedInstallTransactionPaths(installRoot, target);
 
     await fs.mkdir(path.dirname(paths.stagedBinaryPath), { recursive: true });
     await fs.writeFile(paths.stagedBinaryPath, "#!/bin/sh\necho patchloom 0.1.0\n", "utf8");
@@ -63,7 +63,7 @@ test("promoteManagedInstallBinary replaces an existing binary and removes the ba
   await withTempDir(async (installRoot) => {
     const target = detectManagedInstallTarget("darwin", "arm64");
     assert.ok(target);
-    const paths = resolveManagedInstallTransactionPaths(installRoot, "0.1.0", target);
+    const paths = resolveManagedInstallTransactionPaths(installRoot, target);
 
     await fs.mkdir(path.dirname(paths.binaryPath), { recursive: true });
     await fs.writeFile(paths.binaryPath, "old-binary-content", "utf8");
@@ -84,7 +84,7 @@ test("promoteManagedInstallBinary rolls back on rename failure with real files",
   await withTempDir(async (installRoot) => {
     const target = detectManagedInstallTarget("darwin", "arm64");
     assert.ok(target);
-    const paths = resolveManagedInstallTransactionPaths(installRoot, "0.1.0", target);
+    const paths = resolveManagedInstallTransactionPaths(installRoot, target);
 
     await fs.mkdir(path.dirname(paths.binaryPath), { recursive: true });
     await fs.writeFile(paths.binaryPath, "original-binary", "utf8");
@@ -122,7 +122,7 @@ test("clearManagedInstallStaging removes a real staging directory", async () => 
   await withTempDir(async (installRoot) => {
     const target = detectManagedInstallTarget("darwin", "arm64");
     assert.ok(target);
-    const paths = resolveManagedInstallTransactionPaths(installRoot, "0.1.0", target);
+    const paths = resolveManagedInstallTransactionPaths(installRoot, target);
 
     await fs.mkdir(paths.stagingRoot, { recursive: true });
     await fs.writeFile(path.join(paths.stagingRoot, "archive.tar.xz"), "fake-archive", "utf8");
@@ -178,20 +178,18 @@ test("inspectManagedInstallStatus detects a real binary on disk", async () => {
   await withTempDir(async (installRoot) => {
     const target = detectManagedInstallTarget("darwin", "arm64");
     assert.ok(target);
-    const paths = resolveManagedInstallTransactionPaths(installRoot, "0.1.0", target);
+    const paths = resolveManagedInstallTransactionPaths(installRoot, target);
 
     await fs.mkdir(path.dirname(paths.binaryPath), { recursive: true });
     await fs.writeFile(paths.binaryPath, "binary-content", "utf8");
 
     const status = await inspectManagedInstallStatus({
       installRoot,
-      version: "v0.1.0",
       target
     });
 
     assert.ok(status);
     assert.equal(status.exists, true);
-    assert.equal(status.version, "0.1.0");
     assert.equal(status.binaryPath, paths.binaryPath);
   });
 });
@@ -203,13 +201,11 @@ test("inspectManagedInstallStatus reports missing binary when file does not exis
 
     const status = await inspectManagedInstallStatus({
       installRoot,
-      version: "v0.1.0",
       target
     });
 
     assert.ok(status);
     assert.equal(status.exists, false);
-    assert.equal(status.version, "0.1.0");
   });
 });
 
@@ -229,7 +225,6 @@ test("inspectManagedInstallStatus loads persisted failure from disk", async () =
 
     const status = await inspectManagedInstallStatus({
       installRoot: storageRoot,
-      version: "v0.1.0",
       target,
       failurePersistence: { storageRoot }
     });
@@ -256,7 +251,7 @@ test("promoteManagedInstallBinary clears persisted failure on disk after success
     const failurePath = path.join(storageRoot, "managed-install-failure.json");
     assert.equal(await fileExists(failurePath), true, "failure file should exist before promotion");
 
-    const paths = resolveManagedInstallTransactionPaths(installRoot, "0.1.0", target);
+    const paths = resolveManagedInstallTransactionPaths(installRoot, target);
     await fs.mkdir(path.dirname(paths.stagedBinaryPath), { recursive: true });
     await fs.writeFile(paths.stagedBinaryPath, "new-binary", "utf8");
 
@@ -385,7 +380,7 @@ test("performManagedInstall runs full pipeline with injected I/O", async () => {
       },
       extractArchive: async (inputs) => {
         // Simulate extraction: create the binary in staging
-        const txPaths = resolveManagedInstallTransactionPaths(installRoot, "0.1.0", target);
+        const txPaths = resolveManagedInstallTransactionPaths(installRoot, target);
         await fs.mkdir(path.dirname(txPaths.stagedBinaryPath), { recursive: true });
         await fs.writeFile(txPaths.stagedBinaryPath, "#!/bin/sh\necho patchloom 0.1.0\n", { mode: 0o755 });
       },
@@ -423,7 +418,6 @@ test("performManagedInstall persists failure on checksum mismatch", async () => 
     await assert.rejects(
       () => performManagedInstall({
         installRoot,
-        version: "0.1.0",
         platform: "linux",
         arch: "x64",
         downloadFile: async (inputs) => {
@@ -480,7 +474,7 @@ test("performManagedInstall fetches latest version when none specified", async (
         }
       },
       extractArchive: async (inputs) => {
-        const txPaths = resolveManagedInstallTransactionPaths(installRoot, "0.3.0", target);
+        const txPaths = resolveManagedInstallTransactionPaths(installRoot, target);
         await fs.mkdir(path.dirname(txPaths.stagedBinaryPath), { recursive: true });
         await fs.writeFile(txPaths.stagedBinaryPath, "binary-0.3.0", { mode: 0o755 });
       },

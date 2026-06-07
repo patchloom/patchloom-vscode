@@ -110,8 +110,7 @@ test("preferredStatusAction suggests install when binary missing with managed in
       message: "Patchloom binary not found.",
       managedInstall: {
         exists: false,
-        binaryPath: "/tmp/patchloom-managed/0.1.0/managed-bin/patchloom",
-        version: "0.1.0",
+        binaryPath: "/tmp/patchloom-managed/managed-bin/patchloom",
         target: {
           platform: "darwin",
           arch: "arm64",
@@ -174,8 +173,7 @@ test("buildStatusDetails surfaces managed install failure diagnostics", () => {
     compatibility: "unknown",
     managedInstall: {
       exists: false,
-      binaryPath: "/managed/install/0.1.0/managed-bin/patchloom",
-      version: "0.1.0",
+      binaryPath: "/managed/install/managed-bin/patchloom",
       target: {
         platform: "darwin",
         arch: "arm64",

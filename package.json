@@ -24,6 +24,8 @@
   },
   "categories": [
     "Formatters",
+    "Linters",
+    "Machine Learning",
     "Other"
   ],
   "keywords": [
@@ -39,20 +41,8 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "onStartupFinished",
-    "onCommand:patchloom.initializeProject",
-    "onCommand:patchloom.setupWorkspace",
-    "onCommand:patchloom.configureMcp",
-    "onCommand:patchloom.quickAction",
-    "onCommand:patchloom.openPatchloomSettings",
-    "onCommand:patchloom.openPatchloomReleases",
-    "onCommand:patchloom.showStatus",
-    "onCommand:patchloom.batchApply",
-    "onCommand:patchloom.showOutput",
-    "onCommand:patchloom.installBinary",
-    "onCommand:patchloom.updateBinary",
-    "onCommand:patchloom.reinstallBinary",
-    "onCommand:patchloom.verifyMcp"
+    "workspaceContains:**/AGENTS.md",
+    "workspaceContains:**/.patchloom.toml"
   ],
   "contributes": {
     "commands": [
@@ -120,6 +110,90 @@
         "command": "patchloom.verifyMcp",
         "title": "Verify MCP Server",
         "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.openDocumentation",
+        "title": "Open Documentation",
+        "category": "Patchloom"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "patchloom.installBinary",
+          "when": "!patchloom.cliAvailable"
+        },
+        {
+          "command": "patchloom.updateBinary",
+          "when": "patchloom.managedInstallExists"
+        },
+        {
+          "command": "patchloom.reinstallBinary",
+          "when": "patchloom.managedInstallExists"
+        },
+        {
+          "command": "patchloom.quickAction",
+          "when": "patchloom.cliAvailable"
+        },
+        {
+          "command": "patchloom.batchApply",
+          "when": "patchloom.cliAvailable"
+        },
+        {
+          "command": "patchloom.initializeProject",
+          "when": "patchloom.cliAvailable"
+        },
+        {
+          "command": "patchloom.configureMcp",
+          "when": "patchloom.cliAvailable"
+        },
+        {
+          "command": "patchloom.verifyMcp",
+          "when": "patchloom.cliAvailable"
+        }
+      ]
+    },
+    "walkthroughs": [
+      {
+        "id": "patchloom.gettingStarted",
+        "title": "Get Started with Patchloom",
+        "description": "Set up Patchloom in your workspace for AI agent workflows.",
+        "steps": [
+          {
+            "id": "installCli",
+            "title": "Install the Patchloom CLI",
+            "description": "Install the Patchloom CLI via the managed installer, Homebrew, or cargo.\n\n[Install Patchloom](command:patchloom.installBinary)",
+            "media": {
+              "markdown": "walkthrough/install.md"
+            },
+            "completionEvents": [
+              "onCommand:patchloom.installBinary",
+              "onContext:patchloom.cliAvailable"
+            ]
+          },
+          {
+            "id": "initializeProject",
+            "title": "Initialize Your Project",
+            "description": "Generate an AGENTS.md file with agent rules for your workspace.\n\n[Initialize Project](command:patchloom.initializeProject)",
+            "media": {
+              "markdown": "walkthrough/initialize.md"
+            },
+            "completionEvents": [
+              "onCommand:patchloom.initializeProject"
+            ]
+          },
+          {
+            "id": "configureMcp",
+            "title": "Configure MCP Server",
+            "description": "Set up the Patchloom MCP server so AI agents can use it.\n\n[Configure MCP](command:patchloom.configureMcp)",
+            "media": {
+              "markdown": "walkthrough/configure-mcp.md"
+            },
+            "completionEvents": [
+              "onCommand:patchloom.configureMcp"
+            ]
+          }
+        ]
       }
     ],
     "configuration": {
@@ -134,6 +208,27 @@
           "type": "boolean",
           "default": true,
           "description": "Show a status bar item reporting whether Patchloom is available for the current workspace."
+        },
+        "patchloom.enable": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Enable the Patchloom extension. When disabled, the status bar is hidden and background checks are skipped. Commands remain available for manual invocation."
+        },
+        "patchloom.trace.server": {
+          "type": "string",
+          "default": "off",
+          "enum": ["off", "messages", "verbose"],
+          "markdownDescription": "Trace level for Patchloom CLI output. `messages` logs command invocations and results. `verbose` includes full stdout/stderr."
+        },
+        "patchloom.env": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "Additional environment variables passed to the Patchloom CLI. For example, `{\"PATCHLOOM_LOG\": \"debug\"}` enables debug logging in the CLI."
+        },
+        "patchloom.managedInstall.autoUpdate": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Automatically check for Patchloom CLI updates when the extension activates. Shows a notification when a newer version is available."
         }
       }
     }
