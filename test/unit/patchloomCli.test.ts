@@ -440,7 +440,8 @@ describe("patchloom CLI integration", async () => {
     let stdout = "";
     child.stdout!.on("data", (data: Buffer) => { stdout += data.toString(); });
 
-    // Send a JSON-RPC initialize request using the MCP wire format
+    // Send a JSON-RPC initialize request as newline-delimited JSON
+    // (patchloom v0.1.2+ uses raw JSON-RPC lines, not Content-Length framing)
     const initRequest = JSON.stringify({
       jsonrpc: "2.0",
       id: 1,
@@ -451,8 +452,7 @@ describe("patchloom CLI integration", async () => {
         clientInfo: { name: "test", version: "0.0.1" }
       }
     });
-    const header = `Content-Length: ${Buffer.byteLength(initRequest)}\r\n\r\n`;
-    child.stdin!.write(header + initRequest);
+    child.stdin!.write(initRequest + "\n");
 
     // Wait for the server to respond (it needs to start the tokio runtime)
     const deadline = Date.now() + 5000;
@@ -462,10 +462,15 @@ describe("patchloom CLI integration", async () => {
 
     child.kill();
 
-    // Should have received a JSON-RPC response with Content-Length header
+    // Should have received a newline-delimited JSON-RPC response
     assert.ok(stdout.length > 0, "mcp-server should produce output");
-    assert.match(stdout, /Content-Length/i, "response should use Content-Length framing");
-    assert.match(stdout, /jsonrpc/, "response body should be JSON-RPC");
+    const response = JSON.parse(stdout.trim().split("\n")[0]) as Record<string, unknown>;
+    assert.equal(response.jsonrpc, "2.0", "response should be JSON-RPC 2.0");
+    assert.equal(response.id, 1, "response id should match request id");
+    const result = response.result as Record<string, unknown>;
+    assert.ok(result, "response should have a result (not an error)");
+    const serverInfo = result.serverInfo as Record<string, string>;
+    assert.ok(serverInfo?.name, "response should include serverInfo.name");
   });
 
   test("MCP config written for real binary is structurally valid", async () => {
