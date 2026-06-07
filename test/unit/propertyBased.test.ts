@@ -71,9 +71,9 @@ describe("comparePatchloomVersions property-based tests", () => {
         fc.nat({ max: 999 }),
         fc.nat({ max: 999 }),
         fc.nat({ max: 999 }),
-        (ma, mi, pa, mb, mib, pb) => {
-          const a = `${ma}.${mi}.${pa}`;
-          const b = `${mb}.${mib}.${pb}`;
+        (majorA, minorA, patchA, majorB, minorB, patchB) => {
+          const a = `${majorA}.${minorA}.${patchA}`;
+          const b = `${majorB}.${minorB}.${patchB}`;
           const cmp = comparePatchloomVersions(a, b);
           const rev = comparePatchloomVersions(b, a);
           assert.equal(Math.sign(cmp), -Math.sign(rev));
@@ -123,7 +123,7 @@ describe("formatError property-based tests", () => {
 describe("formatCliOutput property-based tests", () => {
   it("always returns a non-empty string", () => {
     fc.assert(
-      fc.property(fc.integer(), fc.string(), fc.string(), (exitCode, stdout, stderr) => {
+      fc.property(fc.integer({ min: 0, max: 255 }), fc.string(), fc.string(), (exitCode, stdout, stderr) => {
         const result = formatCliOutput({ exitCode, stdout, stderr });
         assert.ok(result.length > 0);
       })

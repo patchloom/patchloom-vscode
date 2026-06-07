@@ -303,7 +303,7 @@ test("parseManagedInstallChecksumFile rejects invalid lines", () => {
   );
 });
 
-test("assertTrustedManagedInstallDownloadUrl only accepts GitHub release download urls", () => {
+test("assertTrustedManagedInstallDownloadUrl only accepts GitHub release download URLs", () => {
   assert.doesNotThrow(() => assertTrustedManagedInstallDownloadUrl(
     "https://github.com/patchloom/patchloom/releases/download/v0.1.0/patchloom-aarch64-apple-darwin.tar.xz"
   ));
@@ -708,10 +708,29 @@ test("isTrustedManagedInstallDownloadUrl accepts valid GitHub release URLs", () 
   );
 });
 
-test("isTrustedManagedInstallDownloadUrl rejects non-HTTPS URLs", () => {
+test("isTrustedManagedInstallDownloadUrl rejects protocol-relative and non-HTTPS URLs", () => {
   assert.equal(
     isTrustedManagedInstallDownloadUrl("http://github.com/patchloom/patchloom/releases/download/v0.1.0/x"),
     false
+  );
+  assert.equal(
+    isTrustedManagedInstallDownloadUrl("//github.com/patchloom/patchloom/releases/download/v0.1.0/x"),
+    false
+  );
+});
+
+test("isTrustedManagedInstallDownloadUrl handles query strings, fragments, and encoded paths", () => {
+  assert.equal(
+    isTrustedManagedInstallDownloadUrl(
+      "https://github.com/patchloom/patchloom/releases/download/v1.2.3/patchloom-x86_64.zip?version=1.0"
+    ),
+    true
+  );
+  assert.equal(
+    isTrustedManagedInstallDownloadUrl(
+      "https://github.com/patchloom/patchloom/releases/download/v1.2.3/patchloom-x86_64.zip#sha256"
+    ),
+    true
   );
 });
 
