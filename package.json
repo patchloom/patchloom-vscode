@@ -2,7 +2,7 @@
   "name": "patchloom",
   "displayName": "Patchloom",
   "description": "VS Code extension for Patchloom. Installs, configures, and integrates the Patchloom CLI for editor-first workflows.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "patchloom",
   "license": "MIT",
   "repository": {
@@ -217,7 +217,11 @@
         "patchloom.trace.server": {
           "type": "string",
           "default": "off",
-          "enum": ["off", "messages", "verbose"],
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
           "markdownDescription": "Trace level for Patchloom CLI output. `messages` logs command invocations and results. `verbose` includes full stdout/stderr."
         },
         "patchloom.env": {
