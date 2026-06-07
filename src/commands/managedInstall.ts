@@ -121,7 +121,7 @@ export async function updatePatchloom(): Promise<void> {
 
         if (choice === "View Release") {
           await vscode.env.openExternal(
-            vscode.Uri.parse(`${PATCHLOOM_RELEASES_URL}/tag/v${latestVersion}`)
+            vscode.Uri.parse(`${PATCHLOOM_RELEASES_URL}/tag/patchloom-v${latestVersion}`)
           );
           return;
         }

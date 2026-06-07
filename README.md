@@ -25,7 +25,12 @@ Or search for **Patchloom** in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+
 
 ## Get started in 30 seconds
 
-1. Install the [Patchloom CLI](https://github.com/patchloom/patchloom/releases) (or run **Patchloom: Install Patchloom** from the command palette)
+1. Install the [Patchloom CLI](https://github.com/patchloom/patchloom) (or run **Patchloom: Install Patchloom** from the command palette)
+   ```sh
+   brew install patchloom/tap/patchloom          # macOS / Linux (Homebrew)
+   curl -LsSf https://github.com/patchloom/patchloom/releases/latest/download/patchloom-installer.sh | sh  # shell script
+   cargo install patchloom                        # from source
+   ```
 2. Open a project and run **Patchloom: Setup Workspace**
 
 <p align="center">
@@ -83,7 +88,7 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 
 ### Batch operations
 
-`Patchloom: Batch Apply` opens a JSON plan template where you can compose multiple operations (replace, tidy, doc set). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
+`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, tidy, doc set). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
 
 ### Output channel
 
@@ -103,7 +108,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | `Patchloom: Initialize Project` | Generate or diff `AGENTS.md` from `patchloom agent-rules` |
 | `Patchloom: Configure MCP` | Inject Patchloom MCP server config into editor config files |
 | `Patchloom: Quick Action` | Build a Patchloom CLI command from an interactive picker |
-| `Patchloom: Batch Apply` | Open a JSON batch plan and execute all operations atomically |
+| `Patchloom: Batch Apply` | Open a batch plan and execute all operations atomically |
 | `Patchloom: Show Output` | Open the Patchloom output channel for CLI logs and diagnostics |
 | `Patchloom: Show Status` | Display binary readiness, version, compatibility, and workspace state |
 | `Patchloom: Verify MCP Server` | Spawn the MCP server and verify it responds to a JSON-RPC initialize request |
