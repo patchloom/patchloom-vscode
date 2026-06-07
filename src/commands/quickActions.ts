@@ -11,6 +11,7 @@ import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspac
 
 const execFileAsync = promisify(execFile);
 const STRUCTURED_FILE_EXTENSIONS = new Set([".json", ".yaml", ".yml", ".toml"]);
+const MARKDOWN_FILE_EXTENSIONS = new Set([".md", ".markdown", ".mdx"]);
 
 export type TidyFix = "ensure-final-newline" | "trim-trailing-whitespace" | "normalize-eol-lf";
 
@@ -297,6 +298,255 @@ export async function runQuickAction(): Promise<void> {
         await vscode.env.clipboard.writeText(value);
         await vscode.window.showInformationMessage(`${selector} = ${value} (copied to clipboard)`);
       }
+    },
+    {
+      label: "Delete structured value",
+      description: "Remove a key from JSON, YAML, or TOML with diff preview",
+      detail: "Builds `patchloom doc delete <file> <selector>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc delete");
+        if (!target) {
+          return;
+        }
+
+        if (!isStructuredDocumentPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc delete.`
+          );
+          return;
+        }
+
+        const selector = await vscode.window.showInputBox({
+          prompt: "Selector path to delete",
+          placeHolder: "scripts.deprecated",
+          validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
+        });
+        if (selector === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildDocDeleteQuickAction(target.absolutePath, selector));
+      }
+    },
+    {
+      label: "Merge into structured file",
+      description: "Merge a partial JSON object into a config file",
+      detail: "Builds `patchloom doc merge <file> --value <json>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc merge");
+        if (!target) {
+          return;
+        }
+
+        if (!isStructuredDocumentPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc merge.`
+          );
+          return;
+        }
+
+        const value = await vscode.window.showInputBox({
+          prompt: "Partial JSON object to merge",
+          placeHolder: '{"debug": true, "logLevel": "verbose"}',
+          validateInput: (input) => input.length > 0 ? undefined : "Value is required."
+        });
+        if (value === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildDocMergeQuickAction(target.absolutePath, value));
+      }
+    },
+    {
+      label: "Append to array",
+      description: "Append a value to a JSON, YAML, or TOML array",
+      detail: "Builds `patchloom doc append <file> <selector> <value>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc append");
+        if (!target) {
+          return;
+        }
+
+        if (!isStructuredDocumentPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc append.`
+          );
+          return;
+        }
+
+        const selector = await vscode.window.showInputBox({
+          prompt: "Selector path to the array",
+          placeHolder: "dependencies",
+          validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
+        });
+        if (selector === undefined) {
+          return;
+        }
+
+        const value = await vscode.window.showInputBox({
+          prompt: "Value to append",
+          placeHolder: '"new-item"',
+          validateInput: (input) => input.length > 0 ? undefined : "Value is required."
+        });
+        if (value === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildDocAppendQuickAction(target.absolutePath, selector, value));
+      }
+    },
+    {
+      label: "Append table row",
+      description: "Append a row to a markdown table under a heading",
+      detail: "Builds `patchloom md table-append <file> --heading <h> --row <row>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a markdown file for Patchloom table-append");
+        if (!target) {
+          return;
+        }
+
+        if (!isMarkdownPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a markdown file.`
+          );
+          return;
+        }
+
+        const heading = await vscode.window.showInputBox({
+          prompt: "Heading containing the table",
+          placeHolder: "## API",
+          validateInput: (value) => value.length > 0 ? undefined : "Heading is required."
+        });
+        if (heading === undefined) {
+          return;
+        }
+
+        const row = await vscode.window.showInputBox({
+          prompt: "Table row to append (pipe-delimited)",
+          placeHolder: "| /users | List users | GET |",
+          validateInput: (value) => value.length > 0 ? undefined : "Row is required."
+        });
+        if (row === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildMdTableAppendQuickAction(target.absolutePath, heading, row));
+      }
+    },
+    {
+      label: "Upsert bullet",
+      description: "Add a bullet under a markdown heading (idempotent)",
+      detail: "Builds `patchloom md upsert-bullet <file> --heading <h> --bullet <text>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a markdown file for Patchloom upsert-bullet");
+        if (!target) {
+          return;
+        }
+
+        if (!isMarkdownPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a markdown file.`
+          );
+          return;
+        }
+
+        const heading = await vscode.window.showInputBox({
+          prompt: "Heading to add the bullet under",
+          placeHolder: "## Rules",
+          validateInput: (value) => value.length > 0 ? undefined : "Heading is required."
+        });
+        if (heading === undefined) {
+          return;
+        }
+
+        const bullet = await vscode.window.showInputBox({
+          prompt: "Bullet text (without leading dash)",
+          placeHolder: "Run make check before committing",
+          validateInput: (value) => value.length > 0 ? undefined : "Bullet text is required."
+        });
+        if (bullet === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildMdUpsertBulletQuickAction(target.absolutePath, heading, bullet));
+      }
+    },
+    {
+      label: "Replace markdown section",
+      description: "Replace content under a markdown heading",
+      detail: "Builds `patchloom md replace-section <file> --heading <h> --content <text>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a markdown file for Patchloom replace-section");
+        if (!target) {
+          return;
+        }
+
+        if (!isMarkdownPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a markdown file.`
+          );
+          return;
+        }
+
+        const heading = await vscode.window.showInputBox({
+          prompt: "Heading of the section to replace",
+          placeHolder: "## Unreleased",
+          validateInput: (value) => value.length > 0 ? undefined : "Heading is required."
+        });
+        if (heading === undefined) {
+          return;
+        }
+
+        const content = await vscode.window.showInputBox({
+          prompt: "New section content",
+          placeHolder: "- New feature added",
+          validateInput: (value) => value.length > 0 ? undefined : "Content is required."
+        });
+        if (content === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildMdReplaceSectionQuickAction(target.absolutePath, heading, content));
+      }
+    },
+    {
+      label: "Undo last change",
+      description: "Restore files from the last patchloom backup",
+      detail: "Runs `patchloom undo`",
+      run: async () => {
+        const folder = await activeWorkspaceFolder({
+          promptIfMany: true,
+          placeHolder: "Select workspace folder for Patchloom undo"
+        });
+        if (!folder) {
+          await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom undo.");
+          return;
+        }
+
+        const confirm = await vscode.window.showWarningMessage(
+          "Undo the last patchloom edit? This restores files from backup.",
+          { modal: true },
+          "Undo"
+        );
+        if (confirm !== "Undo") {
+          return;
+        }
+
+        const action = buildUndoQuickAction(folder.uri.fsPath);
+        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
+
+        if (result.exitCode !== 0) {
+          const message = result.stderr.includes("no backup")
+            ? "No patchloom backup to undo."
+            : `Patchloom undo failed: ${formatCliOutput(result)}`;
+          await vscode.window.showWarningMessage(message);
+          return;
+        }
+
+        const log = getPatchloomLog();
+        log?.show();
+        await vscode.window.showInformationMessage("Patchloom undo complete. Restored files shown in the output channel.");
+      }
     }
   ];
 
@@ -380,6 +630,73 @@ export function buildDocGetQuickAction(targetPath: string, selector: string): Pl
     targetArgIndices: [2],
     args: ["doc", "get", targetPath, selector]
   };
+}
+
+export function buildDocDeleteQuickAction(targetPath: string, selector: string): PlannedQuickAction {
+  return {
+    title: `Delete ${selector} from ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["doc", "delete", targetPath, selector]
+  };
+}
+
+export function buildDocMergeQuickAction(targetPath: string, value: string): PlannedQuickAction {
+  return {
+    title: `Merge into ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["doc", "merge", targetPath, "--value", value]
+  };
+}
+
+export function buildDocAppendQuickAction(targetPath: string, selector: string, value: string): PlannedQuickAction {
+  return {
+    title: `Append to ${selector} in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["doc", "append", targetPath, selector, value]
+  };
+}
+
+export function buildMdTableAppendQuickAction(targetPath: string, heading: string, row: string): PlannedQuickAction {
+  return {
+    title: `Append table row under "${heading}" in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["md", "table-append", targetPath, "--heading", heading, "--row", row]
+  };
+}
+
+export function buildMdUpsertBulletQuickAction(targetPath: string, heading: string, bullet: string): PlannedQuickAction {
+  return {
+    title: `Upsert bullet under "${heading}" in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["md", "upsert-bullet", targetPath, "--heading", heading, "--bullet", bullet]
+  };
+}
+
+export function buildMdReplaceSectionQuickAction(targetPath: string, heading: string, content: string): PlannedQuickAction {
+  return {
+    title: `Replace "${heading}" in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["md", "replace-section", targetPath, "--heading", heading, "--content", content]
+  };
+}
+
+export function buildUndoQuickAction(workspacePath: string): PlannedQuickAction {
+  return {
+    title: "Undo last patchloom change",
+    targetPath: workspacePath,
+    targetArgIndices: [],
+    args: ["undo", "--apply"]
+  };
+}
+
+export function isMarkdownPath(filePath: string): boolean {
+  return MARKDOWN_FILE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }
 
 export function isStructuredDocumentPath(filePath: string): boolean {

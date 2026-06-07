@@ -473,6 +473,113 @@ describe("patchloom CLI integration", async () => {
     assert.ok(serverInfo?.name, "response should include serverInfo.name");
   });
 
+  // --- #115: doc mutation CLI tests ---
+
+  test("doc delete removes a key from a JSON file", async () => {
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "config.json");
+      await fs.writeFile(file, '{"keep": 1, "remove": 2}\n', "utf8");
+
+      await execFileAsync(binaryPath, [
+        "doc", "delete", file, "remove", "--apply"
+      ], { timeout: 5000 });
+
+      const content = JSON.parse(await fs.readFile(file, "utf8")) as Record<string, unknown>;
+      assert.equal(content.keep, 1);
+      assert.equal(content.remove, undefined, "deleted key should be absent");
+    });
+  });
+
+  test("doc merge adds keys to a JSON file", async () => {
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "config.json");
+      await fs.writeFile(file, '{"existing": true}\n', "utf8");
+
+      await execFileAsync(binaryPath, [
+        "doc", "merge", file, "--value", '{"added": 42}', "--apply"
+      ], { timeout: 5000 });
+
+      const content = JSON.parse(await fs.readFile(file, "utf8")) as Record<string, unknown>;
+      assert.equal(content.existing, true, "existing key preserved");
+      assert.equal(content.added, 42, "merged key present");
+    });
+  });
+
+  test("doc append adds an item to a JSON array", async () => {
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "config.json");
+      await fs.writeFile(file, '{"tags": ["a", "b"]}\n', "utf8");
+
+      await execFileAsync(binaryPath, [
+        "doc", "append", file, "tags", '"c"', "--apply"
+      ], { timeout: 5000 });
+
+      const content = JSON.parse(await fs.readFile(file, "utf8")) as Record<string, unknown>;
+      assert.deepEqual(content.tags, ["a", "b", "c"]);
+    });
+  });
+
+  // --- #114: markdown CLI tests ---
+
+  test("md upsert-bullet adds a bullet under a heading", async () => {
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "doc.md");
+      await fs.writeFile(file, "# Rules\n\n- Existing rule\n", "utf8");
+
+      await execFileAsync(binaryPath, [
+        "md", "upsert-bullet", file,
+        "--heading", "# Rules",
+        "--bullet", "New rule",
+        "--apply"
+      ], { timeout: 5000 });
+
+      const content = await fs.readFile(file, "utf8");
+      assert.ok(content.includes("- New rule"), "new bullet should be present");
+      assert.ok(content.includes("- Existing rule"), "existing bullet should be preserved");
+    });
+  });
+
+  test("md table-append adds a row to a markdown table", async () => {
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "doc.md");
+      await fs.writeFile(file, "# API\n\n| Route | Method |\n|---|---|\n| /health | GET |\n", "utf8");
+
+      await execFileAsync(binaryPath, [
+        "md", "table-append", file,
+        "--heading", "# API",
+        "--row", "| /users | POST |",
+        "--apply"
+      ], { timeout: 5000 });
+
+      const content = await fs.readFile(file, "utf8");
+      assert.ok(content.includes("| /users | POST |"), "appended row should be present");
+      assert.ok(content.includes("| /health | GET |"), "existing row should be preserved");
+    });
+  });
+
+  // --- #116: undo CLI test ---
+
+  test("undo restores files after an apply", async () => {
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "target.txt");
+      await fs.writeFile(file, "original content\n", "utf8");
+
+      // Apply a change (creates a backup)
+      await execFileAsync(binaryPath, [
+        "replace", "original", "--to", "modified", file, "--apply"
+      ], { cwd: dir, timeout: 5000 });
+
+      const modified = await fs.readFile(file, "utf8");
+      assert.ok(modified.includes("modified"), "file should be modified after apply");
+
+      // Undo the change
+      await execFileAsync(binaryPath, ["undo", "--apply"], { cwd: dir, timeout: 5000 });
+
+      const restored = await fs.readFile(file, "utf8");
+      assert.equal(restored, "original content\n", "file should be restored after undo");
+    });
+  });
+
   test("MCP config written for real binary is structurally valid", async () => {
     await withTempDir(async (workspace) => {
       const readFile = async (filePath: string) => {
