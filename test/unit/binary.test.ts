@@ -224,16 +224,16 @@ test("resolveManagedInstallPaths uses cargo-dist style archive names", () => {
   assert.equal(paths.binaryPath, path.join("/managed/install", "0.1.0", "managed-bin", "patchloom"));
 });
 
-test("buildManagedInstallReleaseAssets builds archive and checksum urls", () => {
+test("buildManagedInstallReleaseAssets builds archive and checksum urls with patchloom-v tag", () => {
   const target = detectManagedInstallTarget("linux", "x64");
   assert.ok(target);
   const release = buildManagedInstallReleaseAssets("v0.1.0", target);
 
-  assert.equal(release.tagName, "v0.1.0");
+  assert.equal(release.tagName, "patchloom-v0.1.0");
   assert.equal(release.archiveFileName, "patchloom-x86_64-unknown-linux-gnu.tar.xz");
   assert.equal(release.checksumFileName, "patchloom-x86_64-unknown-linux-gnu.tar.xz.sha256");
-  assert.match(release.archiveDownloadUrl, /patchloom-x86_64-unknown-linux-gnu\.tar\.xz$/);
-  assert.match(release.checksumDownloadUrl, /patchloom-x86_64-unknown-linux-gnu\.tar\.xz\.sha256$/);
+  assert.match(release.archiveDownloadUrl, /\/patchloom-v0\.1\.0\/patchloom-x86_64-unknown-linux-gnu\.tar\.xz$/);
+  assert.match(release.checksumDownloadUrl, /\/patchloom-v0\.1\.0\/patchloom-x86_64-unknown-linux-gnu\.tar\.xz\.sha256$/);
 });
 
 test("parseManagedInstallChecksumFile accepts common sha256 sidecar formats", () => {
@@ -629,9 +629,19 @@ test("resolvePatchloomStatusWithInputs surfaces persisted managed install failur
   }
 });
 
-test("normalizeReleaseVersion removes a leading v", () => {
+test("normalizeReleaseVersion strips v and patchloom-v prefixes", () => {
   assert.equal(normalizeReleaseVersion("v0.1.0"), "0.1.0");
   assert.equal(normalizeReleaseVersion("0.1.0"), "0.1.0");
+  assert.equal(normalizeReleaseVersion("patchloom-v0.1.2"), "0.1.2");
+});
+
+test("buildManagedInstallReleaseAssets normalizes patchloom-v prefixed versions", () => {
+  const target = detectManagedInstallTarget("darwin", "arm64");
+  assert.ok(target);
+  const release = buildManagedInstallReleaseAssets("patchloom-v0.1.2", target);
+
+  assert.equal(release.tagName, "patchloom-v0.1.2");
+  assert.match(release.archiveDownloadUrl, /\/patchloom-v0\.1\.2\/patchloom-aarch64-apple-darwin\.tar\.xz$/);
 });
 
 test("resolvePatchloomStatusWithInputs falls back to a managed install when present", async () => {

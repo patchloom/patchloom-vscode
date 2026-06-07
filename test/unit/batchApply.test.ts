@@ -2,15 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildBatchTemplate, parseBatchOperationCount } from "../../src/commands/batchApply.js";
 
-test("buildBatchTemplate returns valid JSON with three operations", () => {
+test("buildBatchTemplate returns line-oriented format with three operations", () => {
   const template = buildBatchTemplate();
-  const parsed = JSON.parse(template);
+  const lines = template.split("\n").filter((line) => line.trim().length > 0);
 
-  assert.ok(Array.isArray(parsed.operations));
-  assert.equal(parsed.operations.length, 3);
-  assert.equal(parsed.operations[0].op, "replace");
-  assert.equal(parsed.operations[1].op, "tidy");
-  assert.equal(parsed.operations[2].op, "doc-set");
+  assert.equal(lines.length, 3);
+  assert.ok(lines[0].startsWith("replace "), "first line should be a replace operation");
+  assert.ok(lines[1].startsWith("doc.set "), "second line should be a doc.set operation");
+  assert.ok(lines[2].startsWith("tidy.fix "), "third line should be a tidy.fix operation");
 });
 
 test("buildBatchTemplate ends with a newline", () => {
@@ -18,59 +17,51 @@ test("buildBatchTemplate ends with a newline", () => {
   assert.ok(template.endsWith("\n"));
 });
 
-test("parseBatchOperationCount counts operations in valid plan", () => {
-  const plan = JSON.stringify({
-    operations: [
-      { op: "replace", file: "a.txt", from: "x", to: "y" },
-      { op: "tidy", file: "b.txt", fixes: [] }
-    ]
-  });
+test("parseBatchOperationCount counts non-empty lines", () => {
+  const plan = [
+    'replace a.txt "x" "y"',
+    'doc.set b.json key "val"'
+  ].join("\n");
 
   assert.equal(parseBatchOperationCount(plan), 2);
 });
 
-test("parseBatchOperationCount returns 0 for invalid JSON", () => {
-  assert.equal(parseBatchOperationCount("not json"), 0);
+test("parseBatchOperationCount returns 0 for empty input", () => {
+  assert.equal(parseBatchOperationCount(""), 0);
 });
 
-test("parseBatchOperationCount returns 0 for missing operations", () => {
-  assert.equal(parseBatchOperationCount('{"other": "data"}'), 0);
+test("parseBatchOperationCount returns 0 for whitespace-only input", () => {
+  assert.equal(parseBatchOperationCount("   \n  \n"), 0);
 });
 
-test("parseBatchOperationCount returns 0 for empty operations array", () => {
-  assert.equal(parseBatchOperationCount('{"operations": []}'), 0);
+test("parseBatchOperationCount ignores blank lines between operations", () => {
+  const plan = 'replace a.txt "x" "y"\n\ndoc.set b.json key "v"\n';
+  assert.equal(parseBatchOperationCount(plan), 2);
 });
 
-test("parseBatchOperationCount returns 0 when operations is not an array", () => {
-  assert.equal(parseBatchOperationCount('{"operations": "not-an-array"}'), 0);
-  assert.equal(parseBatchOperationCount('{"operations": 42}'), 0);
-  assert.equal(parseBatchOperationCount('{"operations": null}'), 0);
+test("parseBatchOperationCount counts a single operation", () => {
+  assert.equal(parseBatchOperationCount('tidy.fix src/main.ts'), 1);
 });
 
 // --- #34: snapshot-style template tests ---
 
-test("buildBatchTemplate replace operation has required fields", () => {
-  const parsed = JSON.parse(buildBatchTemplate());
-  const replace = parsed.operations[0];
-  assert.equal(replace.op, "replace");
-  assert.ok("file" in replace, "replace operation missing 'file'");
-  assert.ok("from" in replace, "replace operation missing 'from'");
-  assert.ok("to" in replace, "replace operation missing 'to'");
+test("buildBatchTemplate replace line has file and quoted arguments", () => {
+  const lines = buildBatchTemplate().split("\n");
+  const replaceLine = lines.find((l) => l.startsWith("replace "));
+  assert.ok(replaceLine, "template should contain a replace line");
+  assert.match(replaceLine, /replace \S+ ".+" ".+"/, "replace should have file and two quoted args");
 });
 
-test("buildBatchTemplate tidy operation has required fields", () => {
-  const parsed = JSON.parse(buildBatchTemplate());
-  const tidy = parsed.operations[1];
-  assert.equal(tidy.op, "tidy");
-  assert.ok("file" in tidy, "tidy operation missing 'file'");
-  assert.ok(Array.isArray(tidy.fixes), "tidy operation 'fixes' should be an array");
+test("buildBatchTemplate doc.set line has file, selector, and quoted value", () => {
+  const lines = buildBatchTemplate().split("\n");
+  const docSetLine = lines.find((l) => l.startsWith("doc.set "));
+  assert.ok(docSetLine, "template should contain a doc.set line");
+  assert.match(docSetLine, /doc\.set \S+ \S+ ".+"/, "doc.set should have file, selector, and quoted value");
 });
 
-test("buildBatchTemplate doc-set operation has required fields", () => {
-  const parsed = JSON.parse(buildBatchTemplate());
-  const docSet = parsed.operations[2];
-  assert.equal(docSet.op, "doc-set");
-  assert.ok("file" in docSet, "doc-set operation missing 'file'");
-  assert.ok("selector" in docSet, "doc-set operation missing 'selector'");
-  assert.ok("value" in docSet, "doc-set operation missing 'value'");
+test("buildBatchTemplate tidy.fix line has a file path", () => {
+  const lines = buildBatchTemplate().split("\n");
+  const tidyLine = lines.find((l) => l.startsWith("tidy.fix "));
+  assert.ok(tidyLine, "template should contain a tidy.fix line");
+  assert.match(tidyLine, /tidy\.fix \S+/, "tidy.fix should have a file path");
 });
