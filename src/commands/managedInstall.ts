@@ -10,6 +10,19 @@ import {
 import { getPatchloomLog } from "../logging/outputChannel.js";
 import { refreshStatusBar } from "../status/statusBar.js";
 
+const MANAGED_INSTALL_UNAVAILABLE =
+  "Managed install is not available: extension storage path is not set.";
+
+const PROGRESS_OPTIONS: vscode.ProgressOptions = {
+  location: vscode.ProgressLocation.Notification,
+  title: "Patchloom",
+  cancellable: false,
+};
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function stageLabel(stage: ManagedInstallStage): string {
   switch (stage) {
     case "fetching-version":
@@ -30,7 +43,7 @@ function stageLabel(stage: ManagedInstallStage): string {
 export async function installPatchloom(): Promise<void> {
   const installRoot = getManagedInstallRoot();
   if (!installRoot) {
-    await vscode.window.showErrorMessage("Managed install is not available: extension storage path is not set.");
+    await vscode.window.showErrorMessage(MANAGED_INSTALL_UNAVAILABLE);
     return;
   }
 
@@ -45,11 +58,7 @@ export async function installPatchloom(): Promise<void> {
   const log = getPatchloomLog();
 
   await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: "Patchloom",
-      cancellable: false
-    },
+    PROGRESS_OPTIONS,
     async (progress) => {
       try {
         const result = await performManagedInstall({
@@ -65,7 +74,7 @@ export async function installPatchloom(): Promise<void> {
           `Patchloom ${result.version} installed successfully.`
         );
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = errorMessage(error);
         log?.log(`Managed install failed: ${message}`);
         await vscode.window.showErrorMessage(`Failed to install Patchloom: ${message}`);
       }
@@ -76,7 +85,7 @@ export async function installPatchloom(): Promise<void> {
 export async function updatePatchloom(): Promise<void> {
   const installRoot = getManagedInstallRoot();
   if (!installRoot) {
-    await vscode.window.showErrorMessage("Managed install is not available: extension storage path is not set.");
+    await vscode.window.showErrorMessage(MANAGED_INSTALL_UNAVAILABLE);
     return;
   }
 
@@ -91,11 +100,7 @@ export async function updatePatchloom(): Promise<void> {
   const log = getPatchloomLog();
 
   await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: "Patchloom",
-      cancellable: false
-    },
+    PROGRESS_OPTIONS,
     async (progress) => {
       try {
         progress.report({ message: "Checking for updates..." });
@@ -144,7 +149,7 @@ export async function updatePatchloom(): Promise<void> {
           `Patchloom updated to ${result.version}.`
         );
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = errorMessage(error);
         log?.log(`Managed update failed: ${message}`);
         await vscode.window.showErrorMessage(`Failed to update Patchloom: ${message}`);
       }
@@ -155,7 +160,7 @@ export async function updatePatchloom(): Promise<void> {
 export async function reinstallPatchloom(): Promise<void> {
   const installRoot = getManagedInstallRoot();
   if (!installRoot) {
-    await vscode.window.showErrorMessage("Managed install is not available: extension storage path is not set.");
+    await vscode.window.showErrorMessage(MANAGED_INSTALL_UNAVAILABLE);
     return;
   }
 
@@ -180,11 +185,7 @@ export async function reinstallPatchloom(): Promise<void> {
   const log = getPatchloomLog();
 
   await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: "Patchloom",
-      cancellable: false
-    },
+    PROGRESS_OPTIONS,
     async (progress) => {
       try {
         const result = await performManagedInstall({
@@ -200,7 +201,7 @@ export async function reinstallPatchloom(): Promise<void> {
           `Patchloom ${result.version} reinstalled successfully.`
         );
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = errorMessage(error);
         log?.log(`Managed reinstall failed: ${message}`);
         await vscode.window.showErrorMessage(`Failed to reinstall Patchloom: ${message}`);
       }
