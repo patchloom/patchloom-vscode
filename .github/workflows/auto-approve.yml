@@ -30,7 +30,10 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: hmarr/auto-approve-action@f0939ea97e9205ef24d872e76833fa908a770363 # v4.0.0
+      - name: Approve PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr review --approve "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}"
 
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         if: github.event.pull_request.user.login != 'patchloom-release[bot]'
