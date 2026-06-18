@@ -587,6 +587,18 @@ export async function performManagedInstall(inputs: PerformManagedInstallInputs)
       format: target.archiveFormat
     });
 
+    // cargo-dist archives extract to <triple>/patchloom, but promotion
+    // expects the binary at managed-bin/patchloom. Move it into place.
+    const extractedBinaryPath = path.join(
+      txPaths.stagingRoot,
+      `patchloom-${target.targetTriple}`,
+      managedBinaryName(platform)
+    );
+    if (await defaultFileExists(extractedBinaryPath)) {
+      await defaultEnsureDir(path.dirname(txPaths.stagedBinaryPath));
+      await defaultRenameFile(extractedBinaryPath, txPaths.stagedBinaryPath);
+    }
+
     report("installing");
     await promoteManagedInstallBinary({
       paths: txPaths,

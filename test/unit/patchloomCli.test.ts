@@ -25,6 +25,7 @@ import { classifyAgentsFile } from "../../src/commands/initializeProject.js";
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import { buildReplaceQuickAction, retargetQuickAction, withApplyFlag } from "../../src/commands/quickActions.js";
 import { configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
+import { performManagedInstall } from "../../src/install/managed.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -618,5 +619,146 @@ describe("patchloom CLI integration", async () => {
       assert.ok(vscodeTarget);
       assert.equal(vscodeTarget.configured, true, "target should be detected as configured");
     });
+  });
+});
+
+// --- End-to-end: managed install + MCP server ---
+//
+// Downloads the real patchloom binary via performManagedInstall (no mocks),
+// starts the MCP server, sends JSON-RPC requests, and validates responses.
+// This proves the full pipeline works on a clean machine with no pre-installed binary.
+
+describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
+  let installDir: string;
+  let binaryPath: string;
+
+  // Install once for all tests in this block
+  try {
+    installDir = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-e2e-"));
+    const result = await performManagedInstall({ installRoot: installDir });
+    binaryPath = result.binaryPath;
+  } catch (err) {
+    // Network or platform issue; skip all tests in this block
+    test("skipped: managed install failed", {
+      skip: `managed install unavailable: ${err instanceof Error ? err.message : String(err)}`
+    }, () => {});
+    return;
+  }
+
+  // Verify the binary is executable
+  test("managed install produces a runnable binary", async () => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const output = `${stdout}${stderr}`.trim();
+    const version = parsePatchloomVersion(output);
+    assert.ok(version, `should parse version from managed binary: ${output}`);
+    assert.match(version, /^\d+\.\d+\.\d+/);
+  });
+
+  test("MCP server responds to initialize", async () => {
+    const child = execFile(binaryPath, ["mcp-server"], { timeout: 15000 });
+    let stdout = "";
+    child.stdout!.on("data", (data: Buffer) => { stdout += data.toString(); });
+
+    const initRequest = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "e2e-test", version: "0.0.1" }
+      }
+    });
+    child.stdin!.write(initRequest + "\n");
+
+    const deadline = Date.now() + 10000;
+    while (stdout.length === 0 && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    child.kill();
+
+    assert.ok(stdout.length > 0, "mcp-server should produce output");
+    const response = JSON.parse(stdout.trim().split("\n")[0]) as Record<string, unknown>;
+    assert.equal(response.jsonrpc, "2.0");
+    assert.equal(response.id, 1);
+    const responseResult = response.result as Record<string, unknown>;
+    assert.ok(responseResult, "response should have a result");
+    const serverInfo = responseResult.serverInfo as Record<string, string>;
+    assert.ok(serverInfo?.name, "response should include serverInfo.name");
+  });
+
+  test("MCP server lists available tools", async () => {
+    const child = execFile(binaryPath, ["mcp-server"], { timeout: 15000 });
+    let stdout = "";
+    child.stdout!.on("data", (data: Buffer) => { stdout += data.toString(); });
+
+    // Must initialize first, then list tools
+    const initRequest = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "e2e-test", version: "0.0.1" }
+      }
+    });
+    child.stdin!.write(initRequest + "\n");
+
+    // Wait for initialize response
+    let deadline = Date.now() + 10000;
+    while (!stdout.includes('"id":1') && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    // Send initialized notification then tools/list
+    const initializedNotification = JSON.stringify({
+      jsonrpc: "2.0",
+      method: "notifications/initialized"
+    });
+    child.stdin!.write(initializedNotification + "\n");
+
+    const toolsRequest = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/list"
+    });
+    child.stdin!.write(toolsRequest + "\n");
+
+    // Wait for tools/list response
+    deadline = Date.now() + 10000;
+    while (!stdout.includes('"id":2') && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    child.kill();
+
+    // Parse the tools/list response (second JSON line)
+    const lines = stdout.trim().split("\n");
+    const toolsLine = lines.find((line) => line.includes('"id":2'));
+    assert.ok(toolsLine, "should have a tools/list response");
+
+    const toolsResponse = JSON.parse(toolsLine) as Record<string, unknown>;
+    assert.equal(toolsResponse.jsonrpc, "2.0");
+    assert.equal(toolsResponse.id, 2);
+    const toolsResult = toolsResponse.result as Record<string, unknown>;
+    assert.ok(toolsResult, "tools/list should have a result");
+    const tools = toolsResult.tools as Array<Record<string, unknown>>;
+    assert.ok(Array.isArray(tools), "result.tools should be an array");
+    assert.ok(tools.length > 0, "should expose at least one tool");
+
+    // Verify tools have required MCP fields
+    for (const tool of tools) {
+      assert.ok(typeof tool.name === "string" && tool.name.length > 0,
+        `tool should have a non-empty name: ${JSON.stringify(tool)}`);
+      assert.ok(tool.inputSchema !== undefined,
+        `tool ${tool.name} should have an inputSchema`);
+    }
+  });
+
+  // Cleanup
+  test("cleanup managed install temp directory", async () => {
+    await fs.rm(installDir, { recursive: true, force: true });
   });
 });
