@@ -52,7 +52,7 @@ test/
     managedLifecycle.test.ts   Managed install with real file I/O (22 tests)
     mcpConfig.test.ts    MCP config with real temp directories (9 tests)
     outputChannel.test.ts Output channel logging wrapper (10 tests)
-    patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (35 tests)
+    patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (36 tests)
     propertyBased.test.ts  Property-based tests with fast-check (13 tests)
     quickActions.test.ts Quick action command building, path containment, patch merge (46 tests)
     verifyMcp.test.ts    MCP server verify and JSON-RPC response parsing (15 tests)
