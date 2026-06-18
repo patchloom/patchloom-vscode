@@ -46,14 +46,16 @@ src/
 test/
   unit/                  Unit tests (node:test, dependency-injected, no VS Code API)
     batchApply.test.ts   Batch template and operation count parsing (10 tests)
-    binary.test.ts       Binary discovery, managed install, compatibility, workspace env (48 tests)
+    binary.test.ts       Binary discovery, managed install, compatibility, workspace env (53 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
-    initializeProject.test.ts  Status display, agents file classification, formatError (19 tests)
-    managedLifecycle.test.ts   Managed install with real file I/O (12 tests)
+    initializeProject.test.ts  Status display, agents file classification, formatError (23 tests)
+    managedLifecycle.test.ts   Managed install with real file I/O (22 tests)
     mcpConfig.test.ts    MCP config with real temp directories (9 tests)
-    outputChannel.test.ts Output channel logging wrapper (13 tests)
-    patchloomCli.test.ts Patchloom CLI integration tests with real binary (23 tests)
-    quickActions.test.ts Quick action command building, path containment, patch merge (29 tests)
+    outputChannel.test.ts Output channel logging wrapper (10 tests)
+    patchloomCli.test.ts Patchloom CLI integration tests with real binary (29 tests)
+    propertyBased.test.ts  Property-based tests with fast-check (13 tests)
+    quickActions.test.ts Quick action command building, path containment, patch merge (46 tests)
+    verifyMcp.test.ts    MCP server verify and JSON-RPC response parsing (15 tests)
     downloadIntegration.test.ts  HTTP download, redirect, streaming SHA-256 (9 tests)
   suite/
     index.ts             VS Code extension integration tests
