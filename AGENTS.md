@@ -33,7 +33,7 @@ src/
     configureMcp.ts      Configure MCP command: multi-target MCP config injection
     initializeProject.ts Initialize Project command: generate/diff AGENTS.md
     managedInstall.ts    Managed Install commands: install, update, reinstall Patchloom binary
-    quickActions.ts       Quick Action command: replace, tidy, doc set, search, create, doc get
+    quickActions.ts       Quick Action command: replace, tidy, doc set, search, create, doc get, patch merge
     batchApply.ts        Batch Apply command: atomic multi-operation plan via JSON
     setupWorkspace.ts     Setup Workspace command: guided readiness walkthrough
     showStatus.ts         Show Status command: diagnostics display
@@ -53,7 +53,7 @@ test/
     mcpConfig.test.ts    MCP config with real temp directories (9 tests)
     outputChannel.test.ts Output channel logging wrapper (13 tests)
     patchloomCli.test.ts Patchloom CLI integration tests with real binary (23 tests)
-    quickActions.test.ts Quick action command building, path containment (26 tests)
+    quickActions.test.ts Quick action command building, path containment, patch merge (29 tests)
     downloadIntegration.test.ts  HTTP download, redirect, streaming SHA-256 (9 tests)
   suite/
     index.ts             VS Code extension integration tests

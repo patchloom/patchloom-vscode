@@ -15,6 +15,7 @@ import {
   buildMdReplaceSectionQuickAction,
   buildMdTableAppendQuickAction,
   buildMdUpsertBulletQuickAction,
+  buildPatchMergeQuickAction,
   buildReplaceQuickAction,
   buildSearchQuickAction,
   buildTidyQuickAction,
@@ -405,4 +406,31 @@ test("retargetQuickAction works with md commands", () => {
   assert.equal(retargeted.args[2], "/tmp/preview/README.md");
   assert.equal(retargeted.args[0], "md");
   assert.equal(retargeted.args[1], "table-append");
+});
+
+// --- patch merge Quick Action (v0.2.0) ---
+
+test("buildPatchMergeQuickAction builds a patch merge command", () => {
+  const action = buildPatchMergeQuickAction("/workspace/demo/changes.patch", false);
+
+  assert.equal(action.title, "Merge patch changes.patch");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, ["patch", "merge", "/workspace/demo/changes.patch", "--apply"]);
+});
+
+test("buildPatchMergeQuickAction includes allow-conflicts flag when enabled", () => {
+  const action = buildPatchMergeQuickAction("/workspace/demo/stale.diff", true);
+
+  assert.equal(action.title, "Merge patch stale.diff");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, ["patch", "merge", "/workspace/demo/stale.diff", "--apply", "--allow-conflicts"]);
+});
+
+test("retargetQuickAction works with patch merge command", () => {
+  const action = buildPatchMergeQuickAction("/workspace/demo/fix.patch", false);
+  const retargeted = retargetQuickAction(action, "/tmp/preview/fix.patch");
+
+  assert.equal(retargeted.args[2], "/tmp/preview/fix.patch");
+  assert.equal(retargeted.args[0], "patch");
+  assert.equal(retargeted.args[1], "merge");
 });

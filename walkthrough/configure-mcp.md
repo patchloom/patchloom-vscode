@@ -16,3 +16,5 @@ for your editor.
 
 The command detects which editors are available and configures them
 automatically.
+
+See the [MCP setup guide](https://patchloom.github.io/patchloom/getting-started/mcp-setup.html) for advanced configuration.
