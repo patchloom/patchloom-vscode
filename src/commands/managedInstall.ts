@@ -9,6 +9,7 @@ import {
 } from "../install/managed.js";
 import { getPatchloomLog } from "../logging/outputChannel.js";
 import { refreshStatusBar } from "../status/statusBar.js";
+import { formatError } from "../util.js";
 
 const MANAGED_INSTALL_UNAVAILABLE =
   "Managed install is not available: extension storage path is not set.";
@@ -18,10 +19,6 @@ const PROGRESS_OPTIONS: vscode.ProgressOptions = {
   title: "Patchloom",
   cancellable: false,
 };
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 function stageLabel(stage: ManagedInstallStage): string {
   switch (stage) {
@@ -74,7 +71,7 @@ export async function installPatchloom(): Promise<void> {
           `Patchloom ${result.version} installed successfully.`
         );
       } catch (error) {
-        const message = errorMessage(error);
+        const message = formatError(error);
         log?.log(`Managed install failed: ${message}`);
         await vscode.window.showErrorMessage(`Failed to install Patchloom: ${message}`);
       }
@@ -149,7 +146,7 @@ export async function updatePatchloom(): Promise<void> {
           `Patchloom updated to ${result.version}.`
         );
       } catch (error) {
-        const message = errorMessage(error);
+        const message = formatError(error);
         log?.log(`Managed update failed: ${message}`);
         await vscode.window.showErrorMessage(`Failed to update Patchloom: ${message}`);
       }
@@ -201,7 +198,7 @@ export async function reinstallPatchloom(): Promise<void> {
           `Patchloom ${result.version} reinstalled successfully.`
         );
       } catch (error) {
-        const message = errorMessage(error);
+        const message = formatError(error);
         log?.log(`Managed reinstall failed: ${message}`);
         await vscode.window.showErrorMessage(`Failed to reinstall Patchloom: ${message}`);
       }
