@@ -75,7 +75,7 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 
 ### Quick actions
 
-`Patchloom: Quick Action` opens an interactive picker with six operations:
+`Patchloom: Quick Action` opens an interactive picker with structured editing operations:
 
 | Action | What it does |
 |--------|-------------|
@@ -85,6 +85,7 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Search text** | Find pattern matches across workspace files (results in output channel) |
 | **Create file** | Scaffold a new file and open it in the editor |
 | **Read structured value** | Read a JSON/YAML/TOML key and copy to clipboard |
+| **Merge patch (three-way)** | Apply a stale patch using three-way merge (v0.2.0+) |
 
 ### Batch operations
 
@@ -116,6 +117,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | `Patchloom: Update Patchloom` | Update a managed Patchloom install to the latest release |
 | `Patchloom: Reinstall Patchloom` | Re-download and reinstall the managed Patchloom binary |
 | `Patchloom: Open Settings` | Jump to Patchloom extension settings |
+| `Patchloom: Open Documentation` | Open the Patchloom documentation site in a browser |
 | `Patchloom: Open Releases` | Open the Patchloom releases page in a browser |
 
 ## Settings
@@ -124,6 +126,10 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 |---------|---------|-------------|
 | `patchloom.path` | `""` | Absolute path to the Patchloom binary. When empty, the extension searches `PATH` and then the managed install location. |
 | `patchloom.showStatusBar` | `true` | Show a status bar item reporting whether Patchloom is available. |
+| `patchloom.enable` | `true` | Enable the extension. When disabled, the status bar is hidden and background checks are skipped. |
+| `patchloom.trace.server` | `"off"` | Trace level for CLI output (`off`, `messages`, `verbose`). |
+| `patchloom.env` | `{}` | Additional environment variables passed to the CLI (e.g., `{"PATCHLOOM_LOG": "debug"}`). |
+| `patchloom.managedInstall.autoUpdate` | `true` | Automatically check for CLI updates on activation. |
 
 ---
 
@@ -141,7 +147,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
 **CLI compatibility warning**
-Run `Patchloom: Open Releases` to download `0.1.0` or newer.
+Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.1.0 or newer; 0.2.0 is recommended.
 
 **MCP config not injected**
 Run `Patchloom: Configure MCP` and select the target editor config.
@@ -176,7 +182,7 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 ## Requirements
 
 - VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
-- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.1.0 or newer
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.1.0 or newer (0.2.0+ recommended for patch merge and strict transactions)
 
 ## Contributing
 

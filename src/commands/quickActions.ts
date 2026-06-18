@@ -700,6 +700,54 @@ export async function runQuickAction(): Promise<void> {
       }
     },
     {
+      label: "Merge patch (three-way)",
+      description: "Apply a stale patch using three-way merge",
+      detail: "Builds `patchloom patch merge <file> --apply [--allow-conflicts]`",
+      run: async () => {
+        const folder = await activeWorkspaceFolder({
+          promptIfMany: true,
+          placeHolder: "Select workspace folder for Patchloom patch merge"
+        });
+        if (!folder) {
+          await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom patch merge.");
+          return;
+        }
+
+        const patchUri = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          defaultUri: folder.uri,
+          filters: { "Patch files": ["patch", "diff"], "All files": ["*"] },
+          openLabel: "Select Patch"
+        });
+        if (!patchUri || patchUri.length === 0) {
+          return;
+        }
+
+        const allowConflicts = await vscode.window.showQuickPick([
+          { label: "Fail on conflicts", description: "Recommended", picked: true, allow: false },
+          { label: "Allow conflict markers", description: "Write <<<<<<< / >>>>>>> markers into files", allow: true }
+        ], { placeHolder: "How should unresolved conflicts be handled?" });
+        if (!allowConflicts) {
+          return;
+        }
+
+        const action = buildPatchMergeQuickAction(patchUri[0].fsPath, allowConflicts.allow);
+        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
+        const log = getPatchloomLog();
+
+        if (result.exitCode === 8) {
+          log?.show();
+          await vscode.window.showWarningMessage("Patch merge completed with unresolved conflicts. Check the output for details.");
+        } else if (result.exitCode !== 0) {
+          log?.show();
+          await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
+        } else {
+          log?.show();
+          await vscode.window.showInformationMessage("Patch merged successfully.");
+        }
+      }
+    },
+    {
       label: "Undo last change",
       description: "Restore files from the last patchloom backup",
       detail: "Runs `patchloom undo`",
@@ -918,6 +966,19 @@ export function buildMdInsertBeforeHeadingQuickAction(targetPath: string, headin
     targetPath,
     targetArgIndices: [2],
     args: ["md", "insert-before-heading", targetPath, "--heading", heading, "--content", content]
+  };
+}
+
+export function buildPatchMergeQuickAction(patchPath: string, allowConflicts: boolean): PlannedQuickAction {
+  const args: string[] = ["patch", "merge", patchPath, "--apply"];
+  if (allowConflicts) {
+    args.push("--allow-conflicts");
+  }
+  return {
+    title: `Merge patch ${path.basename(patchPath)}`,
+    targetPath: patchPath,
+    targetArgIndices: [2],
+    args
   };
 }
 
