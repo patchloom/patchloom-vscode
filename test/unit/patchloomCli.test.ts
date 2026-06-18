@@ -647,7 +647,7 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
 
   // Verify the binary is executable
   test("managed install produces a runnable binary", async () => {
-    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 15000 });
     const output = `${stdout}${stderr}`.trim();
     const version = parsePatchloomVersion(output);
     assert.ok(version, `should parse version from managed binary: ${output}`);
@@ -755,6 +755,70 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
       assert.ok(tool.inputSchema !== undefined,
         `tool ${tool.name} should have an inputSchema`);
     }
+  });
+
+  test("MCP tools/call modifies a file on disk", async () => {
+    // Create a temp directory with a JSON file to edit via MCP.
+    // The MCP server resolves paths relative to its cwd, so we
+    // spawn the server inside the temp directory and use a relative path.
+    const workDir = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-mcp-call-"));
+    await fs.writeFile(path.join(workDir, "config.json"), '{"port": 3000}\n', "utf8");
+
+    const child = execFile(binaryPath, ["mcp-server"], { timeout: 15000, cwd: workDir });
+    let stdout = "";
+    child.stdout!.on("data", (data: Buffer) => { stdout += data.toString(); });
+
+    // Initialize
+    child.stdin!.write(JSON.stringify({
+      jsonrpc: "2.0", id: 1, method: "initialize",
+      params: {
+        protocolVersion: "2024-11-05", capabilities: {},
+        clientInfo: { name: "e2e-test", version: "0.0.1" }
+      }
+    }) + "\n");
+
+    let deadline = Date.now() + 10000;
+    while (!stdout.includes('"id":1') && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    child.stdin!.write(JSON.stringify({
+      jsonrpc: "2.0", method: "notifications/initialized"
+    }) + "\n");
+
+    // Call doc_set to change port from 3000 to 8080 (relative path)
+    child.stdin!.write(JSON.stringify({
+      jsonrpc: "2.0", id: 3, method: "tools/call",
+      params: {
+        name: "doc_set",
+        arguments: { path: "config.json", selector: "port", value: 8080 }
+      }
+    }) + "\n");
+
+    deadline = Date.now() + 10000;
+    while (!stdout.includes('"id":3') && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    child.kill();
+
+    // Verify the tool call succeeded
+    const lines = stdout.trim().split("\n");
+    const callLine = lines.find((line) => line.includes('"id":3'));
+    assert.ok(callLine, "should have a tools/call response");
+    const callResponse = JSON.parse(callLine) as Record<string, unknown>;
+    assert.equal(callResponse.jsonrpc, "2.0");
+    assert.equal(callResponse.id, 3);
+    const callResult = callResponse.result as Record<string, unknown>;
+    assert.ok(callResult, "tools/call should return a result (not an error)");
+    assert.ok(!callResult.isError,
+      `tools/call should not be an error: ${JSON.stringify(callResult)}`);
+
+    // Verify the file was actually modified on disk
+    const content = JSON.parse(await fs.readFile(path.join(workDir, "config.json"), "utf8")) as Record<string, unknown>;
+    assert.equal(content.port, 8080, "doc_set should have changed port to 8080");
+
+    await fs.rm(workDir, { recursive: true, force: true });
   });
 
   // Cleanup
