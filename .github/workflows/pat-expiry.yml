@@ -35,8 +35,8 @@ jobs:
 
           echo "VSCE_PAT expires: $expires ($days_left days from now)"
 
-          if [ "$days_left" -gt 30 ]; then
-            echo "More than 30 days remaining. No action needed."
+          if [ "$days_left" -gt 45 ]; then
+            echo "More than 45 days remaining. No action needed."
             exit 0
           fi
 
