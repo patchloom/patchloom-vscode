@@ -117,6 +117,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | `Patchloom: Update Patchloom` | Update a managed Patchloom install to the latest release |
 | `Patchloom: Reinstall Patchloom` | Re-download and reinstall the managed Patchloom binary |
 | `Patchloom: Open Settings` | Jump to Patchloom extension settings |
+| `Patchloom: Open Documentation` | Open the Patchloom documentation site in a browser |
 | `Patchloom: Open Releases` | Open the Patchloom releases page in a browser |
 
 ## Settings
@@ -125,6 +126,10 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 |---------|---------|-------------|
 | `patchloom.path` | `""` | Absolute path to the Patchloom binary. When empty, the extension searches `PATH` and then the managed install location. |
 | `patchloom.showStatusBar` | `true` | Show a status bar item reporting whether Patchloom is available. |
+| `patchloom.enable` | `true` | Enable the extension. When disabled, the status bar is hidden and background checks are skipped. |
+| `patchloom.trace.server` | `"off"` | Trace level for CLI output (`off`, `messages`, `verbose`). |
+| `patchloom.env` | `{}` | Additional environment variables passed to the CLI (e.g., `{"PATCHLOOM_LOG": "debug"}`). |
+| `patchloom.managedInstall.autoUpdate` | `true` | Automatically check for CLI updates on activation. |
 
 ---
 
