@@ -1,0 +1,73 @@
+name: PAT expiry reminder
+
+on:
+  schedule:
+    - cron: "0 12 1 * *" # 1st of every month at noon UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: pat-expiry
+  cancel-in-progress: true
+
+jobs:
+  check-expiry:
+    name: Check PAT expiry
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Check VSCE_PAT expiry and create issue if needed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Update this date when the PAT is rotated
+          VSCE_PAT_EXPIRES: "2027-06-16"
+        run: |
+          today=$(date -u +%Y-%m-%d)
+          expires="$VSCE_PAT_EXPIRES"
+          days_left=$(( ($(date -d "$expires" +%s) - $(date -d "$today" +%s)) / 86400 ))
+
+          echo "VSCE_PAT expires: $expires ($days_left days from now)"
+
+          if [ "$days_left" -gt 30 ]; then
+            echo "More than 30 days remaining. No action needed."
+            exit 0
+          fi
+
+          # Check if an open issue already exists
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" \
+            --label "token-expiry" --state open --json number --jq 'length')
+          if [ "$existing" -gt 0 ]; then
+            echo "Open token-expiry issue already exists. Skipping."
+            exit 0
+          fi
+
+          cat > /tmp/pat-body.md <<EOF
+          The \`VSCE_PAT\` Azure DevOps PAT expires on **${expires}** (${days_left} days from now).
+
+          ## Steps to rotate
+
+          1. Open \`https://dev.azure.com/patchloom/_usersSettings/tokens\`
+          2. Click **+ New Token** (Name: \`patchloom-vscode-publish\`, Org: \`patchloom\`)
+          3. Expiration: Custom defined, max date (~365 days)
+          4. Scopes: Custom defined > expand all > **Marketplace > Manage**
+          5. Click **Create**, copy the token immediately
+          6. Run \`gh secret set VSCE_PAT --repo patchloom/patchloom-vscode\`
+          7. Revoke the old token in Azure DevOps
+          8. Update \`VSCE_PAT_EXPIRES\` in \`.github/workflows/pat-expiry.yml\`
+
+          Can also be automated with Playwright CDP (see the vsce-publish skill).
+          EOF
+          # Strip leading whitespace from heredoc lines
+          sed -i 's/^          //' /tmp/pat-body.md
+
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "chore: VSCE_PAT expires in $days_left days ($expires)" \
+            --label "token-expiry" \
+            --body-file /tmp/pat-body.md
