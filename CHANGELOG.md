@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.4](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.3...patchloom-v0.0.4) (2026-06-18)
+
+
+### Features
+
+* align extension with patchloom CLI v0.2.0 and improve docs ([#130](https://github.com/patchloom/patchloom-vscode/issues/130)) ([cb58a47](https://github.com/patchloom/patchloom-vscode/commit/cb58a474453dd427943b62519aba7af15e5e2790))
+
+
+### Bug Fixes
+
+* managed install archive extraction path mismatch + e2e MCP tests ([#136](https://github.com/patchloom/patchloom-vscode/issues/136)) ([1e946a0](https://github.com/patchloom/patchloom-vscode/commit/1e946a0332a2c1d3b5d04615e950c3b1e5609e05))
+
 ## [0.0.3](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.2...patchloom-v0.0.3) (2026-06-07)
 
 
