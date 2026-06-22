@@ -126,6 +126,12 @@ All I/O-dependent functions accept an `inputs` object with injectable callbacks 
 - All relative imports must use `.js` extensions (`from "./foo.js"`, not `from "./foo"`). Required by `moduleResolution: "node16"`.
 - All commits require a `Signed-off-by` line (DCO). Use `git commit -s`.
 - When adding commands to `package.json`, update the expected count in `test/suite/index.ts`.
+- **Branch & PR workflow (never push a branch and stop):** For any trackable work,
+  after the first `git push` immediately create a draft PR (`gh pr create --draft`).
+  Continue development with normal `git push` (updates the draft PR + CI).
+  Only run `gh pr ready <number>` (and enable auto-merge if needed) when the
+  changes are ready for review/merge. This ensures every pushed branch is
+  backed by an open (draft) PR from the start. See `~/.grok/skills/owned-repo-gate/SKILL.md`.
 
 ## Release PRs - Strong Guard
 
