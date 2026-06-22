@@ -160,11 +160,16 @@ export function patchloomNeedsUpgrade(status: PatchloomStatus): boolean {
  *
  * This removes duplicated ready-check + notify logic across commands.
  */
-export async function ensurePatchloomReadyOrNotify(contextSuffix = ""): Promise<string | null> {
-  const status = await resolvePatchloomStatus();
-  const vscode = await import("vscode");
+export async function ensurePatchloomReadyOrNotify(
+  contextSuffix = "",
+  testInputs?: PatchloomStatusInputs
+): Promise<string | null> {
+  const status = testInputs
+    ? await resolvePatchloomStatusWithInputs(testInputs)
+    : await resolvePatchloomStatus();
 
   if (!status.ready || !status.binaryPath) {
+    const vscode = await import("vscode");
     const choice = await vscode.window.showWarningMessage(
       `${status.message}${contextSuffix ? `\n\n${contextSuffix}` : ""}`,
       "Open Settings"
@@ -176,6 +181,7 @@ export async function ensurePatchloomReadyOrNotify(contextSuffix = ""): Promise<
   }
 
   if (patchloomNeedsUpgrade(status)) {
+    const vscode = await import("vscode");
     const choice = await vscode.window.showWarningMessage(
       `${status.compatibilityMessage}${contextSuffix ? `\n\n${contextSuffix}` : ""}`,
       "Open Releases"
