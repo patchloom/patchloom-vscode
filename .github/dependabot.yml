@@ -7,6 +7,11 @@ updates:
     labels:
       - dependencies
     open-pull-requests-limit: 10
+    ignore:
+      # @types/vscode must be kept in sync with engines.vscode (vsce enforces
+      # @types/vscode version <= declared engine). Update both together when
+      # raising the minimum supported VS Code version.
+      - dependency-name: "@types/vscode"
 
   - package-ecosystem: github-actions
     directory: /
