@@ -134,14 +134,14 @@ All I/O-dependent functions accept an `inputs` object with injectable callbacks 
   backed by an open (draft) PR from the start. See `~/.grok/skills/owned-repo-gate/SKILL.md`.
 
 - **Auto-approve self-modification:** PRs that change `.github/workflows/auto-approve.yml`
-  cause GitHub to emit only "push" validation runs (0 jobs, failure) using the PR's workflow content
-  (the pull_request runs use the definition from main). The approve step runs early using
-  GITHUB_TOKEN (before wf-changes detection or merge logic) so reviews are added when the
-  pull_request workflow runs from main. The Enable auto-merge step uses `|| echo` so the
-  workflow reports success even when merge enable falls back or is restricted. In rare cases
-  where no review appears, use the emergency bypass in ci-branch-protection skill + #159
-  (add bypass actor, `gh pr merge --admin`, remove bypass immediately). See also patchloom's
-  auto-approve.yml for the reference pattern.
+  still cause GitHub to emit "push" validation runs (0 jobs, failure) using the PR's workflow content
+  (pull_request runs always use the definition from main). However, the approve step now runs
+  early using GITHUB_TOKEN, and the Enable auto-merge step uses `|| echo` (plus a hardened
+  wf-changes check), so the review is submitted and the workflow run reports success.
+  The specific "stuck in REVIEW_REQUIRED with no bot review" case that required the bypass
+  for auto-approve self-mods (see historical #157 / #159) is resolved. The general emergency
+  hatch in ci-branch-protection remains available for other auto-approve outages. See
+  patchloom's auto-approve.yml for the reference pattern.
 
 ## Release PRs - Strong Guard
 
