@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import { getPatchloomLog } from "../logging/outputChannel.js";
 
 export interface VerifyMcpInputs {
@@ -16,16 +16,8 @@ export interface VerifyMcpResult {
 
 export async function verifyMcp(): Promise<void> {
   const vscode = await import("vscode");
-  const status = await resolvePatchloomStatus();
-  if (!status.ready || !status.binaryPath) {
-    await vscode.window.showWarningMessage(status.message);
-    return;
-  }
-
-  if (patchloomNeedsUpgrade(status)) {
-    await vscode.window.showWarningMessage(
-      `${status.compatibilityMessage}\n\nUpgrade Patchloom before verifying the MCP server.`
-    );
+  const binaryPath = await ensurePatchloomReadyOrNotify("Upgrade Patchloom before verifying the MCP server.");
+  if (!binaryPath) {
     return;
   }
 
@@ -37,7 +29,7 @@ export async function verifyMcp(): Promise<void> {
     },
     async (progress) => {
       progress.report({ message: "Verifying MCP server..." });
-      return verifyMcpServer({ binaryPath: status.binaryPath! });
+      return verifyMcpServer({ binaryPath });
     }
   );
 

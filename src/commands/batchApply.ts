@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import type * as VSCode from "vscode";
-import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import { formatCliOutput } from "../util.js";
 import { getPatchloomLog } from "../logging/outputChannel.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
@@ -22,27 +22,12 @@ export function parseBatchOperationCount(plan: string): number {
 }
 
 export async function batchApply(): Promise<void> {
+  const binaryPath = await ensurePatchloomReadyOrNotify("Upgrade Patchloom before running batch operations.");
+  if (!binaryPath) {
+    return;
+  }
+
   const vscode: typeof VSCode = await import("vscode");
-  const status = await resolvePatchloomStatus();
-  if (!status.ready || !status.binaryPath) {
-    const choice = await vscode.window.showWarningMessage(status.message, "Open Settings");
-    if (choice === "Open Settings") {
-      await vscode.commands.executeCommand("patchloom.openPatchloomSettings");
-    }
-    return;
-  }
-
-  if (patchloomNeedsUpgrade(status)) {
-    const choice = await vscode.window.showWarningMessage(
-      `${status.compatibilityMessage}\n\nUpgrade Patchloom before running batch operations.`,
-      "Open Releases"
-    );
-    if (choice === "Open Releases") {
-      await vscode.commands.executeCommand("patchloom.openPatchloomReleases");
-    }
-    return;
-  }
-
   const folder = await activeWorkspaceFolder({
     promptIfMany: true,
     placeHolder: "Select workspace folder for batch apply"
@@ -52,7 +37,6 @@ export async function batchApply(): Promise<void> {
     return;
   }
 
-  const binaryPath = status.binaryPath;
   const doc = await vscode.workspace.openTextDocument({
     language: "plaintext",
     content: BATCH_TEMPLATE

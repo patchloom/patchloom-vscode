@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
-import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import { getPatchloomLog } from "../logging/outputChannel.js";
 import { formatError } from "../util.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
@@ -24,29 +24,14 @@ export async function initializeProject(): Promise<void> {
     return;
   }
 
-  const status = await resolvePatchloomStatus();
-  if (!status.ready || !status.binaryPath) {
-    const choice = await vscode.window.showWarningMessage(status.message, "Open Settings");
-    if (choice === "Open Settings") {
-      await vscode.commands.executeCommand("workbench.action.openSettings", "patchloom.path");
-    }
-    return;
-  }
-
-  if (patchloomNeedsUpgrade(status)) {
-    const choice = await vscode.window.showWarningMessage(
-      `${status.compatibilityMessage}\n\nUpgrade Patchloom before initializing this workspace.`,
-      "Open Releases"
-    );
-    if (choice === "Open Releases") {
-      await vscode.commands.executeCommand("patchloom.openPatchloomReleases");
-    }
+  const binaryPath = await ensurePatchloomReadyOrNotify("Upgrade Patchloom before initializing this workspace.");
+  if (!binaryPath) {
     return;
   }
 
   let rules: string;
   try {
-    rules = await generateAgentRules(status.binaryPath, folder.uri.fsPath);
+    rules = await generateAgentRules(binaryPath, folder.uri.fsPath);
   } catch (error) {
     await vscode.window.showErrorMessage(`Failed to run patchloom agent-rules in ${folder.name}: ${formatError(error)}`);
     return;
