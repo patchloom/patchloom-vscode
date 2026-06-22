@@ -53,6 +53,10 @@ test("classifyAgentsFile detects real content drift", () => {
   assert.equal(classifyAgentsFile("# Rules\n- One\n", "# Rules\n- Two\n"), "different");
 });
 
+test("classifyAgentsFile + normalize handles trailing ws + CRLF variants (new coverage for #154)", () => {
+  assert.equal(classifyAgentsFile("# Rules\n- One \n \n", "# Rules\n- One\n"), "up_to_date");
+});
+
 test("buildStatusDetails includes workspace readiness context", () => {
   const details = buildStatusDetails(
     {

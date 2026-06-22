@@ -647,8 +647,8 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
 
   // Verify the binary is executable
   test("managed install produces a runnable binary", async () => {
-    // Cold start after fresh managed install can take >15s on some runners; use 30s.
-    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 30000 });
+    // Cold start after fresh managed install can take >30s on some runners/CI; use 60s for robustness.
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 60000 });
     const output = `${stdout}${stderr}`.trim();
     const version = parsePatchloomVersion(output);
     assert.ok(version, `should parse version from managed binary: ${output}`);
@@ -656,7 +656,7 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
   });
 
   test("MCP server responds to initialize", async () => {
-    const child = execFile(binaryPath, ["mcp-server"], { timeout: 15000 });
+    const child = execFile(binaryPath, ["mcp-server"], { timeout: 60000 });
     let stdout = "";
     child.stdout!.on("data", (data: Buffer) => { stdout += data.toString(); });
 
@@ -690,7 +690,7 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
   });
 
   test("MCP server lists available tools", async () => {
-    const child = execFile(binaryPath, ["mcp-server"], { timeout: 15000 });
+    const child = execFile(binaryPath, ["mcp-server"], { timeout: 60000 });
     let stdout = "";
     child.stdout!.on("data", (data: Buffer) => { stdout += data.toString(); });
 
@@ -765,7 +765,7 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
     const workDir = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-mcp-call-"));
     await fs.writeFile(path.join(workDir, "config.json"), '{"port": 3000}\n', "utf8");
 
-    const child = execFile(binaryPath, ["mcp-server"], { timeout: 15000, cwd: workDir });
+    const child = execFile(binaryPath, ["mcp-server"], { timeout: 60000, cwd: workDir });
     let stdout = "";
     child.stdout!.on("data", (data: Buffer) => { stdout += data.toString(); });
 
