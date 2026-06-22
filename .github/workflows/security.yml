@@ -83,8 +83,10 @@ jobs:
           fetch-depth: 0
 
       - name: Install Gitleaks
+        # Pinned version to avoid flakiness from unauthenticated /releases/latest
+        # (rate limits cause empty version → 404 on download). Update periodically.
         run: |
-          GITLEAKS_VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/v//')
+          GITLEAKS_VERSION=8.30.1
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | sudo tar -xz -C /usr/local/bin gitleaks
 
       - name: Run Gitleaks
