@@ -34,14 +34,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr review --approve "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}"
 
-      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        if: github.event.pull_request.user.login != 'patchloom-release[bot]'
-        id: app-token
-        with:
-          client-id: ${{ vars.APP_CLIENT_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - name: Check for workflow file changes (to avoid App token needing workflows:write)
+      # Check for workflow file changes early (to decide whether we can safely use App token for auto-merge)
+      - name: Check for workflow file changes (use GITHUB_TOKEN fallback to avoid needing workflows:write on App)
         id: wf-changes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -49,13 +43,40 @@ jobs:
           pr="${{ github.event.pull_request.number }}"
           if gh pr view "$pr" --json files --jq '.files[].path' | grep -q '^\.github/workflows/'; then
             echo "changes=true" >> "$GITHUB_OUTPUT"
-            echo "PR touches .github/workflows/; will skip auto-merge (App lacks workflows:write)"
+            echo "PR touches .github/workflows/; will use GITHUB_TOKEN for auto-merge (no workflows:write needed on App)"
           else
             echo "changes=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Enable auto-merge
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         if: github.event.pull_request.user.login != 'patchloom-release[bot]' && steps.wf-changes.outputs.changes != 'true'
+        id: app-token
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      # Strong guard against accidental/automated release PR merges is also
+      # implemented here (label check below) and via scripts/guard-no-release-merge.sh.
+      # See AGENTS.md "Release PRs - Strong Guard" section.
+
+      - name: Strong guard - detect release-please PRs (autorelease: pending label)
+        id: release-guard
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr="${{ github.event.pull_request.number }}"
+          labels=$(gh pr view "$pr" --json labels --jq '.labels[].name' || true)
+          if echo "$labels" | grep -q 'autorelease: pending'; then
+            echo "is_release_pr=true" >> "$GITHUB_OUTPUT"
+            echo "Release PR detected by label 'autorelease: pending' - will skip auto-merge (user must explicitly approve merges of release PRs)"
+          else
+            echo "is_release_pr=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Enable auto-merge (App token when no wf changes; GITHUB_TOKEN fallback otherwise)
+        if: >-
+          github.event.pull_request.user.login != 'patchloom-release[bot]' &&
+          steps.release-guard.outputs.is_release_pr != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
         run: gh pr merge --auto --squash "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}"
