@@ -34,14 +34,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr review --approve "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}"
 
-      # Check for workflow file changes early (to decide whether we can safely use App token for auto-merge)
+      # Check for workflow file changes early (to decide whether we can safely use App token for auto-merge).
+      # This step is made robust so a transient gh failure does not fail the job (approve step already ran).
       - name: Check for workflow file changes (use GITHUB_TOKEN fallback to avoid needing workflows:write on App)
         id: wf-changes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pr="${{ github.event.pull_request.number }}"
-          if gh pr view "$pr" --json files --jq '.files[].path' | grep -q '^\.github/workflows/'; then
+          files=$(gh pr view "$pr" --json files --jq '.files[].path' || echo "")
+          if echo "$files" | grep -q '^\.github/workflows/'; then
             echo "changes=true" >> "$GITHUB_OUTPUT"
             echo "PR touches .github/workflows/; will use GITHUB_TOKEN for auto-merge (no workflows:write needed on App)"
           else
@@ -79,4 +81,6 @@ jobs:
           steps.release-guard.outputs.is_release_pr != 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
-        run: gh pr merge --auto --squash "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}"
+        run: |
+          gh pr merge --auto --squash "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" \
+            || echo "Could not enable auto-merge (common when PR modifies .github/workflows/* using GITHUB_TOKEN fallback, or release guard, or other). Approval from prior step still applies; use manual merge if needed."

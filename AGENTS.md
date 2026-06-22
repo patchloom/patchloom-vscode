@@ -133,12 +133,15 @@ All I/O-dependent functions accept an `inputs` object with injectable callbacks 
   changes are ready for review/merge. This ensures every pushed branch is
   backed by an open (draft) PR from the start. See `~/.grok/skills/owned-repo-gate/SKILL.md`.
 
-- **Auto-approve self-modification gotcha:** PRs that change `.github/workflows/auto-approve.yml`
-  often cause the Auto-approve workflow to only emit "push" validation runs (0 jobs, failure).
-  No review is added via the normal `pull_request` path → REVIEW_REQUIRED / BLOCKED
-  despite green checks. Temporary fix: add yourself as bypass actor in the ruleset,
-  `gh pr merge --admin`, **immediately** remove the bypass. The `require_last_push_approval`
-  rule can still force `--admin` even with bypass. See ci-branch-protection skill + #159.
+- **Auto-approve self-modification:** PRs that change `.github/workflows/auto-approve.yml`
+  cause GitHub to emit only "push" validation runs (0 jobs, failure) using the PR's workflow content
+  (the pull_request runs use the definition from main). The approve step runs early using
+  GITHUB_TOKEN (before wf-changes detection or merge logic) so reviews are added when the
+  pull_request workflow runs from main. The Enable auto-merge step uses `|| echo` so the
+  workflow reports success even when merge enable falls back or is restricted. In rare cases
+  where no review appears, use the emergency bypass in ci-branch-protection skill + #159
+  (add bypass actor, `gh pr merge --admin`, remove bypass immediately). See also patchloom's
+  auto-approve.yml for the reference pattern.
 
 ## Release PRs - Strong Guard
 
