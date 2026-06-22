@@ -126,3 +126,38 @@ All I/O-dependent functions accept an `inputs` object with injectable callbacks 
 - All relative imports must use `.js` extensions (`from "./foo.js"`, not `from "./foo"`). Required by `moduleResolution: "node16"`.
 - All commits require a `Signed-off-by` line (DCO). Use `git commit -s`.
 - When adding commands to `package.json`, update the expected count in `test/suite/index.ts`.
+
+## Release PRs - Strong Guard
+
+Release PRs (created by release-please, titled "chore: release ..." or "chore(main): release ...", or labeled `autorelease: pending`) MUST NEVER be merged (with `gh pr merge`, `--auto`, or otherwise) without the user's explicit approval.
+
+Merging a release PR:
+- Publishes a new version of the VSIX
+- Creates git tags
+- Triggers the full release pipeline (Marketplace, Open VSX, attestation bundles)
+- The user controls release cadence, not the agent.
+
+### Required procedure (strong guard)
+
+When you encounter a release PR (during triage, gate check, `gh pr list`, or status):
+
+1. Report it clearly: "Release PR #N (vX.Y.Z) is ready to merge."
+2. Use the `ask_user_question` tool (or direct question) to ask: "Should I merge it?"
+3. **Only after receiving an explicit "yes" (or equivalent affirmative) from the user in this session**, proceed.
+4. Before executing any merge command, run the guard:
+   ```
+   bash scripts/guard-no-release-merge.sh <number>
+   ```
+   The script will abort with guidance unless `ALLOW_RELEASE_MERGE=yes` is set (only after user yes).
+5. If checks pass and user said yes: `gh pr merge <number> --squash` (or let auto if user directed).
+
+This rule was strengthened after an incident where `gh pr merge 144 --auto` (under a broad "merge everything" instruction) resulted in v0.0.5 being published without explicit per-release "yes".
+
+### Defense in depth
+
+- Workflow: `.github/workflows/auto-approve.yml` uses author + label check + wf-changes to never enable `--auto` for release PRs.
+- Script: `scripts/guard-no-release-merge.sh` provides a hard runtime guard for shell commands.
+- Documentation: This section + global AGENTS.md rule.
+- Branch protection + ruleset: still enforces checks, but does not replace user approval for releases.
+
+Never bypass the guard "just this once" or rationalize. Ask every time.
