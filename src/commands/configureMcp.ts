@@ -1,32 +1,14 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import { configureMcpTargets, inspectMcpTargets } from "../mcp/config.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 import { refreshStatusBar } from "../status/statusBar.js";
 
 export async function configureMcp(): Promise<void> {
-  const status = await resolvePatchloomStatus();
-  if (!status.ready) {
-    const choice = await vscode.window.showWarningMessage(
-      `${status.message}\n\nPatchloom needs a working binary before MCP setup can continue.`,
-      "Open Settings"
-    );
-    if (choice === "Open Settings") {
-      await vscode.commands.executeCommand("patchloom.openPatchloomSettings");
-    }
-    return;
-  }
-
-  if (patchloomNeedsUpgrade(status)) {
-    const choice = await vscode.window.showWarningMessage(
-      `${status.compatibilityMessage}\n\nUpgrade Patchloom before MCP setup can continue.`,
-      "Open Releases"
-    );
-    if (choice === "Open Releases") {
-      await vscode.commands.executeCommand("patchloom.openPatchloomReleases");
-    }
+  const binaryPath = await ensurePatchloomReadyOrNotify("Patchloom needs a working binary before MCP setup can continue.");
+  if (!binaryPath) {
     return;
   }
 
@@ -66,7 +48,7 @@ export async function configureMcp(): Promise<void> {
     workspaceFolderPath,
     includeKinds: selectedKinds,
     includeUserTarget: environment.supportsUserMcpConfig,
-    patchloomPathSetting: status.binaryPath,
+    patchloomPathSetting: binaryPath,
     readFile: async (filePath) => {
       try {
         return await fs.readFile(filePath, "utf8");

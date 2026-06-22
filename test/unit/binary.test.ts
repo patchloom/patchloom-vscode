@@ -13,6 +13,7 @@ import {
   MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
   patchloomNeedsUpgrade,
   parsePatchloomVersion,
+  ensurePatchloomReadyOrNotify,
   resolvePatchloomStatusWithInputs
 } from "../../src/binary/patchloom.js";
 import {
@@ -126,6 +127,20 @@ test("resolvePatchloomStatusWithInputs exposes compatibility diagnostics", async
   assert.equal(status.minimumSupportedVersion, MINIMUM_SUPPORTED_PATCHLOOM_VERSION);
   assert.match(status.compatibilityMessage ?? "", /older than the minimum supported version/i);
 });
+
+test("ensurePatchloomReadyOrNotify returns path for ready supported status (test inputs)", async () => {
+  const path = await ensurePatchloomReadyOrNotify("", {
+    configuredPath: "/good/patchloom",
+    canExecute: async () => true,
+    getVersion: async () => "patchloom 0.2.0"
+  });
+  assert.equal(path, "/good/patchloom");
+});
+
+// Note: error paths (not-ready, upgrade) execute vscode.window.show* which is
+// not unit-testable in pure node (would require full VS Code test env or mocks).
+// They are exercised via command integration and manual. The core logic delegates
+// to resolve+needsUpgrade which are unit tested.
 
 test("defaultWorkspaceFolderIndex prefers active folders and only auto-selects single roots", () => {
   assert.equal(defaultWorkspaceFolderIndex(3, 2), 2);

@@ -1,17 +1,10 @@
 import * as vscode from "vscode";
-import { PATCHLOOM_DOCS_URL, PATCHLOOM_RELEASES_URL, patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { ensurePatchloomReadyOrNotify, PATCHLOOM_DOCS_URL, PATCHLOOM_RELEASES_URL } from "../binary/patchloom.js";
 import { describeWorkspaceEnvironment, inspectWorkspaceReadiness } from "../workspace/readiness.js";
 
 export async function setupWorkspace(): Promise<void> {
-  const status = await resolvePatchloomStatus();
-  if (!status.ready) {
-    const choice = await vscode.window.showWarningMessage(
-      `${status.message}\n\nPatchloom needs a working binary before workspace setup can continue.`,
-      "Open Settings"
-    );
-    if (choice === "Open Settings") {
-      await vscode.commands.executeCommand("patchloom.openPatchloomSettings");
-    }
+  const binaryPath = await ensurePatchloomReadyOrNotify("Patchloom needs a working binary before workspace setup can continue.");
+  if (!binaryPath) {
     return;
   }
 
@@ -19,16 +12,6 @@ export async function setupWorkspace(): Promise<void> {
     promptIfMany: true,
     placeHolder: "Select the workspace folder to inspect for Patchloom setup"
   });
-  if (patchloomNeedsUpgrade(status)) {
-    const choice = await vscode.window.showWarningMessage(
-      `${status.compatibilityMessage}\n\nUpgrade Patchloom before workspace setup can continue.`,
-      "Open Releases"
-    );
-    if (choice === "Open Releases") {
-      await vscode.commands.executeCommand("patchloom.openPatchloomReleases");
-    }
-    return;
-  }
 
   if (!readiness.hasWorkspace) {
     await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom: Setup Workspace.");
