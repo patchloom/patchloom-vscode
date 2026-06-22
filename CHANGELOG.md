@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.0.5](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.4...patchloom-v0.0.5) (2026-06-22)
+
+
+### Features
+
+* align extension with patchloom CLI v0.4.0 ([0629af9](https://github.com/patchloom/patchloom-vscode/commit/0629af926a7a9eee8d6c634eee10bc6148d4d6ad))
+* align with patchloom CLI v0.4.0 ([#145](https://github.com/patchloom/patchloom-vscode/issues/145)) ([0629af9](https://github.com/patchloom/patchloom-vscode/commit/0629af926a7a9eee8d6c634eee10bc6148d4d6ad))
+
+
+### Bug Fixes
+
+* **ci:** prevent spurious Dependabot PR failures from auto-approve and @types/vscode bumps ([#143](https://github.com/patchloom/patchloom-vscode/issues/143)) ([3b50515](https://github.com/patchloom/patchloom-vscode/commit/3b505152f40ed37ac1120b5fccf4f8345d0b4cbb))
+
 ## [0.0.4](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.3...patchloom-v0.0.4) (2026-06-18)
 
 
