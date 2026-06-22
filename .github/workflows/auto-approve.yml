@@ -41,8 +41,21 @@ jobs:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      - name: Check for workflow file changes (to avoid App token needing workflows:write)
+        id: wf-changes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr="${{ github.event.pull_request.number }}"
+          if gh pr view "$pr" --json files --jq '.files[].path' | grep -q '^\.github/workflows/'; then
+            echo "changes=true" >> "$GITHUB_OUTPUT"
+            echo "PR touches .github/workflows/; will skip auto-merge (App lacks workflows:write)"
+          else
+            echo "changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Enable auto-merge
-        if: github.event.pull_request.user.login != 'patchloom-release[bot]'
+        if: github.event.pull_request.user.login != 'patchloom-release[bot]' && steps.wf-changes.outputs.changes != 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: gh pr merge --auto --squash "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}"
