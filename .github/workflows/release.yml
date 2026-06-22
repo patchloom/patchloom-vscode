@@ -67,6 +67,28 @@ jobs:
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: patchloom.vsix
+      - name: Upload attestation bundle as .intoto.jsonl (for Scorecard Signed-Releases)
+        # Scorecard's Signed-Releases check requires .intoto.jsonl *release assets* (not just API attestations).
+        # See ~/.grok/skills/ci-build-release/SKILL.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p attestation-bundles
+          tmpdir=$(mktemp -d)
+          pushd "$tmpdir" > /dev/null
+          if gh attestation download "$OLDPWD/patchloom.vsix" \
+              --repo "${{ github.repository }}" 2>/dev/null; then
+            for bundle in *.jsonl; do
+              [ -f "$bundle" ] || continue
+              cp "$bundle" "$OLDPWD/attestation-bundles/patchloom.vsix.intoto.jsonl"
+              break
+            done
+          fi
+          popd > /dev/null
+          rm -rf "$tmpdir"
+          if ls attestation-bundles/*.intoto.jsonl >/dev/null 2>&1; then
+            gh release upload "${{ needs.release-please.outputs.tag_name }}" attestation-bundles/*.intoto.jsonl --clobber
+          fi
       - name: Upload .vsix to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
