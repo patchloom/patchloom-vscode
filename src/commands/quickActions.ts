@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
-import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
+import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import { getPatchloomLog } from "../logging/outputChannel.js";
 import { formatCliOutput, formatError } from "../util.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
@@ -37,27 +37,11 @@ interface PatchloomCommandResult {
 
 export async function runQuickAction(): Promise<void> {
   const vscode = await import("vscode");
-  const status = await resolvePatchloomStatus();
-  if (!status.ready || !status.binaryPath) {
-    const choice = await vscode.window.showWarningMessage(status.message, "Open Settings");
-    if (choice === "Open Settings") {
-      await vscode.commands.executeCommand("patchloom.openPatchloomSettings");
-    }
+  const binaryPath = await ensurePatchloomReadyOrNotify("Upgrade Patchloom before running quick actions.");
+  if (!binaryPath) {
     return;
   }
 
-  if (patchloomNeedsUpgrade(status)) {
-    const choice = await vscode.window.showWarningMessage(
-      `${status.compatibilityMessage}\n\nUpgrade Patchloom before running quick actions.`,
-      "Open Releases"
-    );
-    if (choice === "Open Releases") {
-      await vscode.commands.executeCommand("patchloom.openPatchloomReleases");
-    }
-    return;
-  }
-
-  const binaryPath = status.binaryPath;
   const actions: Array<VSCode.QuickPickItem & { run: () => Promise<void> }> = [
     {
       label: "Replace text in file",

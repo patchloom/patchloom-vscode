@@ -153,6 +153,42 @@ export function patchloomNeedsUpgrade(status: PatchloomStatus): boolean {
   return status.compatibility === "unsupported";
 }
 
+/**
+ * Ensures Patchloom is ready (found + compatible). If not, shows a warning
+ * and offers to open Settings or Releases. Returns the binaryPath if ready,
+ * otherwise null (after showing UI).
+ *
+ * This removes duplicated ready-check + notify logic across commands.
+ */
+export async function ensurePatchloomReadyOrNotify(contextSuffix = ""): Promise<string | null> {
+  const status = await resolvePatchloomStatus();
+  const vscode = await import("vscode");
+
+  if (!status.ready || !status.binaryPath) {
+    const choice = await vscode.window.showWarningMessage(
+      `${status.message}${contextSuffix ? `\n\n${contextSuffix}` : ""}`,
+      "Open Settings"
+    );
+    if (choice === "Open Settings") {
+      await vscode.commands.executeCommand("patchloom.openPatchloomSettings");
+    }
+    return null;
+  }
+
+  if (patchloomNeedsUpgrade(status)) {
+    const choice = await vscode.window.showWarningMessage(
+      `${status.compatibilityMessage}${contextSuffix ? `\n\n${contextSuffix}` : ""}`,
+      "Open Releases"
+    );
+    if (choice === "Open Releases") {
+      await vscode.commands.executeCommand("patchloom.openPatchloomReleases");
+    }
+    return null;
+  }
+
+  return status.binaryPath;
+}
+
 export function parsePatchloomVersion(versionText?: string): string | undefined {
   if (!versionText) {
     return undefined;

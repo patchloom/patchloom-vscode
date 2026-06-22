@@ -647,7 +647,8 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
 
   // Verify the binary is executable
   test("managed install produces a runnable binary", async () => {
-    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 15000 });
+    // Cold start after fresh managed install can take >15s on some runners; use 30s.
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 30000 });
     const output = `${stdout}${stderr}`.trim();
     const version = parsePatchloomVersion(output);
     assert.ok(version, `should parse version from managed binary: ${output}`);
