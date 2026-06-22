@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildAppendQuickAction,
   buildCreateQuickAction,
   buildDocAppendQuickAction,
   buildDocDeleteQuickAction,
@@ -408,7 +409,7 @@ test("retargetQuickAction works with md commands", () => {
   assert.equal(retargeted.args[1], "table-append");
 });
 
-// --- patch merge Quick Action (v0.2.0) ---
+// --- patch merge Quick Action (v0.2.0+) ---
 
 test("buildPatchMergeQuickAction builds a patch merge command", () => {
   const action = buildPatchMergeQuickAction("/workspace/demo/changes.patch", false);
@@ -433,4 +434,14 @@ test("retargetQuickAction works with patch merge command", () => {
   assert.equal(retargeted.args[2], "/tmp/preview/fix.patch");
   assert.equal(retargeted.args[0], "patch");
   assert.equal(retargeted.args[1], "merge");
+});
+
+// --- append Quick Action (reflecting patchloom 0.4.0+) ---
+
+test("buildAppendQuickAction builds an append command", () => {
+  const action = buildAppendQuickAction("/workspace/demo/log.txt", "new log entry");
+
+  assert.equal(action.title, "Append to log.txt");
+  assert.deepEqual(action.targetArgIndices, [1]);
+  assert.deepEqual(action.args, ["append", "/workspace/demo/log.txt", "--content", "new log entry"]);
 });

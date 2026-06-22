@@ -84,6 +84,7 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Set structured value** | Update a JSON, YAML, or TOML key with diff preview |
 | **Search text** | Find pattern matches across workspace files (results in output channel) |
 | **Create file** | Scaffold a new file and open it in the editor |
+| **Append to file** | Append content to an existing file |
 | **Read structured value** | Read a JSON/YAML/TOML key and copy to clipboard |
 | **Merge patch (three-way)** | Apply a stale patch using three-way merge (v0.2.0+) |
 
@@ -147,7 +148,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
 **CLI compatibility warning**
-Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.1.0 or newer; 0.2.0 is recommended.
+Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.1.0 or newer; 0.4.0 is recommended.
 
 **MCP config not injected**
 Run `Patchloom: Configure MCP` and select the target editor config.
@@ -182,7 +183,7 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 ## Requirements
 
 - VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
-- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.1.0 or newer (0.2.0+ recommended for patch merge and strict transactions)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.1.0 or newer (0.4.0+ recommended for latest features including append, AST ops, and --confirm)
 
 ## Contributing
 

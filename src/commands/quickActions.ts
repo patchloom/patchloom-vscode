@@ -261,6 +261,28 @@ export async function runQuickAction(): Promise<void> {
       }
     },
     {
+      label: "Append to file",
+      description: "Append content to an existing file",
+      detail: "Builds `patchloom append <file> --content <text>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a file to append to with Patchloom");
+        if (!target) {
+          return;
+        }
+
+        const content = await vscode.window.showInputBox({
+          prompt: "Content to append",
+          placeHolder: "new line of text",
+          validateInput: (value) => value.length > 0 ? undefined : "Content is required."
+        });
+        if (content === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildAppendQuickAction(target.absolutePath, content));
+      }
+    },
+    {
       label: "Read structured value",
       description: "Read a value from JSON, YAML, or TOML",
       detail: "Builds `patchloom doc get <file> <selector>`",
@@ -858,6 +880,15 @@ export function buildCreateQuickAction(filePath: string): PlannedQuickAction {
     targetPath: filePath,
     targetArgIndices: [1],
     args: ["create", filePath]
+  };
+}
+
+export function buildAppendQuickAction(targetPath: string, content: string): PlannedQuickAction {
+  return {
+    title: `Append to ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [1],
+    args: ["append", targetPath, "--content", content]
   };
 }
 
