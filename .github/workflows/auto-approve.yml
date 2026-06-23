@@ -61,7 +61,7 @@ jobs:
       # implemented here (label check below) and via scripts/guard-no-release-merge.sh.
       # See AGENTS.md "Release PRs - Strong Guard" section.
 
-      - name: Strong guard - detect release-please PRs (autorelease: pending label)
+      - name: 'Strong guard - detect release-please PRs (autorelease: pending label)'
         id: release-guard
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
