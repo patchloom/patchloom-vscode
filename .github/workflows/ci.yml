@@ -17,9 +17,9 @@ concurrency:
 
 jobs:
   changes:
-    # Detect whether source code changed. On non-PR events (push, merge_group,
-    # workflow_dispatch) this job is skipped, which causes all downstream jobs to
-    # run unconditionally via the `needs.changes.result == 'skipped'` guard.
+    # Detect whether source code changed. On non-PR events the job is skipped
+    # (result == 'skipped'), causing downstream jobs to run via the condition below.
+    # This pattern is used successfully in patchloom and attune-io/attune.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -44,7 +44,7 @@ jobs:
 
   unit-test:
     needs: [changes]
-    if: always()
+    if: always() && (needs.changes.result == 'skipped' || needs.changes.outputs.code == 'true')
     strategy:
       fail-fast: false
       matrix:
@@ -57,33 +57,19 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Check if application build/tests are needed
-        id: should-run
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ needs.changes.outputs.code }}" != "true" ]; then
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Only documentation or non-code changes detected. Skipping application build and tests."
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Checkout
-        if: steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
       - name: Setup Node.js
-        if: steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request'
         uses: ./.github/actions/setup-node
 
       - name: Run tests
-        if: steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request'
         run: npm test
 
       - name: Check code coverage
-        if: (steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request') && matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         id: coverage
         run: |
           output=$(npm run test:coverage 2>&1)
@@ -92,7 +78,7 @@ jobs:
           echo "percentage=$pct" >> "$GITHUB_OUTPUT"
 
       - name: Determine badge color
-        if: (steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request') && matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         id: color
         run: |
           pct="${{ steps.coverage.outputs.percentage }}"
@@ -110,7 +96,7 @@ jobs:
           fi
 
       - name: Update coverage badge
-        if: (steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request') && matrix.os == 'ubuntu-latest' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         continue-on-error: true
         uses: schneegans/dynamic-badges-action@0e50b8bad39e7e1afd3e4e9c2b7dd145fad07501 # v1.8.0
         with:
@@ -123,7 +109,7 @@ jobs:
 
   build:
     needs: [changes]
-    if: always()
+    if: always() && (needs.changes.result == 'skipped' || needs.changes.outputs.code == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -132,38 +118,23 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Check if application build is needed
-        id: should-run
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ needs.changes.outputs.code }}" != "true" ]; then
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Only documentation or non-code changes detected. Skipping application build."
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Checkout
-        if: steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
       - name: Setup Node.js
-        if: steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request'
         uses: ./.github/actions/setup-node
 
       - name: Compile
-        if: steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request'
         run: npm run compile
 
       - name: Package extension
-        if: steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request'
         run: npm run package
 
   integration-test:
     needs: [changes, unit-test, build]
-    if: always()
+    if: always() && (needs.changes.result == 'skipped' || needs.changes.outputs.code == 'true')
     strategy:
       fail-fast: false
       matrix:
@@ -177,51 +148,51 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Check if application tests are needed
-        id: should-run
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ needs.changes.outputs.code }}" != "true" ]; then
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Only documentation or non-code changes detected. Skipping integration tests."
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Checkout
-        if: steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
       - name: Setup Node.js
-        if: steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request'
         uses: ./.github/actions/setup-node
 
       - name: Compile extension and tests
-        if: steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request'
         run: npm run compile && npm run compile-tests
 
       - name: Run extension integration tests (Linux)
-        if: (steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request') && runner.os == 'Linux'
+        if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:extension
 
       - name: Run extension integration tests
-        if: (steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request') && runner.os != 'Linux'
+        if: runner.os != 'Linux'
         run: npm run test:extension
 
       - name: Setup UI test VS Code
-        if: steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request'
         run: npx extest setup-tests --code_version max --extensions_dir .vscode-test/extensions
 
       - name: Patch test VS Code to run as background app
-        if: steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request'
         run: bash scripts/hide-test-vscode.sh
 
       - name: Run UI tests (Linux)
-        if: (steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request') && runner.os == 'Linux'
+        if: runner.os == 'Linux'
         run: xvfb-run -a npx extest run-tests './out-uitest/test/ui/*.test.js' --extensions_dir .vscode-test/extensions
 
       - name: Run UI tests
-        if: (steps.should-run.outputs.run == 'true' || github.event_name != 'pull_request') && runner.os != 'Linux'
+        if: runner.os != 'Linux'
         run: npx extest run-tests './out-uitest/test/ui/*.test.js' --extensions_dir .vscode-test/extensions
+
+  ci:
+    # Final gate job (if: always()). This is the recommended pattern (see patchloom
+    # and attune) so that individual matrix jobs can use the changes filter without
+    # breaking required status checks or Scorecard parsing.
+    if: always()
+    needs:
+      - unit-test
+      - build
+      - integration-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All CI jobs passed (or were correctly skipped for docs-only change)
+        run: |
+          echo "CI gate passed."
