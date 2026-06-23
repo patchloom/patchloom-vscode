@@ -40,7 +40,7 @@ jobs:
               - 'tsconfig*.json'
               - '.nvmrc'
               - '.github/actions/**'
-              - '.github/workflows/ci.yml'
+              - '.github/workflows/**'  # any workflow change is "code" (fixes auto-approve.yml etc. being skipped)
 
   unit-test:
     needs: [changes]
