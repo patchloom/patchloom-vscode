@@ -180,3 +180,19 @@ jobs:
       - name: Run UI tests
         if: runner.os != 'Linux'
         run: npx extest run-tests './out-uitest/test/ui/*.test.js' --extensions_dir .vscode-test/extensions
+
+  ci:
+    # Final gate job (if: always()). This is the recommended pattern (see patchloom
+    # and attune) so that individual matrix jobs can use the changes filter without
+    # breaking required status checks or Scorecard parsing.
+    if: always()
+    needs:
+      - unit-test
+      - build
+      - integration-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All CI jobs passed (or were correctly skipped for docs-only change)
+        run: |
+          echo "CI gate passed."
