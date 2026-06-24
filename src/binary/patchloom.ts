@@ -13,7 +13,7 @@ import { formatError } from "../util.js";
 
 const execFileAsync = promisify(execFile);
 
-export const MINIMUM_SUPPORTED_PATCHLOOM_VERSION = "0.1.0";
+export const MINIMUM_SUPPORTED_PATCHLOOM_VERSION = "0.3.0";
 export const PATCHLOOM_RELEASES_URL = "https://github.com/patchloom/patchloom/releases";
 export const PATCHLOOM_DOCS_URL = "https://patchloom.github.io/patchloom/";
 

@@ -190,9 +190,9 @@ test("comparePatchloomVersions handles long prerelease chains", () => {
 });
 
 test("assessPatchloomCompatibility correctly identifies supported versions", () => {
-  const supported = assessPatchloomCompatibility("patchloom 0.1.0");
+  const supported = assessPatchloomCompatibility("patchloom 0.3.0");
   assert.equal(supported.compatibility, "supported");
-  assert.equal(supported.detectedVersion, "0.1.0");
+  assert.equal(supported.detectedVersion, "0.3.0");
 
   const newer = assessPatchloomCompatibility("patchloom 1.0.0");
   assert.equal(newer.compatibility, "supported");

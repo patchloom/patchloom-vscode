@@ -149,7 +149,7 @@ test("buildStatusDetails includes compatibility upgrade guidance", () => {
     detectedVersion: "0.0.9",
     compatibility: "unsupported",
     minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
-    compatibilityMessage: "Patchloom 0.0.9 is older than the minimum supported version 0.1.0."
+    compatibilityMessage: `Patchloom 0.0.9 is older than the minimum supported version ${MINIMUM_SUPPORTED_PATCHLOOM_VERSION}.`
   }, {
     hasWorkspace: true,
     hasAgentsFile: true,
@@ -161,7 +161,7 @@ test("buildStatusDetails includes compatibility upgrade guidance", () => {
   });
 
   assert.match(details, /Detected CLI version: 0\.0\.9/);
-  assert.match(details, /Required CLI version: >= 0\.1\.0/);
+  assert.match(details, new RegExp(`Required CLI version: >= ${MINIMUM_SUPPORTED_PATCHLOOM_VERSION.replace(/\./g, "\\.")}`));
   assert.match(details, /CLI compatibility: upgrade required/);
   assert.match(details, /Environment: WSL/);
   assert.match(details, /Environment support: limited/);
@@ -217,7 +217,7 @@ test("preferredStatusAction points outdated CLI users to releases", () => {
     detectedVersion: "0.0.9",
     compatibility: "unsupported",
     minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
-    compatibilityMessage: "Patchloom 0.0.9 is older than the minimum supported version 0.1.0."
+    compatibilityMessage: `Patchloom 0.0.9 is older than the minimum supported version ${MINIMUM_SUPPORTED_PATCHLOOM_VERSION}.`
   });
 
   assert.deepEqual(action, {
