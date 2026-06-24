@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.6](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.5...patchloom-v0.0.6) (2026-06-24)
+
+
+### Bug Fixes
+
+* address issues [#153](https://github.com/patchloom/patchloom-vscode/issues/153)-[#156](https://github.com/patchloom/patchloom-vscode/issues/156) (App wf fallback, e2e hardening, ruleset strict=false, test additions) ([#157](https://github.com/patchloom/patchloom-vscode/issues/157)) ([d2dfe21](https://github.com/patchloom/patchloom-vscode/commit/d2dfe21f040f0b78c71fb2f0eb930a025625f93a))
+* bump minimum supported CLI version to 0.3.0 ([#167](https://github.com/patchloom/patchloom-vscode/issues/167)) ([acce0e4](https://github.com/patchloom/patchloom-vscode/commit/acce0e41587bf1b1181a46495657fd6cf80961cf))
+
 ## [0.0.5](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.4...patchloom-v0.0.5) (2026-06-22)
 
 
