@@ -132,7 +132,7 @@ test("ensurePatchloomReadyOrNotify returns path for ready supported status (test
   const path = await ensurePatchloomReadyOrNotify("", {
     configuredPath: "/good/patchloom",
     canExecute: async () => true,
-    getVersion: async () => "patchloom 0.2.0"
+    getVersion: async () => "patchloom 0.3.0"
   });
   assert.equal(path, "/good/patchloom");
 });
