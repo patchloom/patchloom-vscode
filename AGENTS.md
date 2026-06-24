@@ -37,24 +37,26 @@ src/
     batchApply.ts        Batch Apply command: atomic multi-operation plan via JSON
     setupWorkspace.ts     Setup Workspace command: guided readiness walkthrough
     showStatus.ts         Show Status command: diagnostics display
+    autoUpdate.ts        Auto-update check on activation: compare installed vs latest release
   install/managed.ts     Managed install safety: checksum, staging, promotion, rollback, persistence
   logging/outputChannel.ts  Output channel wrapper: log, logCommand, logResult, show, dispose
   mcp/config.ts          MCP config file operations: inspect, configure, resolve targets
+  mcp/register.ts        Native MCP server definition provider (VS Code 1.100+ API)
   status/details.ts      Status presentation: buildStatusDetails, preferredStatusAction
   status/statusBar.ts    Status bar item: create, refresh, dispose
   workspace/readiness.ts Workspace readiness: environment detection, folder selection
 test/
   unit/                  Unit tests (node:test, dependency-injected, no VS Code API)
-    batchApply.test.ts   Batch template and operation count parsing (10 tests)
-    binary.test.ts       Binary discovery, managed install, compatibility, workspace env (53 tests)
+    batchApply.test.ts   Batch template and operation count parsing (11 tests)
+    binary.test.ts       Binary discovery, managed install, compatibility, workspace env (54 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
-    initializeProject.test.ts  Status display, agents file classification, formatError (23 tests)
+    initializeProject.test.ts  Status display, agents file classification, formatError (24 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (22 tests)
     mcpConfig.test.ts    MCP config with real temp directories (9 tests)
     outputChannel.test.ts Output channel logging wrapper (10 tests)
-    patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (50+ tests incl. e2e)
+    patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (36 tests incl. e2e)
     propertyBased.test.ts  Property-based tests with fast-check (13 tests)
-    quickActions.test.ts Quick action command building, path containment, patch merge (46 tests)
+    quickActions.test.ts Quick action command building, path containment, patch merge (47 tests)
     verifyMcp.test.ts    MCP server verify and JSON-RPC response parsing (15 tests)
     downloadIntegration.test.ts  HTTP download, redirect, streaming SHA-256 (9 tests)
   suite/
