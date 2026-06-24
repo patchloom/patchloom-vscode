@@ -195,4 +195,11 @@ jobs:
     steps:
       - name: All CI jobs passed (or were correctly skipped for docs-only change)
         run: |
+          results=("${{ needs.unit-test.result }}" "${{ needs.build.result }}" "${{ needs.integration-test.result }}")
+          for r in "${results[@]}"; do
+            if [[ "$r" != "success" && "$r" != "skipped" ]]; then
+              echo "FAILED: dependency reported '$r'"
+              exit 1
+            fi
+          done
           echo "CI gate passed."
