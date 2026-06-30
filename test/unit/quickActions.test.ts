@@ -33,7 +33,7 @@ test("buildReplaceQuickAction builds a replace command for one file", () => {
 
   assert.equal(action.title, "Replace text in README.md");
   assert.deepEqual(action.targetArgIndices, [4]);
-  assert.deepEqual(action.args, ["replace", "old", "--to", "new", "/workspace/demo/README.md"]);
+  assert.deepEqual(action.args, ["replace", "old", "--new", "new", "/workspace/demo/README.md"]);
 });
 
 test("buildTidyQuickAction includes selected tidy flags", () => {
@@ -71,25 +71,25 @@ test("retargetQuickAction swaps only the target path arguments", () => {
   assert.deepEqual(retargeted.args, [
     "replace",
     "/workspace/demo/README.md",
-    "--to",
+    "--new",
     "new",
     "/tmp/preview/README.md"
   ]);
 });
 
 test("withApplyFlag appends apply once", () => {
-  assert.deepEqual(withApplyFlag(["replace", "old", "--to", "new", "README.md"]), [
+  assert.deepEqual(withApplyFlag(["replace", "old", "--new", "new", "README.md"]), [
     "replace",
     "old",
-    "--to",
+    "--new",
     "new",
     "README.md",
     "--apply"
   ]);
-  assert.deepEqual(withApplyFlag(["replace", "old", "--to", "new", "README.md", "--apply"]), [
+  assert.deepEqual(withApplyFlag(["replace", "old", "--new", "new", "README.md", "--apply"]), [
     "replace",
     "old",
-    "--to",
+    "--new",
     "new",
     "README.md",
     "--apply"

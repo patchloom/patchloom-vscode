@@ -29,11 +29,11 @@ test("logCommand appends command with arguments and cwd", () => {
     dispose() {}
   }));
 
-  log.logCommand("/usr/bin/patchloom", ["replace", "old", "--to", "new", "file.txt"], "/workspace");
+  log.logCommand("/usr/bin/patchloom", ["replace", "old", "--new", "new", "file.txt"], "/workspace");
 
   assert.equal(lines.length, 2);
   assert.ok(lines[0].includes("patchloom"));
-  assert.ok(lines[0].includes("replace old --to new file.txt"));
+  assert.ok(lines[0].includes("replace old --new new file.txt"));
   assert.ok(lines[1].includes("cwd: /workspace"));
 });
 

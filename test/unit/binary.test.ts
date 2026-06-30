@@ -226,6 +226,12 @@ test("detectManagedInstallTarget maps supported platforms to release targets", (
     targetTriple: "x86_64-pc-windows-msvc",
     archiveFormat: ".zip"
   });
+  assert.deepEqual(detectManagedInstallTarget("win32", "arm64"), {
+    platform: "win32",
+    arch: "arm64",
+    targetTriple: "aarch64-pc-windows-msvc",
+    archiveFormat: ".zip"
+  });
   assert.equal(detectManagedInstallTarget("linux", "arm"), undefined);
 });
 

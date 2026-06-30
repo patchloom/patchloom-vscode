@@ -46,7 +46,7 @@ export async function runQuickAction(): Promise<void> {
     {
       label: "Replace text in file",
       description: "Literal text replacement with diff preview",
-      detail: "Builds `patchloom replace <from> --to <to> <file>`",
+      detail: "Builds `patchloom replace <old> --new <new> <file>`",
       run: async () => {
         const target = await pickWorkspaceFileTarget("Select a file for Patchloom replace");
         if (!target) {
@@ -809,7 +809,7 @@ export function buildReplaceQuickAction(targetPath: string, from: string, to: st
     title: `Replace text in ${path.basename(targetPath)}`,
     targetPath,
     targetArgIndices: [4],
-    args: ["replace", from, "--to", to, targetPath]
+    args: ["replace", from, "--new", to, targetPath]
   };
 }
 

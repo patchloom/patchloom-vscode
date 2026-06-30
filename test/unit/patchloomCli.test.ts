@@ -154,7 +154,7 @@ describe("patchloom CLI integration", async () => {
       await fs.writeFile(txtFile, "Hello old_name, welcome to old_name project.\n", "utf8");
 
       await execFileAsync(binaryPath, [
-        "replace", "old_name", "--to", "new_name", txtFile, "--apply"
+        "replace", "old_name", "--new", "new_name", txtFile, "--apply"
       ], { cwd: dir, timeout: 5000 });
 
       const result = await fs.readFile(txtFile, "utf8");
@@ -268,7 +268,7 @@ describe("patchloom CLI integration", async () => {
 
       try {
         await execFileAsync(binaryPath, [
-          "replace", "hello", "--to", "goodbye", file, "--check"
+          "replace", "hello", "--new", "goodbye", file, "--check"
         ], { timeout: 5000 });
         assert.fail("should have exited with non-zero code");
       } catch (error) {
@@ -567,7 +567,7 @@ describe("patchloom CLI integration", async () => {
 
       // Apply a change (creates a backup)
       await execFileAsync(binaryPath, [
-        "replace", "original", "--to", "modified", file, "--apply"
+        "replace", "original", "--new", "modified", file, "--apply"
       ], { cwd: dir, timeout: 5000 });
 
       const modified = await fs.readFile(file, "utf8");
@@ -792,7 +792,7 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
       jsonrpc: "2.0", id: 3, method: "tools/call",
       params: {
         name: "doc_set",
-        arguments: { path: "config.json", selector: "port", value: 8080 }
+        arguments: { path: "config.json", key: "port", value: 8080 }
       }
     }) + "\n");
 
