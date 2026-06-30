@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createReadStream, createWriteStream } from "node:fs";
+import { createReadStream, createWriteStream, existsSync } from "node:fs";
 import type { IncomingMessage, ClientRequest } from "node:http";
 import * as https from "node:https";
 import * as path from "node:path";
@@ -25,6 +25,8 @@ export type PatchloomTargetTriple =
   | "x86_64-apple-darwin"
   | "aarch64-unknown-linux-gnu"
   | "x86_64-unknown-linux-gnu"
+  | "aarch64-unknown-linux-musl"
+  | "x86_64-unknown-linux-musl"
   | "x86_64-pc-windows-msvc"
   | "aarch64-pc-windows-msvc";
 
@@ -204,7 +206,8 @@ export async function clearManagedInstallFailureRecord(
 
 export function detectManagedInstallTarget(
   platform: NodeJS.Platform = process.platform,
-  arch: NodeJS.Architecture = process.arch
+  arch: NodeJS.Architecture = process.arch,
+  isMusl?: boolean
 ): ManagedInstallTarget | undefined {
   if (platform === "darwin" && arch === "arm64") {
     return {
@@ -225,19 +228,21 @@ export function detectManagedInstallTarget(
   }
 
   if (platform === "linux" && arch === "arm64") {
+    const musl = isMusl ?? isMuslLinux(arch);
     return {
       platform,
       arch,
-      targetTriple: "aarch64-unknown-linux-gnu",
+      targetTriple: musl ? "aarch64-unknown-linux-musl" : "aarch64-unknown-linux-gnu",
       archiveFormat: ".tar.xz"
     };
   }
 
   if (platform === "linux" && arch === "x64") {
+    const musl = isMusl ?? isMuslLinux(arch);
     return {
       platform,
       arch,
-      targetTriple: "x86_64-unknown-linux-gnu",
+      targetTriple: musl ? "x86_64-unknown-linux-musl" : "x86_64-unknown-linux-gnu",
       archiveFormat: ".tar.xz"
     };
   }
@@ -261,6 +266,23 @@ export function detectManagedInstallTarget(
   }
 
   return undefined;
+}
+
+const MUSL_ARCH_MAP: Partial<Record<NodeJS.Architecture, string>> = {
+  x64: "x86_64",
+  arm64: "aarch64"
+};
+
+export function isMuslLinux(arch: NodeJS.Architecture = process.arch): boolean {
+  const muslArch = MUSL_ARCH_MAP[arch];
+  if (!muslArch) {
+    return false;
+  }
+  try {
+    return existsSync(`/lib/ld-musl-${muslArch}.so.1`);
+  } catch {
+    return false;
+  }
 }
 
 export function resolveManagedInstallPaths(

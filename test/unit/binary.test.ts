@@ -38,6 +38,7 @@ import {
   resolveManagedInstallPaths,
   resolveManagedInstallTransactionPaths,
   setManagedInstallFailure,
+  isMuslLinux,
   verifyManagedInstallArchiveChecksum
 } from "../../src/install/managed.js";
 import { resolveMcpTargets } from "../../src/mcp/config.js";
@@ -233,6 +234,56 @@ test("detectManagedInstallTarget maps supported platforms to release targets", (
     archiveFormat: ".zip"
   });
   assert.equal(detectManagedInstallTarget("linux", "arm"), undefined);
+});
+
+test("detectManagedInstallTarget selects musl target when isMusl is true", () => {
+  assert.deepEqual(detectManagedInstallTarget("linux", "x64", true), {
+    platform: "linux",
+    arch: "x64",
+    targetTriple: "x86_64-unknown-linux-musl",
+    archiveFormat: ".tar.xz"
+  });
+  assert.deepEqual(detectManagedInstallTarget("linux", "arm64", true), {
+    platform: "linux",
+    arch: "arm64",
+    targetTriple: "aarch64-unknown-linux-musl",
+    archiveFormat: ".tar.xz"
+  });
+});
+
+test("detectManagedInstallTarget selects gnu target when isMusl is false", () => {
+  assert.deepEqual(detectManagedInstallTarget("linux", "x64", false), {
+    platform: "linux",
+    arch: "x64",
+    targetTriple: "x86_64-unknown-linux-gnu",
+    archiveFormat: ".tar.xz"
+  });
+  assert.deepEqual(detectManagedInstallTarget("linux", "arm64", false), {
+    platform: "linux",
+    arch: "arm64",
+    targetTriple: "aarch64-unknown-linux-gnu",
+    archiveFormat: ".tar.xz"
+  });
+});
+
+test("detectManagedInstallTarget ignores isMusl for non-Linux platforms", () => {
+  const darwinTarget = detectManagedInstallTarget("darwin", "arm64", true);
+  assert.equal(darwinTarget?.targetTriple, "aarch64-apple-darwin");
+  const windowsTarget = detectManagedInstallTarget("win32", "x64", true);
+  assert.equal(windowsTarget?.targetTriple, "x86_64-pc-windows-msvc");
+});
+
+test("isMuslLinux returns false on non-Linux platforms", () => {
+  // On macOS/Windows (where CI runs), the musl linker does not exist
+  if (process.platform !== "linux") {
+    assert.equal(isMuslLinux("x64"), false);
+    assert.equal(isMuslLinux("arm64"), false);
+  }
+});
+
+test("isMuslLinux returns false for unsupported architectures", () => {
+  assert.equal(isMuslLinux("arm" as NodeJS.Architecture), false);
+  assert.equal(isMuslLinux("ia32" as NodeJS.Architecture), false);
 });
 
 test("resolveManagedInstallPaths uses cargo-dist style archive names", () => {
