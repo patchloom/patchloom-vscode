@@ -25,7 +25,8 @@ export type PatchloomTargetTriple =
   | "x86_64-apple-darwin"
   | "aarch64-unknown-linux-gnu"
   | "x86_64-unknown-linux-gnu"
-  | "x86_64-pc-windows-msvc";
+  | "x86_64-pc-windows-msvc"
+  | "aarch64-pc-windows-msvc";
 
 export interface ManagedInstallTarget {
   readonly platform: NodeJS.Platform;
@@ -246,6 +247,15 @@ export function detectManagedInstallTarget(
       platform,
       arch,
       targetTriple: "x86_64-pc-windows-msvc",
+      archiveFormat: ".zip"
+    };
+  }
+
+  if (platform === "win32" && arch === "arm64") {
+    return {
+      platform,
+      arch,
+      targetTriple: "aarch64-pc-windows-msvc",
       archiveFormat: ".zip"
     };
   }
