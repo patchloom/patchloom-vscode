@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.8](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.7...patchloom-v0.0.8) (2026-06-30)
+
+
+### Features
+
+* add Linux musl managed install targets ([#179](https://github.com/patchloom/patchloom-vscode/issues/179)) ([4d46a70](https://github.com/patchloom/patchloom-vscode/commit/4d46a70f47c6e6fc5e361df986238706fa416e5a))
+* align extension with patchloom CLI v0.7.0 ([#177](https://github.com/patchloom/patchloom-vscode/issues/177)) ([da702f8](https://github.com/patchloom/patchloom-vscode/commit/da702f8c06cba7f6ff4fceb3cf9086162c05d6e1))
+
 ## [0.0.7](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.6...patchloom-v0.0.7) (2026-06-26)
 
 
