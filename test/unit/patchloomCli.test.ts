@@ -787,12 +787,13 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
       jsonrpc: "2.0", method: "notifications/initialized"
     }) + "\n");
 
-    // Call doc_set to change port from 3000 to 8080 (relative path)
+    // Call doc_set to change port from 3000 to 8080 (relative path).
+    // MCP param is `selector` (CLI arg name); not `key`.
     child.stdin!.write(JSON.stringify({
       jsonrpc: "2.0", id: 3, method: "tools/call",
       params: {
         name: "doc_set",
-        arguments: { path: "config.json", key: "port", value: 8080 }
+        arguments: { path: "config.json", selector: "port", value: 8080 }
       }
     }) + "\n");
 
@@ -810,8 +811,9 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
     const callResponse = JSON.parse(callLine) as Record<string, unknown>;
     assert.equal(callResponse.jsonrpc, "2.0");
     assert.equal(callResponse.id, 3);
-    const callResult = callResponse.result as Record<string, unknown>;
-    assert.ok(callResult, "tools/call should return a result (not an error)");
+    const callResult = callResponse.result as Record<string, unknown> | undefined;
+    assert.ok(callResult,
+      `tools/call should return a result (not an error): ${JSON.stringify(callResponse)}`);
     assert.ok(!callResult.isError,
       `tools/call should not be an error: ${JSON.stringify(callResult)}`);
 
