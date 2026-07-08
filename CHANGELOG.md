@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.0.9](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.8...patchloom-v0.0.9) (2026-07-08)
+
+
+### Features
+
+* optional CLI 0.10 product gaps (prepend, contain, agent-rules) ([#189](https://github.com/patchloom/patchloom-vscode/issues/189)) ([f268e1f](https://github.com/patchloom/patchloom-vscode/commit/f268e1f887b9ae0bea033aad8f58c339b304a471))
+
+
+### Bug Fixes
+
+* align create Quick Action and docs with patchloom 0.10 ([#188](https://github.com/patchloom/patchloom-vscode/issues/188)) ([8eb26ca](https://github.com/patchloom/patchloom-vscode/commit/8eb26ca44c68c0f81fc1e3bda4f7224939b73c6f))
+* align MCP doc_set e2e test with selector param ([#185](https://github.com/patchloom/patchloom-vscode/issues/185)) ([217e3ab](https://github.com/patchloom/patchloom-vscode/commit/217e3abf52fe17dc4fe3166c265a12206191d477))
+
 ## [0.0.8](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.7...patchloom-v0.0.8) (2026-06-30)
 
 
