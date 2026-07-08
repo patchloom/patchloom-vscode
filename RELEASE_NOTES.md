@@ -20,7 +20,7 @@ CLI 0.8–0.10 added agent reliability features the extension now tracks:
 | 0.9 | File `prepend` command; MCP doc params use `selector` (not `key`) |
 | 0.10 | Preview exit code 2 when changes would apply; optional global `--contain` |
 
-Docs and tests follow those contracts so managed-install e2e and Dependabot CI stay green against the latest binary.
+Docs and tests follow those contracts so the extension stays compatible with the latest managed CLI install.
 
 ## New features
 
