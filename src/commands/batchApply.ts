@@ -53,7 +53,8 @@ export async function batchApply(): Promise<void> {
 
   const plan = doc.getText();
   const log = getPatchloomLog();
-  const args = ["batch", "--apply"];
+  // Global --contain rejects plan ops that escape the workspace root (CLI 0.10+).
+  const args = ["--contain", "batch", "--apply"];
   log?.logCommand(binaryPath, args, folder.uri.fsPath);
 
   const result = await executePatchloomWithStdin(binaryPath, args, folder.uri.fsPath, plan);

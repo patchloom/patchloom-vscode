@@ -276,6 +276,28 @@ export async function runQuickAction(): Promise<void> {
       }
     },
     {
+      label: "Prepend to file",
+      description: "Prepend content to the beginning of an existing file",
+      detail: "Builds `patchloom prepend <file> --content <text>` (CLI 0.9+)",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a file to prepend to with Patchloom");
+        if (!target) {
+          return;
+        }
+
+        const content = await vscode.window.showInputBox({
+          prompt: "Content to prepend",
+          placeHolder: "// header comment",
+          validateInput: (value) => value.length > 0 ? undefined : "Content is required."
+        });
+        if (content === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildPrependQuickAction(target.absolutePath, content));
+      }
+    },
+    {
       label: "Read structured value",
       description: "Read a value from JSON, YAML, or TOML",
       detail: "Builds `patchloom doc get <file> <selector>`",
@@ -747,7 +769,8 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const action = buildPatchMergeQuickAction(patchUri[0].fsPath, allowConflicts.allow);
-        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
+        // Patch files may live outside the workspace; skip --contain so external patches work.
+        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath, { contain: false });
         const log = getPatchloomLog();
 
         if (result.exitCode === 8) {
@@ -883,6 +906,15 @@ export function buildAppendQuickAction(targetPath: string, content: string): Pla
     targetPath,
     targetArgIndices: [1],
     args: ["append", targetPath, "--content", content]
+  };
+}
+
+export function buildPrependQuickAction(targetPath: string, content: string): PlannedQuickAction {
+  return {
+    title: `Prepend to ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [1],
+    args: ["prepend", targetPath, "--content", content]
   };
 }
 
@@ -1034,6 +1066,16 @@ export function retargetQuickAction(action: PlannedQuickAction, nextTargetPath: 
 
 export function withApplyFlag(args: readonly string[]): string[] {
   return args.includes("--apply") ? [...args] : [...args, "--apply"];
+}
+
+/**
+ * Prepend the global `--contain` flag so CLI ops cannot escape the cwd workspace.
+ * Global flags must appear before the subcommand (`patchloom --contain replace ...`).
+ */
+export function withContainFlag(args: readonly string[]): string[] {
+  return args[0] === "--contain" || args.includes("--contain")
+    ? [...args]
+    : ["--contain", ...args];
 }
 
 async function previewAndMaybeApply(
@@ -1246,16 +1288,23 @@ async function ensureWorkspaceFileReady(target: WorkspaceFileTarget): Promise<bo
   return true;
 }
 
+export interface ExecutePatchloomOptions {
+  /** When true (default), prefix args with global `--contain` for workspace path guarding. */
+  readonly contain?: boolean;
+}
+
 async function executePatchloom(
   binaryPath: string,
   args: readonly string[],
-  cwd: string
+  cwd: string,
+  options: ExecutePatchloomOptions = {}
 ): Promise<PatchloomCommandResult> {
+  const finalArgs = options.contain === false ? [...args] : withContainFlag(args);
   const log = getPatchloomLog();
-  log?.logCommand(binaryPath, args, cwd);
+  log?.logCommand(binaryPath, finalArgs, cwd);
 
   try {
-    const { stdout, stderr } = await execFileAsync(binaryPath, args, {
+    const { stdout, stderr } = await execFileAsync(binaryPath, finalArgs, {
       cwd,
       timeout: 30_000,
       maxBuffer: 8 * 1024 * 1024,

@@ -29,9 +29,36 @@ export async function initializeProject(): Promise<void> {
     return;
   }
 
+  const modePick = await vscode.window.showQuickPick(
+    [
+      { label: "All (CLI + MCP)", description: "Default", mode: "all" as const },
+      { label: "CLI only", description: "Omit MCP section", mode: "cli" as const },
+      { label: "MCP only", description: "Lead with MCP tools", mode: "mcp" as const }
+    ],
+    { placeHolder: "Which agent-rules integration mode?" }
+  );
+  if (!modePick) {
+    return;
+  }
+
+  const platformPick = await vscode.window.showQuickPick(
+    [
+      { label: "All platforms", description: "Default", platform: "all" as const },
+      { label: "Linux / macOS", description: "POSIX shell examples", platform: "linux" as const },
+      { label: "Windows", description: "Windows shell examples", platform: "windows" as const }
+    ],
+    { placeHolder: "Which platform for shell examples?" }
+  );
+  if (!platformPick) {
+    return;
+  }
+
   let rules: string;
   try {
-    rules = await generateAgentRules(binaryPath, folder.uri.fsPath);
+    rules = await generateAgentRules(binaryPath, folder.uri.fsPath, {
+      mode: modePick.mode,
+      platform: platformPick.platform
+    });
   } catch (error) {
     await vscode.window.showErrorMessage(`Failed to run patchloom agent-rules in ${folder.name}: ${formatError(error)}`);
     return;
@@ -87,9 +114,33 @@ export function classifyAgentsFile(existingContent: string | undefined, generate
     : "different";
 }
 
-export async function generateAgentRules(binaryPath: string, cwd: string): Promise<string> {
-  const log = getPatchloomLog();
+export type AgentRulesMode = "all" | "cli" | "mcp";
+export type AgentRulesPlatform = "all" | "linux" | "windows";
+
+export interface AgentRulesOptions {
+  readonly mode?: AgentRulesMode;
+  readonly platform?: AgentRulesPlatform;
+}
+
+/** Build `patchloom agent-rules` argv, omitting default `all` flags. */
+export function buildAgentRulesArgs(options: AgentRulesOptions = {}): string[] {
   const args = ["agent-rules"];
+  if (options.mode && options.mode !== "all") {
+    args.push("--mode", options.mode);
+  }
+  if (options.platform && options.platform !== "all") {
+    args.push("--platform", options.platform);
+  }
+  return args;
+}
+
+export async function generateAgentRules(
+  binaryPath: string,
+  cwd: string,
+  options: AgentRulesOptions = {}
+): Promise<string> {
+  const log = getPatchloomLog();
+  const args = buildAgentRulesArgs(options);
   log?.logCommand(binaryPath, args, cwd);
   try {
     const { stdout, stderr } = await execFileAsync(binaryPath, args, {

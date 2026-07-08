@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   buildAppendQuickAction,
   buildCreateQuickAction,
+  buildPrependQuickAction,
   buildDocAppendQuickAction,
   buildDocDeleteQuickAction,
   buildDocEnsureQuickAction,
@@ -25,7 +26,8 @@ import {
   isStructuredDocumentPath,
   resolveWorkspaceRelativePath,
   retargetQuickAction,
-  withApplyFlag
+  withApplyFlag,
+  withContainFlag
 } from "../../src/commands/quickActions.js";
 
 test("buildReplaceQuickAction builds a replace command for one file", () => {
@@ -94,6 +96,42 @@ test("withApplyFlag appends apply once", () => {
     "README.md",
     "--apply"
   ]);
+});
+
+test("withContainFlag prefixes global --contain once", () => {
+  assert.deepEqual(withContainFlag(["replace", "old", "--new", "new", "f.txt"]), [
+    "--contain",
+    "replace",
+    "old",
+    "--new",
+    "new",
+    "f.txt"
+  ]);
+  assert.deepEqual(withContainFlag(["--contain", "batch", "--apply"]), [
+    "--contain",
+    "batch",
+    "--apply"
+  ]);
+  assert.deepEqual(withContainFlag(["doc", "set", "a.json", "port", "1", "--contain"]), [
+    "doc",
+    "set",
+    "a.json",
+    "port",
+    "1",
+    "--contain"
+  ]);
+});
+
+test("buildPrependQuickAction builds a file prepend command", () => {
+  const action = buildPrependQuickAction("/workspace/demo/src/main.ts", "// copyright\n");
+  assert.equal(action.title, "Prepend to main.ts");
+  assert.deepEqual(action.args, [
+    "prepend",
+    "/workspace/demo/src/main.ts",
+    "--content",
+    "// copyright\n"
+  ]);
+  assert.deepEqual(action.targetArgIndices, [1]);
 });
 
 test("isStructuredDocumentPath recognizes supported structured formats", () => {
