@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildBatchTemplate, parseBatchOperationCount } from "../../src/commands/batchApply.js";
+import {
+  buildBatchApplyArgs,
+  buildBatchTemplate,
+  parseBatchOperationCount
+} from "../../src/commands/batchApply.js";
 
 test("buildBatchTemplate returns line-oriented format with four operations", () => {
   const template = buildBatchTemplate();
@@ -72,4 +76,8 @@ test("buildBatchTemplate file.append line has file and quoted content", () => {
   const appendLine = lines.find((l) => l.startsWith("file.append "));
   assert.ok(appendLine, "template should contain a file.append line");
   assert.match(appendLine, /file\.append \S+ ".+"/, "file.append should have file and quoted content");
+});
+
+test("buildBatchApplyArgs prefixes global --contain before batch --apply", () => {
+  assert.deepEqual(buildBatchApplyArgs(), ["--contain", "batch", "--apply"]);
 });
