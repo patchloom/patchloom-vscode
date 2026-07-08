@@ -21,6 +21,11 @@ export function parseBatchOperationCount(plan: string): number {
   return plan.split("\n").filter((line) => line.trim().length > 0).length;
 }
 
+/** CLI argv for Batch Apply. Global --contain first (CLI 0.10+ path guard). */
+export function buildBatchApplyArgs(): string[] {
+  return ["--contain", "batch", "--apply"];
+}
+
 export async function batchApply(): Promise<void> {
   const binaryPath = await ensurePatchloomReadyOrNotify("Upgrade Patchloom before running batch operations.");
   if (!binaryPath) {
@@ -53,8 +58,7 @@ export async function batchApply(): Promise<void> {
 
   const plan = doc.getText();
   const log = getPatchloomLog();
-  // Global --contain rejects plan ops that escape the workspace root (CLI 0.10+).
-  const args = ["--contain", "batch", "--apply"];
+  const args = buildBatchApplyArgs();
   log?.logCommand(binaryPath, args, folder.uri.fsPath);
 
   const result = await executePatchloomWithStdin(binaryPath, args, folder.uri.fsPath, plan);

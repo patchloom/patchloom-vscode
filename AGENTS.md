@@ -47,7 +47,7 @@ src/
   workspace/readiness.ts Workspace readiness: environment detection, folder selection
 test/
   unit/                  Unit tests (node:test, dependency-injected, no VS Code API)
-    batchApply.test.ts   Batch template and operation count parsing (11 tests)
+    batchApply.test.ts   Batch template and operation count parsing (12 tests)
     binary.test.ts       Binary discovery, managed install, compatibility, workspace env (59 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
     initializeProject.test.ts  Status display, agents file classification, formatError (26 tests)
