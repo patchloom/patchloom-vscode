@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import * as path from "node:path";
 import test from "node:test";
 import { MINIMUM_SUPPORTED_PATCHLOOM_VERSION } from "../../src/binary/patchloom.js";
-import { classifyAgentsFile, generateAgentRules } from "../../src/commands/initializeProject.js";
+import {
+  buildAgentRulesArgs,
+  classifyAgentsFile,
+  generateAgentRules
+} from "../../src/commands/initializeProject.js";
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import { buildPatchloomMcpEntry, configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
 import { setPatchloomLog } from "../../src/logging/outputChannel.js";
@@ -373,6 +377,27 @@ test("configureMcpTargets creates or updates only the selected target kinds", as
   assert.match(writes.get(cursorPath) ?? "", /other/);
 });
 
+test("buildAgentRulesArgs omits default all modes", () => {
+  assert.deepEqual(buildAgentRulesArgs(), ["agent-rules"]);
+  assert.deepEqual(buildAgentRulesArgs({ mode: "all", platform: "all" }), ["agent-rules"]);
+});
+
+test("buildAgentRulesArgs includes non-default mode and platform", () => {
+  assert.deepEqual(buildAgentRulesArgs({ mode: "mcp" }), ["agent-rules", "--mode", "mcp"]);
+  assert.deepEqual(buildAgentRulesArgs({ platform: "windows" }), [
+    "agent-rules",
+    "--platform",
+    "windows"
+  ]);
+  assert.deepEqual(buildAgentRulesArgs({ mode: "cli", platform: "linux" }), [
+    "agent-rules",
+    "--mode",
+    "cli",
+    "--platform",
+    "linux"
+  ]);
+});
+
 test("generateAgentRules logs error to output channel on CLI failure", async () => {
   const logged: { exitCode: number; stdout: string; stderr: string }[] = [];
   const commands: { binary: string; args: readonly string[]; cwd: string }[] = [];
@@ -385,7 +410,7 @@ test("generateAgentRules logs error to output channel on CLI failure", async () 
   });
   try {
     await assert.rejects(
-      () => generateAgentRules("/nonexistent/patchloom", "/tmp"),
+      () => generateAgentRules("/nonexistent/patchloom", "/tmp", { mode: "mcp", platform: "linux" }),
       (err: Error) => {
         assert.match(err.message, /ENOENT|not found|No such file/i);
         return true;
@@ -393,7 +418,7 @@ test("generateAgentRules logs error to output channel on CLI failure", async () 
     );
     assert.equal(commands.length, 1, "logCommand should be called once");
     assert.equal(commands[0].binary, "/nonexistent/patchloom");
-    assert.deepEqual(commands[0].args, ["agent-rules"]);
+    assert.deepEqual(commands[0].args, ["agent-rules", "--mode", "mcp", "--platform", "linux"]);
     assert.equal(commands[0].cwd, "/tmp");
     assert.equal(logged.length, 1, "logResult should be called once on failure");
     assert.equal(logged[0].exitCode, 1);

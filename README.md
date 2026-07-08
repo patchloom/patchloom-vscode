@@ -83,10 +83,13 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Tidy file** | Whitespace and newline cleanup with diff preview |
 | **Set structured value** | Update a JSON, YAML, or TOML key with diff preview |
 | **Search text** | Find pattern matches across workspace files (results in output channel) |
-| **Create file** | Scaffold a new file and open it in the editor |
+| **Create file** | Scaffold a new file with optional content and open it in the editor |
 | **Append to file** | Append content to an existing file |
+| **Prepend to file** | Prepend content to the start of an existing file (CLI 0.9+) |
 | **Read structured value** | Read a JSON/YAML/TOML key and copy to clipboard |
 | **Merge patch (three-way)** | Apply a stale patch using three-way merge (v0.2.0+) |
+
+Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay inside the workspace root (CLI 0.10+). Patch merge skips containment when the patch file may live outside the workspace.
 
 ### Batch operations
 
@@ -107,7 +110,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | Command | Description |
 |---------|-------------|
 | `Patchloom: Setup Workspace` | Guided walkthrough for binary, AGENTS.md, and MCP readiness |
-| `Patchloom: Initialize Project` | Generate or diff `AGENTS.md` from `patchloom agent-rules` |
+| `Patchloom: Initialize Project` | Generate or diff `AGENTS.md` from `patchloom agent-rules` (mode: all/cli/mcp, platform: all/linux/windows) |
 | `Patchloom: Configure MCP` | Inject Patchloom MCP server config into editor config files |
 | `Patchloom: Quick Action` | Build a Patchloom CLI command from an interactive picker |
 | `Patchloom: Batch Apply` | Open a batch plan and execute all operations atomically |
