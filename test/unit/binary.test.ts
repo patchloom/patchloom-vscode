@@ -753,10 +753,11 @@ test("describePatchloomCompatibility maps all compatibility levels to labels", (
 // --- patchloomNeedsUpgrade tests ---
 
 test("patchloomNeedsUpgrade returns true only for unsupported compatibility", () => {
-  assert.equal(patchloomNeedsUpgrade({ compatibility: "unsupported" } as any), true);
-  assert.equal(patchloomNeedsUpgrade({ compatibility: "supported" } as any), false);
-  assert.equal(patchloomNeedsUpgrade({ compatibility: "unknown" } as any), false);
-  assert.equal(patchloomNeedsUpgrade({ compatibility: undefined } as any), false);
+  const base = { ready: false, source: "missing" as const, message: "test" };
+  assert.equal(patchloomNeedsUpgrade({ ...base, compatibility: "unsupported" }), true);
+  assert.equal(patchloomNeedsUpgrade({ ...base, compatibility: "supported" }), false);
+  assert.equal(patchloomNeedsUpgrade({ ...base, compatibility: "unknown" }), false);
+  assert.equal(patchloomNeedsUpgrade({ ...base, compatibility: undefined }), false);
 });
 
 // --- isTrustedManagedInstallDownloadUrl tests ---
