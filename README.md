@@ -148,7 +148,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
 **CLI compatibility warning**
-Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.3.0 or newer; 0.7.0 is recommended.
+Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.3.0 or newer; 0.10.0 is recommended.
 
 **MCP config not injected**
 Run `Patchloom: Configure MCP` and select the target editor config.
@@ -183,7 +183,7 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 ## Requirements
 
 - VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
-- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (0.7.0+ recommended for 43 MCP tools, LLM-aligned CLI arguments, post-write formatter hook, and transaction engine unification)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (0.10.0+ recommended for 54 MCP tools, correct preview exit codes, optional `--contain` path guarding, schema-driven MCP descriptions, and agent reliability fixes)
 
 ## Contributing
 

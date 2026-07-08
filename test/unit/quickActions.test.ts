@@ -152,12 +152,29 @@ test("buildSearchQuickAction includes glob when provided", () => {
   assert.deepEqual(action.targetArgIndices, [4]);
 });
 
-test("buildCreateQuickAction builds a create command", () => {
-  const action = buildCreateQuickAction("/workspace/demo/src/newfile.ts");
+test("buildCreateQuickAction builds a create command with content and apply", () => {
+  const action = buildCreateQuickAction("/workspace/demo/src/newfile.ts", "hello");
 
   assert.equal(action.title, "Create newfile.ts");
-  assert.deepEqual(action.args, ["create", "/workspace/demo/src/newfile.ts"]);
+  assert.deepEqual(action.args, [
+    "create",
+    "/workspace/demo/src/newfile.ts",
+    "--content",
+    "hello",
+    "--apply"
+  ]);
   assert.deepEqual(action.targetArgIndices, [1]);
+});
+
+test("buildCreateQuickAction allows empty content", () => {
+  const action = buildCreateQuickAction("/workspace/demo/empty.txt");
+  assert.deepEqual(action.args, [
+    "create",
+    "/workspace/demo/empty.txt",
+    "--content",
+    "",
+    "--apply"
+  ]);
 });
 
 test("buildSearchQuickAction preserves spaces in pattern as a single arg", () => {
@@ -220,9 +237,15 @@ test("buildSearchQuickAction with regex special characters", () => {
 });
 
 test("buildCreateQuickAction with spaces in path", () => {
-  const action = buildCreateQuickAction("/workspace/my project/src/new file.ts");
+  const action = buildCreateQuickAction("/workspace/my project/src/new file.ts", "x");
   assert.equal(action.title, "Create new file.ts");
-  assert.deepEqual(action.args, ["create", "/workspace/my project/src/new file.ts"]);
+  assert.deepEqual(action.args, [
+    "create",
+    "/workspace/my project/src/new file.ts",
+    "--content",
+    "x",
+    "--apply"
+  ]);
 });
 
 test("buildDocGetQuickAction with deeply nested selector", () => {
@@ -232,9 +255,15 @@ test("buildDocGetQuickAction with deeply nested selector", () => {
 });
 
 test("buildCreateQuickAction with unicode filename", () => {
-  const action = buildCreateQuickAction("/workspace/demo/docs/日本語.md");
+  const action = buildCreateQuickAction("/workspace/demo/docs/日本語.md", "# title");
   assert.equal(action.title, "Create 日本語.md");
-  assert.deepEqual(action.args, ["create", "/workspace/demo/docs/日本語.md"]);
+  assert.deepEqual(action.args, [
+    "create",
+    "/workspace/demo/docs/日本語.md",
+    "--content",
+    "# title",
+    "--apply"
+  ]);
 });
 
 test("buildSearchQuickAction with unicode pattern", () => {

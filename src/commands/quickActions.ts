@@ -203,7 +203,7 @@ export async function runQuickAction(): Promise<void> {
     {
       label: "Create a new file",
       description: "Scaffold a new file in the workspace",
-      detail: "Builds `patchloom create <path>`",
+      detail: "Builds `patchloom create <path> --content <text> --apply`",
       run: async () => {
         const folder = await activeWorkspaceFolder({
           promptIfMany: true,
@@ -230,7 +230,16 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const action = buildCreateQuickAction(absolutePath);
+        // Empty content is allowed; CLI requires --content or --stdin and --apply to write.
+        const content = await vscode.window.showInputBox({
+          prompt: "Initial file content (leave empty for an empty file)",
+          placeHolder: "// new file"
+        });
+        if (content === undefined) {
+          return;
+        }
+
+        const action = buildCreateQuickAction(absolutePath, content);
         const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
 
         if (result.exitCode !== 0) {
@@ -858,12 +867,13 @@ export function buildSearchQuickAction(workspacePath: string, pattern: string, g
   };
 }
 
-export function buildCreateQuickAction(filePath: string): PlannedQuickAction {
+export function buildCreateQuickAction(filePath: string, content = ""): PlannedQuickAction {
   return {
     title: `Create ${path.basename(filePath)}`,
     targetPath: filePath,
     targetArgIndices: [1],
-    args: ["create", filePath]
+    // CLI requires --content/--stdin and --apply; preview-only create returns exit 2 and does not write.
+    args: ["create", filePath, "--content", content, "--apply"]
   };
 }
 
