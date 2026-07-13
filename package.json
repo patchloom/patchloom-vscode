@@ -266,7 +266,7 @@
     "@vscode/vsce": "^3.0.0",
     "fast-check": "^4.9.0",
     "ovsx": "^1.0.2",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vscode-extension-tester": "^8.23.0"
   }
 }
