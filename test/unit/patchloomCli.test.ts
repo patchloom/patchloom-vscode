@@ -788,7 +788,7 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
     }) + "\n");
 
     // Call doc_set to change port from 3000 to 8080 (relative path).
-    // MCP param is `selector` (CLI arg name); not `key`.
+    // MCP param is `selector` (CLI selector path); verified against patchloom 0.15.x.
     child.stdin!.write(JSON.stringify({
       jsonrpc: "2.0", id: 3, method: "tools/call",
       params: {

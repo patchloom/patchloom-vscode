@@ -13,6 +13,7 @@ import {
   buildDocPrependQuickAction,
   buildDocSetQuickAction,
   buildMdInsertAfterHeadingQuickAction,
+  buildMdInsertAfterSectionQuickAction,
   buildMdInsertBeforeHeadingQuickAction,
   buildMdReplaceSectionQuickAction,
   buildMdTableAppendQuickAction,
@@ -419,6 +420,22 @@ test("buildMdInsertAfterHeadingQuickAction builds a md insert-after-heading comm
     "md", "insert-after-heading", "/workspace/demo/README.md",
     "--heading", "## Installation",
     "--content", "Run npm install"
+  ]);
+});
+
+test("buildMdInsertAfterSectionQuickAction builds a md insert-after-section command", () => {
+  const action = buildMdInsertAfterSectionQuickAction(
+    "/workspace/demo/README.md",
+    "## Config",
+    "## FAQ\n\nCommon questions."
+  );
+
+  assert.equal(action.title, 'Insert after section "## Config" in README.md');
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, [
+    "md", "insert-after-section", "/workspace/demo/README.md",
+    "--heading", "## Config",
+    "--content", "## FAQ\n\nCommon questions."
   ]);
 });
 

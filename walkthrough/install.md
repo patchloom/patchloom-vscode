@@ -14,6 +14,20 @@ and installation.
 brew install patchloom/tap/patchloom
 ```
 
+## npm
+
+```bash
+npm install -g patchloom
+# or one-shot: npx patchloom --version
+```
+
+## Scoop (Windows)
+
+```bash
+scoop bucket add patchloom https://github.com/patchloom/scoop-bucket
+scoop install patchloom
+```
+
 ## Cargo
 
 ```bash
