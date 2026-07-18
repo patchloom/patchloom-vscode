@@ -28,6 +28,14 @@ scoop bucket add patchloom https://github.com/patchloom/scoop-bucket
 scoop install patchloom
 ```
 
+## Chocolatey (Windows)
+
+```bash
+choco install patchloom
+```
+
+First listing on the community repository may wait on Chocolatey moderation.
+
 ## Cargo
 
 ```bash
