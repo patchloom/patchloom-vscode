@@ -558,6 +558,37 @@ describe("patchloom CLI integration", async () => {
     });
   });
 
+  test("md insert-after-section inserts a sibling after the full section body", async () => {
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "notes.md");
+      await fs.writeFile(
+        file,
+        "# Title\n\n## Config\n\nsettings here\n\n## Other\n\nbody\n",
+        "utf8"
+      );
+
+      await execFileAsync(binaryPath, [
+        "md", "insert-after-section", file,
+        "--heading", "## Config",
+        "--content", "## FAQ\n\nCommon questions.\n",
+        "--apply"
+      ], { timeout: 5000 });
+
+      const content = await fs.readFile(file, "utf8");
+      assert.ok(content.includes("## FAQ"), "sibling FAQ heading should be present");
+      assert.ok(content.includes("Common questions."), "FAQ body should be present");
+      assert.ok(content.includes("settings here"), "Config body should be preserved");
+      assert.ok(content.includes("## Other"), "following Other section should remain");
+
+      // Sibling placement: FAQ must come after the Config body, before Other.
+      const faqIdx = content.indexOf("## FAQ");
+      const settingsIdx = content.indexOf("settings here");
+      const otherIdx = content.indexOf("## Other");
+      assert.ok(settingsIdx >= 0 && faqIdx > settingsIdx, "FAQ should appear after Config body");
+      assert.ok(otherIdx > faqIdx, "FAQ should appear before the next original section");
+    });
+  });
+
   // --- #116: undo CLI test ---
 
   test("undo restores files after an apply", async () => {

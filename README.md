@@ -31,7 +31,9 @@ Or search for **Patchloom** in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+
    npm install -g patchloom                      # npm (Node.js)
    curl -LsSf https://github.com/patchloom/patchloom/releases/latest/download/patchloom-installer.sh | sh  # shell script
    cargo install patchloom                        # from source
-   scoop install patchloom                        # Windows (Scoop; requires the official bucket)
+   scoop bucket add patchloom https://github.com/patchloom/scoop-bucket
+   scoop install patchloom                        # Windows (Scoop)
+   choco install patchloom                        # Windows (Chocolatey; first listing may wait on moderation)
    ```
 2. Open a project and run **Patchloom: Setup Workspace**
 
@@ -89,8 +91,20 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Append to file** | Append content to an existing file |
 | **Prepend to file** | Prepend content to the start of an existing file (CLI 0.9+) |
 | **Read structured value** | Read a JSON/YAML/TOML key and copy to clipboard |
+| **Delete structured value** | Remove a key from JSON, YAML, or TOML with diff preview |
+| **Merge into structured file** | Merge a partial JSON object into a config file |
+| **Append to array** | Append a value to a JSON, YAML, or TOML array |
+| **Prepend to array** | Prepend a value to a JSON, YAML, or TOML array |
+| **Ensure structured value** | Idempotent set: write only if the key is missing |
+| **Move/rename key** | Move or rename a selector path in JSON, YAML, or TOML |
+| **Insert after heading** | Insert content immediately after a markdown heading line |
 | **Insert after section** | Insert a sibling markdown section after a full section body (CLI 0.14+) |
+| **Insert before heading** | Insert content immediately before a markdown heading line |
+| **Append table row** | Append a row to a markdown table under a heading |
+| **Upsert bullet** | Add a bullet under a heading if it is not already present |
+| **Replace markdown section** | Replace content under a markdown heading |
 | **Merge patch (three-way)** | Apply a stale patch using three-way merge (v0.2.0+) |
+| **Undo last change** | Restore files from the latest Patchloom backup session |
 
 Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay inside the workspace root (CLI 0.10+). Containment is relative to the effective working directory (the workspace folder). Patch merge skips containment when the patch file may live outside the workspace.
 
