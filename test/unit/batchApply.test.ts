@@ -6,15 +6,17 @@ import {
   parseBatchOperationCount
 } from "../../src/commands/batchApply.js";
 
-test("buildBatchTemplate returns line-oriented format with four operations", () => {
+test("buildBatchTemplate returns line-oriented format with six operations", () => {
   const template = buildBatchTemplate();
   const lines = template.split("\n").filter((line) => line.trim().length > 0);
 
-  assert.equal(lines.length, 4);
+  assert.equal(lines.length, 6);
   assert.ok(lines[0].startsWith("replace "), "first line should be a replace operation");
-  assert.ok(lines[1].startsWith("doc.set "), "second line should be a doc.set operation");
-  assert.ok(lines[2].startsWith("file.append "), "third line should be a file.append operation");
-  assert.ok(lines[3].startsWith("tidy.fix "), "fourth line should be a tidy.fix operation");
+  assert.ok(lines[1].startsWith("replace ") && lines[1].includes("--fuzzy"), "second line should be fuzzy replace");
+  assert.ok(lines[2].startsWith("doc.set "), "third line should be a doc.set operation");
+  assert.ok(lines[3].startsWith("file.append "), "fourth line should be a file.append operation");
+  assert.ok(lines[4].startsWith("md.insert_after_section "), "fifth line should be md.insert_after_section");
+  assert.ok(lines[5].startsWith("tidy.fix "), "sixth line should be a tidy.fix operation");
 });
 
 test("buildBatchTemplate ends with a newline", () => {
@@ -76,6 +78,20 @@ test("buildBatchTemplate file.append line has file and quoted content", () => {
   const appendLine = lines.find((l) => l.startsWith("file.append "));
   assert.ok(appendLine, "template should contain a file.append line");
   assert.match(appendLine, /file\.append \S+ ".+"/, "file.append should have file and quoted content");
+});
+
+test("buildBatchTemplate includes fuzzy replace and md.insert_after_section examples", () => {
+  const lines = buildBatchTemplate().split("\n");
+  const fuzzyLine = lines.find((l) => l.includes("--fuzzy"));
+  const sectionLine = lines.find((l) => l.startsWith("md.insert_after_section "));
+  assert.ok(fuzzyLine, "template should contain a fuzzy replace example");
+  assert.match(fuzzyLine, /--min-fuzzy-score/, "fuzzy replace should include min-fuzzy-score");
+  assert.ok(sectionLine, "template should contain md.insert_after_section");
+  assert.match(
+    sectionLine,
+    /md\.insert_after_section \S+ ".+" ".+"/,
+    "md.insert_after_section should use path + heading + content positionals"
+  );
 });
 
 test("buildBatchApplyArgs prefixes global --contain before batch --apply", () => {

@@ -585,6 +585,44 @@ export async function runQuickAction(): Promise<void> {
       }
     },
     {
+      label: "Insert after section",
+      description: "Insert a sibling section after a full markdown section body (CLI 0.14+)",
+      detail: "Builds `patchloom md insert-after-section <file> --heading <h> --content <text>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a markdown file for Patchloom insert-after-section");
+        if (!target) {
+          return;
+        }
+
+        if (!isMarkdownPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a markdown file.`
+          );
+          return;
+        }
+
+        const heading = await vscode.window.showInputBox({
+          prompt: "Heading whose full section ends before the insertion",
+          placeHolder: "## Config",
+          validateInput: (value) => value.length > 0 ? undefined : "Heading is required."
+        });
+        if (heading === undefined) {
+          return;
+        }
+
+        const content = await vscode.window.showInputBox({
+          prompt: "Sibling content to insert after the section body",
+          placeHolder: "## FAQ\n\nCommon questions.",
+          validateInput: (value) => value.length > 0 ? undefined : "Content is required."
+        });
+        if (content === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(binaryPath, target, buildMdInsertAfterSectionQuickAction(target.absolutePath, heading, content));
+      }
+    },
+    {
       label: "Insert before heading",
       description: "Insert content before a markdown heading",
       detail: "Builds `patchloom md insert-before-heading <file> --heading <h> --content <text>`",
@@ -1014,6 +1052,15 @@ export function buildMdInsertAfterHeadingQuickAction(targetPath: string, heading
     targetPath,
     targetArgIndices: [2],
     args: ["md", "insert-after-heading", targetPath, "--heading", heading, "--content", content]
+  };
+}
+
+export function buildMdInsertAfterSectionQuickAction(targetPath: string, heading: string, content: string): PlannedQuickAction {
+  return {
+    title: `Insert after section "${heading}" in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["md", "insert-after-section", targetPath, "--heading", heading, "--content", content]
   };
 }
 

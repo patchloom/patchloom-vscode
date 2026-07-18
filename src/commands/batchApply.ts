@@ -7,8 +7,10 @@ import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
 export const BATCH_TEMPLATE = [
   "replace src/example.ts \"old text\" \"new text\"",
+  "replace src/example.ts \"typo_here\" \"fixed\" --fuzzy --min-fuzzy-score 0.80",
   "doc.set package.json version \"2.0.0\"",
   "file.append src/example.ts \"new appended line\"",
+  "md.insert_after_section README.md \"## Config\" \"## FAQ\"",
   "tidy.fix src/example.ts",
   ""
 ].join("\n");
