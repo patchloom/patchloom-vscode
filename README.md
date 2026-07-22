@@ -84,6 +84,8 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | Action | What it does |
 |--------|-------------|
 | **Replace text** | Literal text replacement with diff preview before applying |
+| **Insert text after match** | Line-oriented insert after each match (CLI 0.16+) |
+| **Insert text before match** | Line-oriented insert before each match (CLI 0.16+) |
 | **Tidy file** | Whitespace and newline cleanup with diff preview |
 | **Set structured value** | Update a JSON, YAML, or TOML key with diff preview |
 | **Search text** | Find pattern matches across workspace files (results in output channel) |
@@ -110,7 +112,7 @@ Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay insid
 
 ### Batch operations
 
-`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, tidy, doc set). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
+`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, doc set, multi-doc `doc.merge`, file append, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
 
 ### Output channel
 

@@ -8,6 +8,7 @@ import { activeWorkspaceFolder } from "../workspace/readiness.js";
 export const BATCH_TEMPLATE = [
   "replace src/example.ts \"old text\" \"new text\"",
   "replace src/example.ts \"typo_here\" \"fixed\" --fuzzy --min-fuzzy-score 0.80",
+  "replace src/example.ts \"anchor_line\" --insert-after=\"new sibling line\"",
   "doc.set package.json version \"2.0.0\"",
   "doc.merge multi-doc.yaml 0 \"{\\\"debug\\\": true}\"",
   "file.append src/example.ts \"new appended line\"",

@@ -26,6 +26,7 @@ import { classifyAgentsFile } from "../../src/commands/initializeProject.js";
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import {
   buildDocMergeQuickAction,
+  buildInsertAfterMatchQuickAction,
   buildReplaceQuickAction,
   retargetQuickAction,
   withApplyFlag
@@ -536,6 +537,26 @@ describe("patchloom CLI integration", async () => {
       assert.ok(secondSep > 0, "multi-doc separator should remain");
       assert.ok(content.indexOf("c:") < secondSep, "merged key belongs in first document");
       assert.ok(content.indexOf("b:") > secondSep, "second document body stays after separator");
+    });
+  });
+
+  test("replace --insert-after via Quick Action args is line-oriented (CLI 0.16+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.16.0") < 0) {
+      t.skip(`requires patchloom >= 0.16.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "notes.txt");
+      await fs.writeFile(file, "alpha\nbeta\n", "utf8");
+
+      const action = buildInsertAfterMatchQuickAction(file, "beta", "gamma");
+      await execFileAsync(binaryPath, withApplyFlag(action.args), { timeout: 5000 });
+
+      const content = await fs.readFile(file, "utf8");
+      assert.equal(content, "alpha\nbeta\ngamma\n");
     });
   });
 

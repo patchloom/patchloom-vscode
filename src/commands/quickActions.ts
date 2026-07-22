@@ -74,6 +74,74 @@ export async function runQuickAction(): Promise<void> {
       }
     },
     {
+      label: "Insert text after match",
+      description: "Line-oriented insert after each match (CLI 0.16+)",
+      detail: "Builds `patchloom replace <pattern> --insert-after <text> <file>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a file for Patchloom insert-after");
+        if (!target) {
+          return;
+        }
+
+        const pattern = await vscode.window.showInputBox({
+          prompt: "Text to match (anchor for the insert)",
+          placeHolder: "existing_line_or_token",
+          validateInput: (value) => value.length > 0 ? undefined : "Match text is required."
+        });
+        if (pattern === undefined) {
+          return;
+        }
+
+        const content = await vscode.window.showInputBox({
+          prompt: "Text to insert after each match",
+          placeHolder: "new_line_or_token"
+        });
+        if (content === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(
+          binaryPath,
+          target,
+          buildInsertAfterMatchQuickAction(target.absolutePath, pattern, content)
+        );
+      }
+    },
+    {
+      label: "Insert text before match",
+      description: "Line-oriented insert before each match (CLI 0.16+)",
+      detail: "Builds `patchloom replace <pattern> --insert-before <text> <file>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a file for Patchloom insert-before");
+        if (!target) {
+          return;
+        }
+
+        const pattern = await vscode.window.showInputBox({
+          prompt: "Text to match (anchor for the insert)",
+          placeHolder: "existing_line_or_token",
+          validateInput: (value) => value.length > 0 ? undefined : "Match text is required."
+        });
+        if (pattern === undefined) {
+          return;
+        }
+
+        const content = await vscode.window.showInputBox({
+          prompt: "Text to insert before each match",
+          placeHolder: "new_line_or_token"
+        });
+        if (content === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(
+          binaryPath,
+          target,
+          buildInsertBeforeMatchQuickAction(target.absolutePath, pattern, content)
+        );
+      }
+    },
+    {
       label: "Tidy file",
       description: "Whitespace and newline cleanup with diff preview",
       detail: "Builds `patchloom tidy fix <file> ...`",
@@ -892,6 +960,32 @@ export function buildReplaceQuickAction(targetPath: string, from: string, to: st
     targetPath,
     targetArgIndices: [4],
     args: ["replace", from, "--new", to, targetPath]
+  };
+}
+
+export function buildInsertAfterMatchQuickAction(
+  targetPath: string,
+  pattern: string,
+  content: string
+): PlannedQuickAction {
+  return {
+    title: `Insert after match in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [4],
+    args: ["replace", pattern, "--insert-after", content, targetPath]
+  };
+}
+
+export function buildInsertBeforeMatchQuickAction(
+  targetPath: string,
+  pattern: string,
+  content: string
+): PlannedQuickAction {
+  return {
+    title: `Insert before match in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [4],
+    args: ["replace", pattern, "--insert-before", content, targetPath]
   };
 }
 

@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   buildAppendQuickAction,
   buildCreateQuickAction,
+  buildInsertAfterMatchQuickAction,
+  buildInsertBeforeMatchQuickAction,
   buildPrependQuickAction,
   buildDocAppendQuickAction,
   buildDocDeleteQuickAction,
@@ -37,6 +39,36 @@ test("buildReplaceQuickAction builds a replace command for one file", () => {
   assert.equal(action.title, "Replace text in README.md");
   assert.deepEqual(action.targetArgIndices, [4]);
   assert.deepEqual(action.args, ["replace", "old", "--new", "new", "/workspace/demo/README.md"]);
+});
+
+test("buildInsertAfterMatchQuickAction builds replace --insert-after (CLI 0.16+)", () => {
+  const action = buildInsertAfterMatchQuickAction("/workspace/demo/app.ts", "const x = 1;", "const y = 2;");
+
+  assert.equal(action.title, "Insert after match in app.ts");
+  assert.deepEqual(action.targetArgIndices, [4]);
+  assert.deepEqual(action.args, [
+    "replace", "const x = 1;", "--insert-after", "const y = 2;", "/workspace/demo/app.ts"
+  ]);
+});
+
+test("buildInsertBeforeMatchQuickAction builds replace --insert-before (CLI 0.16+)", () => {
+  const action = buildInsertBeforeMatchQuickAction("/workspace/demo/app.ts", "return true;", "// checked");
+
+  assert.equal(action.title, "Insert before match in app.ts");
+  assert.deepEqual(action.targetArgIndices, [4]);
+  assert.deepEqual(action.args, [
+    "replace", "return true;", "--insert-before", "// checked", "/workspace/demo/app.ts"
+  ]);
+});
+
+test("retargetQuickAction preserves insert-after args", () => {
+  const action = buildInsertAfterMatchQuickAction("/workspace/demo/a.ts", "foo", "bar");
+  const retargeted = retargetQuickAction(action, "/workspace/demo/b.ts");
+
+  assert.equal(retargeted.targetPath, "/workspace/demo/b.ts");
+  assert.deepEqual(retargeted.args, [
+    "replace", "foo", "--insert-after", "bar", "/workspace/demo/b.ts"
+  ]);
 });
 
 test("buildTidyQuickAction includes selected tidy flags", () => {

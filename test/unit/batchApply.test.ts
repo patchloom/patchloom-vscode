@@ -6,18 +6,19 @@ import {
   parseBatchOperationCount
 } from "../../src/commands/batchApply.js";
 
-test("buildBatchTemplate returns line-oriented format with seven operations", () => {
+test("buildBatchTemplate returns line-oriented format with eight operations", () => {
   const template = buildBatchTemplate();
   const lines = template.split("\n").filter((line) => line.trim().length > 0);
 
-  assert.equal(lines.length, 7);
+  assert.equal(lines.length, 8);
   assert.ok(lines[0].startsWith("replace "), "first line should be a replace operation");
   assert.ok(lines[1].startsWith("replace ") && lines[1].includes("--fuzzy"), "second line should be fuzzy replace");
-  assert.ok(lines[2].startsWith("doc.set "), "third line should be a doc.set operation");
-  assert.ok(lines[3].startsWith("doc.merge "), "fourth line should be multi-doc doc.merge");
-  assert.ok(lines[4].startsWith("file.append "), "fifth line should be a file.append operation");
-  assert.ok(lines[5].startsWith("md.insert_after_section "), "sixth line should be md.insert_after_section");
-  assert.ok(lines[6].startsWith("tidy.fix "), "seventh line should be a tidy.fix operation");
+  assert.ok(lines[2].startsWith("replace ") && lines[2].includes("--insert-after"), "third line should be insert-after");
+  assert.ok(lines[3].startsWith("doc.set "), "fourth line should be a doc.set operation");
+  assert.ok(lines[4].startsWith("doc.merge "), "fifth line should be multi-doc doc.merge");
+  assert.ok(lines[5].startsWith("file.append "), "sixth line should be a file.append operation");
+  assert.ok(lines[6].startsWith("md.insert_after_section "), "seventh line should be md.insert_after_section");
+  assert.ok(lines[7].startsWith("tidy.fix "), "eighth line should be a tidy.fix operation");
 });
 
 test("buildBatchTemplate ends with a newline", () => {
@@ -105,6 +106,17 @@ test("buildBatchTemplate doc.merge line uses path selector value (CLI 0.16 multi
     "doc.merge should have path, selector, and quoted value (path selector value)"
   );
   assert.match(mergeLine, /\s0\s/, "example should merge into document 0");
+});
+
+test("buildBatchTemplate includes replace --insert-after example (CLI 0.16)", () => {
+  const lines = buildBatchTemplate().split("\n");
+  const insertLine = lines.find((l) => l.includes("--insert-after"));
+  assert.ok(insertLine, "template should contain an insert-after example");
+  assert.match(
+    insertLine,
+    /replace \S+ ".+" --insert-after=/,
+    "insert-after should use batch flag form path pattern --insert-after=payload"
+  );
 });
 
 test("buildBatchApplyArgs prefixes global --contain before batch --apply", () => {
