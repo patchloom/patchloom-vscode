@@ -18,12 +18,18 @@ import test, { describe } from "node:test";
 import {
   findOnPath,
   parsePatchloomVersion,
+  comparePatchloomVersions,
   assessPatchloomCompatibility,
   resolvePatchloomStatusWithInputs
 } from "../../src/binary/patchloom.js";
 import { classifyAgentsFile } from "../../src/commands/initializeProject.js";
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
-import { buildReplaceQuickAction, retargetQuickAction, withApplyFlag } from "../../src/commands/quickActions.js";
+import {
+  buildDocMergeQuickAction,
+  buildReplaceQuickAction,
+  retargetQuickAction,
+  withApplyFlag
+} from "../../src/commands/quickActions.js";
 import { configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
 import { performManagedInstall } from "../../src/install/managed.js";
 
@@ -503,6 +509,33 @@ describe("patchloom CLI integration", async () => {
       const content = JSON.parse(await fs.readFile(file, "utf8")) as Record<string, unknown>;
       assert.equal(content.existing, true, "existing key preserved");
       assert.equal(content.added, 42, "merged key present");
+    });
+  });
+
+  test("doc merge --selector targets multi-document YAML via Quick Action args (CLI 0.16+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.16.0") < 0) {
+      t.skip(`requires patchloom >= 0.16.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "multi.yaml");
+      await fs.writeFile(file, "---\na: 1\n---\nb: 2\n", "utf8");
+
+      const action = buildDocMergeQuickAction(file, '{"c": 3}', "0");
+      await execFileAsync(binaryPath, withApplyFlag(action.args), { timeout: 5000 });
+
+      const content = await fs.readFile(file, "utf8");
+      assert.match(content, /a:\s*1/, "first document field preserved");
+      assert.match(content, /c:\s*3/, "merged key landed in selected document");
+      assert.match(content, /b:\s*2/, "second document preserved");
+      // Document 0 is before the second --- separator; merge must not rewrite doc 1 only.
+      const secondSep = content.indexOf("---", content.indexOf("---") + 3);
+      assert.ok(secondSep > 0, "multi-doc separator should remain");
+      assert.ok(content.indexOf("c:") < secondSep, "merged key belongs in first document");
+      assert.ok(content.indexOf("b:") > secondSep, "second document body stays after separator");
     });
   });
 

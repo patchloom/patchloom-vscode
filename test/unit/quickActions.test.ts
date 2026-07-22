@@ -328,6 +328,45 @@ test("buildDocMergeQuickAction builds a doc merge command", () => {
   assert.deepEqual(action.args, ["doc", "merge", "/workspace/demo/package.json", "--value", '{"debug": true}']);
 });
 
+test("buildDocMergeQuickAction includes --selector for multi-doc merge (CLI 0.16+)", () => {
+  const action = buildDocMergeQuickAction(
+    "/workspace/demo/multi.yaml",
+    '{"debug": true}',
+    "0"
+  );
+
+  assert.equal(action.title, "Merge into 0 in multi.yaml");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, [
+    "doc", "merge", "/workspace/demo/multi.yaml",
+    "--selector", "0",
+    "--value", '{"debug": true}'
+  ]);
+});
+
+test("buildDocMergeQuickAction omits --selector when selector is blank", () => {
+  const action = buildDocMergeQuickAction("/workspace/demo/config.toml", '{"x": 1}', "  ");
+
+  assert.equal(action.title, "Merge into config.toml");
+  assert.deepEqual(action.args, [
+    "doc", "merge", "/workspace/demo/config.toml",
+    "--value", '{"x": 1}'
+  ]);
+  assert.ok(!action.args.includes("--selector"));
+});
+
+test("retargetQuickAction preserves doc merge selector flags", () => {
+  const action = buildDocMergeQuickAction("/workspace/demo/a.yaml", '{"k": true}', "[0]");
+  const retargeted = retargetQuickAction(action, "/workspace/demo/b.yaml");
+
+  assert.equal(retargeted.targetPath, "/workspace/demo/b.yaml");
+  assert.deepEqual(retargeted.args, [
+    "doc", "merge", "/workspace/demo/b.yaml",
+    "--selector", "[0]",
+    "--value", '{"k": true}'
+  ]);
+});
+
 test("buildDocAppendQuickAction builds a doc append command", () => {
   const action = buildDocAppendQuickAction("/workspace/demo/config.yaml", "tags", '"v2"');
 

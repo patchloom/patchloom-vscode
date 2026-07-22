@@ -368,7 +368,7 @@ export async function runQuickAction(): Promise<void> {
     {
       label: "Merge into structured file",
       description: "Merge a partial JSON object into a config file",
-      detail: "Builds `patchloom doc merge <file> --value <json>`",
+      detail: "Builds `patchloom doc merge <file> [--selector <path>] --value <json>` (selector for multi-doc YAML, CLI 0.16+)",
       run: async () => {
         const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc merge");
         if (!target) {
@@ -382,6 +382,14 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
+        const selector = await vscode.window.showInputBox({
+          prompt: "Merge selector (optional). Multi-document YAML needs a document index (CLI 0.16+)",
+          placeHolder: "leave empty for root, or 0 / [0] for the first multi-doc document"
+        });
+        if (selector === undefined) {
+          return;
+        }
+
         const value = await vscode.window.showInputBox({
           prompt: "Partial JSON object to merge",
           placeHolder: '{"debug": true, "logLevel": "verbose"}',
@@ -391,7 +399,11 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        await previewAndMaybeApply(binaryPath, target, buildDocMergeQuickAction(target.absolutePath, value));
+        await previewAndMaybeApply(
+          binaryPath,
+          target,
+          buildDocMergeQuickAction(target.absolutePath, value, selector)
+        );
       }
     },
     {
@@ -974,12 +986,27 @@ export function buildDocDeleteQuickAction(targetPath: string, selector: string):
   };
 }
 
-export function buildDocMergeQuickAction(targetPath: string, value: string): PlannedQuickAction {
+export function buildDocMergeQuickAction(
+  targetPath: string,
+  value: string,
+  selector?: string
+): PlannedQuickAction {
+  const trimmedSelector = selector?.trim() ?? "";
+  const args = ["doc", "merge", targetPath];
+  if (trimmedSelector.length > 0) {
+    args.push("--selector", trimmedSelector);
+  }
+  args.push("--value", value);
+
+  const title = trimmedSelector.length > 0
+    ? `Merge into ${trimmedSelector} in ${path.basename(targetPath)}`
+    : `Merge into ${path.basename(targetPath)}`;
+
   return {
-    title: `Merge into ${path.basename(targetPath)}`,
+    title,
     targetPath,
     targetArgIndices: [2],
-    args: ["doc", "merge", targetPath, "--value", value]
+    args
   };
 }
 
