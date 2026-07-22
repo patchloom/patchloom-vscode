@@ -6,17 +6,18 @@ import {
   parseBatchOperationCount
 } from "../../src/commands/batchApply.js";
 
-test("buildBatchTemplate returns line-oriented format with six operations", () => {
+test("buildBatchTemplate returns line-oriented format with seven operations", () => {
   const template = buildBatchTemplate();
   const lines = template.split("\n").filter((line) => line.trim().length > 0);
 
-  assert.equal(lines.length, 6);
+  assert.equal(lines.length, 7);
   assert.ok(lines[0].startsWith("replace "), "first line should be a replace operation");
   assert.ok(lines[1].startsWith("replace ") && lines[1].includes("--fuzzy"), "second line should be fuzzy replace");
   assert.ok(lines[2].startsWith("doc.set "), "third line should be a doc.set operation");
-  assert.ok(lines[3].startsWith("file.append "), "fourth line should be a file.append operation");
-  assert.ok(lines[4].startsWith("md.insert_after_section "), "fifth line should be md.insert_after_section");
-  assert.ok(lines[5].startsWith("tidy.fix "), "sixth line should be a tidy.fix operation");
+  assert.ok(lines[3].startsWith("doc.merge "), "fourth line should be multi-doc doc.merge");
+  assert.ok(lines[4].startsWith("file.append "), "fifth line should be a file.append operation");
+  assert.ok(lines[5].startsWith("md.insert_after_section "), "sixth line should be md.insert_after_section");
+  assert.ok(lines[6].startsWith("tidy.fix "), "seventh line should be a tidy.fix operation");
 });
 
 test("buildBatchTemplate ends with a newline", () => {
@@ -92,6 +93,18 @@ test("buildBatchTemplate includes fuzzy replace and md.insert_after_section exam
     /md\.insert_after_section \S+ ".+" ".+"/,
     "md.insert_after_section should use path + heading + content positionals"
   );
+});
+
+test("buildBatchTemplate doc.merge line uses path selector value (CLI 0.16 multi-doc)", () => {
+  const lines = buildBatchTemplate().split("\n");
+  const mergeLine = lines.find((l) => l.startsWith("doc.merge "));
+  assert.ok(mergeLine, "template should contain a doc.merge line");
+  assert.match(
+    mergeLine,
+    /doc\.merge \S+ \S+ ".+"/,
+    "doc.merge should have path, selector, and quoted value (path selector value)"
+  );
+  assert.match(mergeLine, /\s0\s/, "example should merge into document 0");
 });
 
 test("buildBatchApplyArgs prefixes global --contain before batch --apply", () => {

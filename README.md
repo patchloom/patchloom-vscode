@@ -92,7 +92,7 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Prepend to file** | Prepend content to the start of an existing file (CLI 0.9+) |
 | **Read structured value** | Read a JSON/YAML/TOML key and copy to clipboard |
 | **Delete structured value** | Remove a key from JSON, YAML, or TOML with diff preview |
-| **Merge into structured file** | Merge a partial JSON object into a config file |
+| **Merge into structured file** | Merge a partial JSON object into a config file (optional multi-doc selector, CLI 0.16+) |
 | **Append to array** | Append a value to a JSON, YAML, or TOML array |
 | **Prepend to array** | Prepend a value to a JSON, YAML, or TOML array |
 | **Ensure structured value** | Idempotent set: write only if the key is missing |
@@ -168,7 +168,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
 **CLI compatibility warning**
-Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.3.0 or newer; 0.15.2 is recommended.
+Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.3.0 or newer; 0.16.0 is recommended.
 
 **MCP config not injected**
 Run `Patchloom: Configure MCP` and select the target editor config.
@@ -203,7 +203,7 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 ## Requirements
 
 - VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
-- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (0.15.2+ recommended for 56 MCP tools, JSON `applied` honesty, doc query envelopes, `md insert-after-section`, optional `--contain` path guarding, fuzzy replace floors, and agent reliability fixes)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (0.16.0+ recommended for multi-doc `doc merge --selector`, line-oriented `insert_before`/`insert_after`, shared binary/UTF-8 path honesty, 56 MCP tools, JSON `applied` honesty, doc query envelopes, `md insert-after-section`, optional `--contain` path guarding, and fuzzy replace floors)
 
 ## Contributing
 
