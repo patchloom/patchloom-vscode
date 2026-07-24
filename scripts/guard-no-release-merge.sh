@@ -72,9 +72,9 @@ if [[ "$is_release" == "true" ]]; then
 
   if [[ "${ALLOW_RELEASE_MERGE:-}" != "yes" ]]; then
     exit 1
-  else
-    echo "BYPASS: ALLOW_RELEASE_MERGE=yes detected. Proceeding (user approved)."
   fi
+  echo "BYPASS: ALLOW_RELEASE_MERGE=yes detected. Proceeding (user approved)."
+  exit 0
 fi
 
 echo "Guard OK: PR #$pr does not appear to be a release PR. Safe to consider merge."
