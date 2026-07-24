@@ -5,6 +5,7 @@ import { formatCliOutput } from "../util.js";
 import { getPatchloomLog } from "../logging/outputChannel.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
+// Batch replace is PATH OLD NEW (not CLI `replace OLD --new NEW path`). See CLI 0.18+ batch --help.
 export const BATCH_TEMPLATE = [
   "replace src/example.ts \"old text\" \"new text\"",
   "replace src/example.ts \"typo_here\" \"fixed\" --fuzzy --min-fuzzy-score 0.80",
