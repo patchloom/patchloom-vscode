@@ -170,7 +170,13 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
 **CLI compatibility warning**
-Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.3.0 or newer; 0.16.0 is recommended.
+Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.3.0 or newer; 0.18.0 is recommended.
+
+**Path rejected by workspace guard**
+Quick Actions and Batch Apply pass `--contain` so paths stay inside the open workspace folder. On CLI 0.18+, sandbox escapes report `error_kind: guard_rejected` (not a generic `invalid_input`). Keep targets under the workspace root, or open the folder that owns the files.
+
+**Batch replace shape**
+Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). Do not paste CLI form `replace OLD --new NEW path` into a batch plan; CLI 0.18+ returns a clear parse error with the PATH OLD NEW hint.
 
 **MCP config not injected**
 Run `Patchloom: Configure MCP` and select the target editor config.
@@ -205,7 +211,7 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 ## Requirements
 
 - VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
-- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (0.16.0+ recommended for multi-doc `doc merge --selector`, line-oriented `insert_before`/`insert_after`, shared binary/UTF-8 path honesty, 56 MCP tools, JSON `applied` honesty, doc query envelopes, `md insert-after-section`, optional `--contain` path guarding, and fuzzy replace floors)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (0.18.0+ recommended for structured `guard_rejected` on `--contain` failures, clearer batch `replace PATH OLD NEW` parse hints, multi-doc `doc merge --selector`, line-oriented `insert_before`/`insert_after`, 56 MCP tools, JSON `applied` honesty, and agent-facing `error_kind` envelopes)
 
 ## Contributing
 

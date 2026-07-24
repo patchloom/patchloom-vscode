@@ -45,6 +45,46 @@ test("formatCliOutput normalizes CRLF line endings", () => {
   assert.equal(result, "line1 line2");
 });
 
+test("formatCliOutput prefers CLI JSON error envelope (guard_rejected, CLI 0.18+)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "guard_rejected: path rejected by workspace guard: path escapes workspace directory: ../x",
+    error_kind: "guard_rejected",
+    applied: false
+  });
+  const result = formatCliOutput({ exitCode: 1, stdout, stderr: "" });
+  assert.equal(
+    result,
+    "guard_rejected: path rejected by workspace guard: path escapes workspace directory: ../x"
+  );
+});
+
+test("formatCliOutput prefixes error_kind when error body omits it", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "path escapes workspace directory: ../x",
+    error_kind: "guard_rejected",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    "guard_rejected: path escapes workspace directory: ../x"
+  );
+});
+
+test("formatCliOutput prefers JSON error over noisy stderr", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "line 1: batch replace does not accept CLI flag '--new'",
+    error_kind: "parse_error",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "some diagnostic noise\n" }),
+    "parse_error: line 1: batch replace does not accept CLI flag '--new'"
+  );
+});
+
 test("classifyAgentsFile returns missing when AGENTS.md does not exist", () => {
   assert.equal(classifyAgentsFile(undefined, "# Rules\n"), "missing");
 });
