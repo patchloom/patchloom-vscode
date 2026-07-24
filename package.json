@@ -2,7 +2,7 @@
   "name": "patchloom",
   "displayName": "Patchloom",
   "description": "VS Code extension for Patchloom. Installs, configures, and integrates the Patchloom CLI for editor-first workflows.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "patchloom",
   "license": "MIT",
   "repository": {
