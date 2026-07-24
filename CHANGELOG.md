@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.1.0...patchloom-v0.2.0) (2026-07-24)
+
+
+### Features
+
+* align extension with patchloom CLI 0.18.0 ([#210](https://github.com/patchloom/patchloom-vscode/issues/210)) ([ac724cf](https://github.com/patchloom/patchloom-vscode/commit/ac724cfa0eceaa0f71d941ce21f1d0d615ef95f1))
+* align with patchloom CLI 0.16.0 and multi-doc merge selector ([#207](https://github.com/patchloom/patchloom-vscode/issues/207)) ([5a1211d](https://github.com/patchloom/patchloom-vscode/commit/5a1211dd3ab759105f679b309f529f1b4c1f377d))
+* line-oriented insert Quick Actions and npm audit hardening ([#209](https://github.com/patchloom/patchloom-vscode/issues/209)) ([96dc31e](https://github.com/patchloom/patchloom-vscode/commit/96dc31ec196eff6aa1161ebcab3b0f0591a4d5d5))
+
 ## [0.1.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.0.9...patchloom-v0.1.0) (2026-07-18)
 
 
