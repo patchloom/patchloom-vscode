@@ -37,6 +37,7 @@ src/
     batchApply.ts        Batch Apply command: atomic multi-operation plan via JSON
     setupWorkspace.ts     Setup Workspace command: guided readiness walkthrough
     showStatus.ts         Show Status command: diagnostics display
+    verifyMcp.ts         Verify MCP Server command: JSON-RPC initialize probe
     autoUpdate.ts        Auto-update check on activation: compare installed vs latest release
   install/managed.ts     Managed install safety: checksum, staging, promotion, rollback, persistence
   logging/outputChannel.ts  Output channel wrapper: log, logCommand, logResult, show, dispose
@@ -66,6 +67,7 @@ test/
     extension.test.ts    ExTester UI tests (status bar, command palette)
 scripts/
   hide-test-vscode.sh   macOS: patch test VS Code to suppress window activation
+  guard-no-release-merge.sh  Hard abort if agent tries to merge a release PR without approval
 .github/
   CODEOWNERS               Owner for all files
   copilot-instructions.md  Pointer to AGENTS.md for GitHub Copilot
