@@ -37,6 +37,7 @@ src/
     batchApply.ts        Batch Apply command: atomic multi-operation plan via JSON
     setupWorkspace.ts     Setup Workspace command: guided readiness walkthrough
     showStatus.ts         Show Status command: diagnostics display
+    verifyMcp.ts         Verify MCP Server command: JSON-RPC initialize probe
     autoUpdate.ts        Auto-update check on activation: compare installed vs latest release
   install/managed.ts     Managed install safety: checksum, staging, promotion, rollback, persistence
   logging/outputChannel.ts  Output channel wrapper: log, logCommand, logResult, show, dispose
@@ -50,11 +51,11 @@ test/
     batchApply.test.ts   Batch template and operation count parsing (15 tests)
     binary.test.ts       Binary discovery, managed install, compatibility, workspace env (59 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
-    initializeProject.test.ts  Status display, agents file classification, formatError (29 tests)
+    initializeProject.test.ts  Status display, agents file classification, formatError (30 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (22 tests)
     mcpConfig.test.ts    MCP config with real temp directories (9 tests)
     outputChannel.test.ts Output channel logging wrapper (10 tests)
-    patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (37 tests incl. e2e)
+    patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (39 tests incl. e2e)
     propertyBased.test.ts  Property-based tests with fast-check (13 tests)
     quickActions.test.ts Quick action command building, path containment, patch merge (57 tests)
     verifyMcp.test.ts    MCP server verify and JSON-RPC response parsing (15 tests)
@@ -66,6 +67,7 @@ test/
     extension.test.ts    ExTester UI tests (status bar, command palette)
 scripts/
   hide-test-vscode.sh   macOS: patch test VS Code to suppress window activation
+  guard-no-release-merge.sh  Hard abort if agent tries to merge a release PR without approval
 .github/
   CODEOWNERS               Owner for all files
   copilot-instructions.md  Pointer to AGENTS.md for GitHub Copilot

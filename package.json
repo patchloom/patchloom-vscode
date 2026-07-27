@@ -253,6 +253,7 @@
     "check": "npm run test && npm run test:coverage && npm run package"
   },
   "overrides": {
+    "brace-expansion": "5.0.8",
     "mocha": {
       "diff": "^8.0.3",
       "serialize-javascript": "^7.0.5"

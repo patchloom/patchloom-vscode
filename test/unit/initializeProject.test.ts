@@ -85,6 +85,19 @@ test("formatCliOutput prefers JSON error over noisy stderr", () => {
   );
 });
 
+test("formatCliOutput surfaces already_exists kind (CLI 0.19+)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "destination already exists: src/out.ts",
+    error_kind: "already_exists",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    "already_exists: destination already exists: src/out.ts"
+  );
+});
+
 test("classifyAgentsFile returns missing when AGENTS.md does not exist", () => {
   assert.equal(classifyAgentsFile(undefined, "# Rules\n"), "missing");
 });
