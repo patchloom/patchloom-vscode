@@ -170,13 +170,16 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
 **CLI compatibility warning**
-Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.3.0 or newer; 0.18.0 is recommended.
+Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.3.0 or newer; 0.19.0 is recommended.
 
 **Path rejected by workspace guard**
 Quick Actions and Batch Apply pass `--contain` so paths stay inside the open workspace folder. On CLI 0.18+, sandbox escapes report `error_kind: guard_rejected` (not a generic `invalid_input`). Keep targets under the workspace root, or open the folder that owns the files.
 
 **Batch replace shape**
 Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). Do not paste CLI form `replace OLD --new NEW path` into a batch plan; CLI 0.18+ returns a clear parse error with the PATH OLD NEW hint.
+
+**Create or rename destination already exists**
+On CLI 0.19+, create/rename conflicts report `error_kind: already_exists` (not a generic `invalid_input`). Use the force flag when overwriting is intentional, or pick a free destination path.
 
 **MCP config not injected**
 Run `Patchloom: Configure MCP` and select the target editor config.
@@ -211,7 +214,7 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 ## Requirements
 
 - VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
-- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (0.18.0+ recommended for structured `guard_rejected` on `--contain` failures, clearer batch `replace PATH OLD NEW` parse hints, multi-doc `doc merge --selector`, line-oriented `insert_before`/`insert_after`, 56 MCP tools, JSON `applied` honesty, and agent-facing `error_kind` envelopes)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (0.19.0+ recommended for stable `error_kind` peels including `already_exists` / `not_found` / `guard_rejected`, clearer create/rename force hints, multi-doc `doc merge --selector`, line-oriented `insert_before`/`insert_after`, batch `replace PATH OLD NEW` parse hints, 56 MCP tools, JSON `applied` honesty, and agent-facing envelopes)
 
 ## Contributing
 
