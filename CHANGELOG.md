@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.2.0...patchloom-v0.3.0) (2026-07-31)
+
+
+### Features
+
+* agent-rules surface and MCP core pack options ([#219](https://github.com/patchloom/patchloom-vscode/issues/219)) ([e13444a](https://github.com/patchloom/patchloom-vscode/commit/e13444ad86e0c9d870edbba55c3a27d0649270ef))
+* align extension with patchloom CLI 0.24.0 ([#218](https://github.com/patchloom/patchloom-vscode/issues/218)) ([72d6b0e](https://github.com/patchloom/patchloom-vscode/commit/72d6b0eb5e8a7da9aafcf4d389b39020661f82d0))
+
+
+### Bug Fixes
+
+* MPI cycle — CLI 0.19 docs, brace-expansion audit, AGENTS refresh ([#217](https://github.com/patchloom/patchloom-vscode/issues/217)) ([e4b84bd](https://github.com/patchloom/patchloom-vscode/commit/e4b84bd6bef39be415b35cae8d849eb21c82a847))
+* stop claiming non-release after ALLOW_RELEASE_MERGE bypass ([#213](https://github.com/patchloom/patchloom-vscode/issues/213)) ([bd17b59](https://github.com/patchloom/patchloom-vscode/commit/bd17b59db81dbe1c80e5955ef9b1140f3e70f8a5))
+
 ## [0.2.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.1.0...patchloom-v0.2.0) (2026-07-24)
 
 
