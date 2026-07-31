@@ -26,6 +26,7 @@ import { classifyAgentsFile } from "../../src/commands/initializeProject.js";
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import {
   buildDocMergeQuickAction,
+  buildApplyFragmentQuickAction,
   buildInsertAfterMatchQuickAction,
   buildReplaceQuickAction,
   retargetQuickAction,
@@ -557,6 +558,26 @@ describe("patchloom CLI integration", async () => {
 
       const content = await fs.readFile(file, "utf8");
       assert.equal(content, "alpha\nbeta\ngamma\n");
+    });
+  });
+
+  test("apply-fragment --after via Quick Action args (CLI 0.22+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.22.0") < 0) {
+      t.skip(`requires patchloom >= 0.22.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "lib.rs");
+      await fs.writeFile(file, "fn foo() {\n  let a = 1;\n}\n", "utf8");
+
+      const action = buildApplyFragmentQuickAction(file, "after", "fn foo() {", "  let x = 2;");
+      await execFileAsync(binaryPath, withApplyFlag(action.args), { timeout: 5000 });
+
+      const content = await fs.readFile(file, "utf8");
+      assert.equal(content, "fn foo() {\n  let x = 2;\n  let a = 1;\n}\n");
     });
   });
 

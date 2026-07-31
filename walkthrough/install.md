@@ -36,6 +36,14 @@ choco install patchloom
 
 First listing on the community repository may wait on Chocolatey moderation.
 
+## WinGet (Windows)
+
+```bash
+winget install Patchloom.Patchloom
+```
+
+Available after the community package PR is approved.
+
 ## Cargo
 
 ```bash

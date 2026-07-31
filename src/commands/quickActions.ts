@@ -142,6 +142,63 @@ export async function runQuickAction(): Promise<void> {
       }
     },
     {
+      label: "Apply fragment at anchor",
+      description: "Morph-style fragment at a unique anchor (CLI 0.22+)",
+      detail: "Builds `patchloom apply-fragment <file> --after|--before|--old <anchor> --fragment <text>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a file for Patchloom apply-fragment");
+        if (!target) {
+          return;
+        }
+
+        const placementPick = await vscode.window.showQuickPick(
+          [
+            {
+              label: "Insert after anchor",
+              description: "Default for Morph-style snippets",
+              placement: "after" as const
+            },
+            {
+              label: "Insert before anchor",
+              placement: "before" as const
+            },
+            {
+              label: "Replace anchor span",
+              description: "Replace the unique matched span with the fragment",
+              placement: "old" as const
+            }
+          ],
+          { placeHolder: "How should the fragment be placed relative to the anchor?" }
+        );
+        if (!placementPick) {
+          return;
+        }
+
+        const anchor = await vscode.window.showInputBox({
+          prompt: "Unique anchor text (exactly one match required by default)",
+          placeHolder: placementPick.placement === "old" ? "span to replace" : "fn foo() {",
+          validateInput: (value) => value.length > 0 ? undefined : "Anchor text is required."
+        });
+        if (anchor === undefined) {
+          return;
+        }
+
+        const fragment = await vscode.window.showInputBox({
+          prompt: "Fragment text (Morph-style // ... existing code ... markers are stripped)",
+          placeHolder: "  let x = 1;"
+        });
+        if (fragment === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(
+          binaryPath,
+          target,
+          buildApplyFragmentQuickAction(target.absolutePath, placementPick.placement, anchor, fragment)
+        );
+      }
+    },
+    {
       label: "Tidy file",
       description: "Whitespace and newline cleanup with diff preview",
       detail: "Builds `patchloom tidy fix <file> ...`",
@@ -986,6 +1043,28 @@ export function buildInsertBeforeMatchQuickAction(
     targetPath,
     targetArgIndices: [4],
     args: ["replace", pattern, "--insert-before", content, targetPath]
+  };
+}
+
+export type ApplyFragmentPlacement = "after" | "before" | "old";
+
+/**
+ * Constrained freeform fragment apply (CLI 0.22+). Exactly one of
+ * `--after`, `--before`, or `--old` is required by the CLI.
+ */
+export function buildApplyFragmentQuickAction(
+  targetPath: string,
+  placement: ApplyFragmentPlacement,
+  anchor: string,
+  fragment: string
+): PlannedQuickAction {
+  const flag =
+    placement === "after" ? "--after" : placement === "before" ? "--before" : "--old";
+  return {
+    title: `Apply fragment in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [1],
+    args: ["apply-fragment", targetPath, flag, anchor, "--fragment", fragment]
   };
 }
 

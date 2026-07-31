@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildAppendQuickAction,
+  buildApplyFragmentQuickAction,
   buildCreateQuickAction,
   buildInsertAfterMatchQuickAction,
   buildInsertBeforeMatchQuickAction,
@@ -58,6 +59,48 @@ test("buildInsertBeforeMatchQuickAction builds replace --insert-before (CLI 0.16
   assert.deepEqual(action.targetArgIndices, [4]);
   assert.deepEqual(action.args, [
     "replace", "return true;", "--insert-before", "// checked", "/workspace/demo/app.ts"
+  ]);
+});
+
+test("buildApplyFragmentQuickAction builds apply-fragment --after (CLI 0.22+)", () => {
+  const action = buildApplyFragmentQuickAction(
+    "/workspace/demo/lib.rs",
+    "after",
+    "fn foo() {",
+    "  let x = 1;"
+  );
+
+  assert.equal(action.title, "Apply fragment in lib.rs");
+  assert.deepEqual(action.targetArgIndices, [1]);
+  assert.deepEqual(action.args, [
+    "apply-fragment",
+    "/workspace/demo/lib.rs",
+    "--after",
+    "fn foo() {",
+    "--fragment",
+    "  let x = 1;"
+  ]);
+});
+
+test("buildApplyFragmentQuickAction supports --before and --old placements", () => {
+  const before = buildApplyFragmentQuickAction("/ws/a.ts", "before", "return true;", "// note");
+  assert.deepEqual(before.args, [
+    "apply-fragment", "/ws/a.ts", "--before", "return true;", "--fragment", "// note"
+  ]);
+
+  const replaceSpan = buildApplyFragmentQuickAction("/ws/a.ts", "old", "old_span", "new_span");
+  assert.deepEqual(replaceSpan.args, [
+    "apply-fragment", "/ws/a.ts", "--old", "old_span", "--fragment", "new_span"
+  ]);
+});
+
+test("retargetQuickAction preserves apply-fragment path index", () => {
+  const action = buildApplyFragmentQuickAction("/workspace/demo/a.ts", "after", "anchor", "frag");
+  const retargeted = retargetQuickAction(action, "/workspace/demo/b.ts");
+
+  assert.equal(retargeted.targetPath, "/workspace/demo/b.ts");
+  assert.deepEqual(retargeted.args, [
+    "apply-fragment", "/workspace/demo/b.ts", "--after", "anchor", "--fragment", "frag"
   ]);
 });
 
