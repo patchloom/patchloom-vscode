@@ -34,6 +34,7 @@ Or search for **Patchloom** in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+
    scoop bucket add patchloom https://github.com/patchloom/scoop-bucket
    scoop install patchloom                        # Windows (Scoop)
    choco install patchloom                        # Windows (Chocolatey; first listing may wait on moderation)
+   winget install Patchloom.Patchloom             # Windows (WinGet; when the community PR is approved)
    ```
 2. Open a project and run **Patchloom: Setup Workspace**
 
@@ -63,6 +64,8 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 - **Cursor** (`.cursor/mcp.json`)
 - **Windsurf** (`~/.codeium/windsurf/mcp_config.json`)
 
+CLI 0.24.0 exposes **58** MCP tools by default (including `list_files` and `apply_fragment`). For coding agents that need a smaller handshake inventory, set `PATCHLOOM_MCP_SURFACE=core` in the server environment (11 tools: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `server_info`). Absolute paths that resolve inside the MCP workspace root are allowed; `../` and outside paths still reject.
+
 ### Status bar
 
 The status bar shows MCP and binary readiness at a glance:
@@ -86,6 +89,7 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Replace text** | Literal text replacement with diff preview before applying |
 | **Insert text after match** | Line-oriented insert after each match (CLI 0.16+) |
 | **Insert text before match** | Line-oriented insert before each match (CLI 0.16+) |
+| **Apply fragment at anchor** | Morph-style freeform fragment at a unique anchor (`--after` / `--before` / `--old`, CLI 0.22+) |
 | **Tidy file** | Whitespace and newline cleanup with diff preview |
 | **Set structured value** | Update a JSON, YAML, or TOML key with diff preview |
 | **Search text** | Find pattern matches across workspace files (results in output channel) |
@@ -170,7 +174,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
 **CLI compatibility warning**
-Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.3.0 or newer; 0.19.0 is recommended.
+Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.3.0 or newer; 0.24.0 is recommended.
 
 **Path rejected by workspace guard**
 Quick Actions and Batch Apply pass `--contain` so paths stay inside the open workspace folder. On CLI 0.18+, sandbox escapes report `error_kind: guard_rejected` (not a generic `invalid_input`). Keep targets under the workspace root, or open the folder that owns the files.
@@ -180,6 +184,12 @@ Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). D
 
 **Create or rename destination already exists**
 On CLI 0.19+, create/rename conflicts report `error_kind: already_exists` (not a generic `invalid_input`). Use the force flag when overwriting is intentional, or pick a free destination path.
+
+**Binary or invalid UTF-8 target**
+On CLI 0.20+, sole-path loads of binary or invalid UTF-8 files report `error_kind: binary` or `invalid_encoding` (not a soft `no_matches`). Use a text file, or force-create when overwriting non-text is intentional.
+
+**Fuzzy match span refused**
+On CLI 0.22+, over-wide fuzzy matches can report `error_kind: fuzzy_span_suspicious`. Prefer an exact `old` string, structured `doc`/`md`/`ast` edits, or `apply-fragment` with a unique anchor.
 
 **MCP config not injected**
 Run `Patchloom: Configure MCP` and select the target editor config.
@@ -214,7 +224,7 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 ## Requirements
 
 - VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
-- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (0.19.0+ recommended for stable `error_kind` peels including `already_exists` / `not_found` / `guard_rejected`, clearer create/rename force hints, multi-doc `doc merge --selector`, line-oriented `insert_before`/`insert_after`, batch `replace PATH OLD NEW` parse hints, 56 MCP tools, JSON `applied` honesty, and agent-facing envelopes)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (0.24.0+ recommended for `list_files` MCP inventory, `apply-fragment`, `error_kind` peels including `binary` / `invalid_encoding` / `fuzzy_span_suspicious` / `already_exists` / `guard_rejected`, optional `PATCHLOOM_MCP_SURFACE=core` 11-tool pack, multi-doc `doc merge --selector`, line-oriented inserts, batch `replace PATH OLD NEW` hints, 58 MCP tools, JSON `applied` honesty, and agent-facing envelopes)
 
 ## Contributing
 

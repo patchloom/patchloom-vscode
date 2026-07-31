@@ -98,6 +98,32 @@ test("formatCliOutput surfaces already_exists kind (CLI 0.19+)", () => {
   );
 });
 
+test("formatCliOutput surfaces binary kind (CLI 0.20+)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "target is a binary file: assets/logo.png",
+    error_kind: "binary",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    "binary: target is a binary file: assets/logo.png"
+  );
+});
+
+test("formatCliOutput surfaces fuzzy_span_suspicious kind (CLI 0.22+)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "fuzzy match span is suspiciously wide for the old string",
+    error_kind: "fuzzy_span_suspicious",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    "fuzzy_span_suspicious: fuzzy match span is suspiciously wide for the old string"
+  );
+});
+
 test("classifyAgentsFile returns missing when AGENTS.md does not exist", () => {
   assert.equal(classifyAgentsFile(undefined, "# Rules\n"), "missing");
 });
