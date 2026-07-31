@@ -111,6 +111,19 @@ test("formatCliOutput surfaces binary kind (CLI 0.20+)", () => {
   );
 });
 
+test("formatCliOutput surfaces invalid_encoding kind (CLI 0.20+)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "target is not valid UTF-8 text: notes.txt",
+    error_kind: "invalid_encoding",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    "invalid_encoding: target is not valid UTF-8 text: notes.txt"
+  );
+});
+
 test("formatCliOutput surfaces fuzzy_span_suspicious kind (CLI 0.22+)", () => {
   const stdout = JSON.stringify({
     ok: false,
@@ -459,6 +472,7 @@ test("configureMcpTargets creates or updates only the selected target kinds", as
 test("buildAgentRulesArgs omits default all modes", () => {
   assert.deepEqual(buildAgentRulesArgs(), ["agent-rules"]);
   assert.deepEqual(buildAgentRulesArgs({ mode: "all", platform: "all" }), ["agent-rules"]);
+  assert.deepEqual(buildAgentRulesArgs({ surface: "full" }), ["agent-rules"]);
 });
 
 test("buildAgentRulesArgs includes non-default mode and platform", () => {
@@ -475,6 +489,18 @@ test("buildAgentRulesArgs includes non-default mode and platform", () => {
     "--platform",
     "linux"
   ]);
+});
+
+test("buildAgentRulesArgs includes --surface core (CLI 0.24+)", () => {
+  assert.deepEqual(buildAgentRulesArgs({ surface: "core" }), [
+    "agent-rules",
+    "--surface",
+    "core"
+  ]);
+  assert.deepEqual(
+    buildAgentRulesArgs({ mode: "mcp", platform: "linux", surface: "core" }),
+    ["agent-rules", "--mode", "mcp", "--platform", "linux", "--surface", "core"]
+  );
 });
 
 test("generateAgentRules logs error to output channel on CLI failure", async () => {

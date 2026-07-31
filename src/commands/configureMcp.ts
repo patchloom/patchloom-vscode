@@ -43,12 +43,32 @@ export async function configureMcp(): Promise<void> {
     return;
   }
 
+  const surfacePick = await vscode.window.showQuickPick(
+    [
+      {
+        label: "Full tool inventory",
+        description: "Default (58 tools on CLI 0.24+)",
+        surface: "full" as const
+      },
+      {
+        label: "Core pack",
+        description: "Sets PATCHLOOM_MCP_SURFACE=core (11 tools; CLI 0.22+)",
+        surface: "core" as const
+      }
+    ],
+    { placeHolder: "Which MCP tool surface should the server expose?" }
+  );
+  if (!surfacePick) {
+    return;
+  }
+
   const selectedKinds = selections.map((selection) => selection.target.kind);
   const results = await configureMcpTargets({
     workspaceFolderPath,
     includeKinds: selectedKinds,
     includeUserTarget: environment.supportsUserMcpConfig,
     patchloomPathSetting: binaryPath,
+    mcpSurface: surfacePick.surface,
     readFile: async (filePath) => {
       try {
         return await fs.readFile(filePath, "utf8");

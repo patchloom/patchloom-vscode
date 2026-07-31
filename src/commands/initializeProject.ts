@@ -53,11 +53,31 @@ export async function initializeProject(): Promise<void> {
     return;
   }
 
+  const surfacePick = await vscode.window.showQuickPick(
+    [
+      {
+        label: "Full document",
+        description: "Default agent-rules (full tool inventory)",
+        surface: "full" as const
+      },
+      {
+        label: "Core pack",
+        description: "Short rules for system-prompt injection (CLI 0.24+ --surface core)",
+        surface: "core" as const
+      }
+    ],
+    { placeHolder: "Which agent-rules surface?" }
+  );
+  if (!surfacePick) {
+    return;
+  }
+
   let rules: string;
   try {
     rules = await generateAgentRules(binaryPath, folder.uri.fsPath, {
       mode: modePick.mode,
-      platform: platformPick.platform
+      platform: platformPick.platform,
+      surface: surfacePick.surface
     });
   } catch (error) {
     await vscode.window.showErrorMessage(`Failed to run patchloom agent-rules in ${folder.name}: ${formatError(error)}`);
@@ -116,13 +136,16 @@ export function classifyAgentsFile(existingContent: string | undefined, generate
 
 export type AgentRulesMode = "all" | "cli" | "mcp";
 export type AgentRulesPlatform = "all" | "linux" | "windows";
+/** CLI 0.24+ agent-rules surface (full document vs short core pack). */
+export type AgentRulesSurface = "full" | "core";
 
 export interface AgentRulesOptions {
   readonly mode?: AgentRulesMode;
   readonly platform?: AgentRulesPlatform;
+  readonly surface?: AgentRulesSurface;
 }
 
-/** Build `patchloom agent-rules` argv, omitting default `all` flags. */
+/** Build `patchloom agent-rules` argv, omitting default `all` / `full` flags. */
 export function buildAgentRulesArgs(options: AgentRulesOptions = {}): string[] {
   const args = ["agent-rules"];
   if (options.mode && options.mode !== "all") {
@@ -130,6 +153,9 @@ export function buildAgentRulesArgs(options: AgentRulesOptions = {}): string[] {
   }
   if (options.platform && options.platform !== "all") {
     args.push("--platform", options.platform);
+  }
+  if (options.surface && options.surface !== "full") {
+    args.push("--surface", options.surface);
   }
   return args;
 }
