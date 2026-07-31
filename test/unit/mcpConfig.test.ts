@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import test from "node:test";
 import {
+  buildPatchloomMcpEntry,
   configureMcpTargets,
   inspectMcpTargets,
   resolveMcpTargets
@@ -22,6 +23,19 @@ async function readJson(filePath: string): Promise<Record<string, unknown>> {
   const content = await fs.readFile(filePath, "utf8");
   return JSON.parse(content) as Record<string, unknown>;
 }
+
+test("buildPatchloomMcpEntry omits env for full surface", () => {
+  const entry = buildPatchloomMcpEntry("/usr/bin/patchloom");
+  assert.equal(entry.command, "/usr/bin/patchloom");
+  assert.deepEqual(entry.args, ["mcp-server"]);
+  assert.equal(entry.env, undefined);
+});
+
+test("buildPatchloomMcpEntry sets PATCHLOOM_MCP_SURFACE for core pack", () => {
+  const entry = buildPatchloomMcpEntry("patchloom", "core");
+  assert.deepEqual(entry.args, ["mcp-server"]);
+  assert.deepEqual(entry.env, { PATCHLOOM_MCP_SURFACE: "core" });
+});
 
 test("configureMcpTargets writes VS Code mcp.json to a real temp workspace", async () => {
   await withTempDir(async (workspace) => {
@@ -46,6 +60,28 @@ test("configureMcpTargets writes VS Code mcp.json to a real temp workspace", asy
     const entry = servers.patchloom as Record<string, unknown>;
     assert.equal(entry.command, "/usr/local/bin/patchloom");
     assert.deepEqual(entry.args, ["mcp-server"]);
+    assert.equal(entry.env, undefined, "full surface should not inject env");
+  });
+});
+
+test("configureMcpTargets writes core surface env when requested", async () => {
+  await withTempDir(async (workspace) => {
+    await configureMcpTargets({
+      workspaceFolderPath: workspace,
+      homeDir: workspace,
+      includeKinds: ["vscode-workspace"],
+      patchloomPathSetting: "patchloom",
+      mcpSurface: "core",
+      writeFile: async (filePath, content) => {
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        await fs.writeFile(filePath, content, "utf8");
+      }
+    });
+
+    const written = await readJson(path.join(workspace, ".vscode", "mcp.json"));
+    const servers = written.servers as Record<string, unknown>;
+    const entry = servers.patchloom as Record<string, unknown>;
+    assert.deepEqual(entry.env, { PATCHLOOM_MCP_SURFACE: "core" });
   });
 });
 

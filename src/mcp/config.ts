@@ -25,10 +25,18 @@ export interface McpInspectionInputs {
   readonly includeUserTarget?: boolean;
 }
 
+export type McpSurface = "full" | "core";
+
 export interface McpApplyInputs extends McpInspectionInputs {
   readonly writeFile: (filePath: string, content: string) => Promise<void>;
   readonly patchloomPathSetting?: string;
   readonly includeKinds?: readonly McpTargetKind[];
+  /**
+   * MCP tool inventory for coding agents (CLI 0.22+ / 0.24+).
+   * `core` sets `PATCHLOOM_MCP_SURFACE=core` on the server entry (11 tools).
+   * Default `full` omits the env var so the CLI uses its full inventory.
+   */
+  readonly mcpSurface?: McpSurface;
 }
 
 export async function inspectMcpTargets(inputs: McpInspectionInputs): Promise<McpTargetStatus[]> {
@@ -56,11 +64,12 @@ export async function configureMcpTargets(inputs: McpApplyInputs): Promise<McpTa
   const targets = resolveMcpTargets(inputs.workspaceFolderPath, inputs.homeDir, inputs.includeUserTarget)
     .filter((target) => !includeKinds || includeKinds.has(target.kind));
   const results: McpTargetResult[] = [];
+  const mcpSurface = inputs.mcpSurface ?? "full";
 
   for (const target of targets) {
     const content = await readFile(target.filePath);
     const original = parseJsonObject(content);
-    const updated = withPatchloomEntry(target.kind, original, patchloomCommand);
+    const updated = withPatchloomEntry(target.kind, original, patchloomCommand, mcpSurface);
     const serialized = `${JSON.stringify(updated, null, 2)}\n`;
     const previousSerialized = content === undefined ? undefined : `${JSON.stringify(original, null, 2)}\n`;
     const changed = previousSerialized !== serialized;
@@ -113,15 +122,27 @@ export function resolveMcpTargets(
   return targets;
 }
 
-export function buildPatchloomMcpEntry(commandPath: string): Record<string, unknown> {
-  return {
+export function buildPatchloomMcpEntry(
+  commandPath: string,
+  mcpSurface: McpSurface = "full"
+): Record<string, unknown> {
+  const entry: Record<string, unknown> = {
     command: commandPath,
     args: ["mcp-server"]
   };
+  if (mcpSurface === "core") {
+    entry.env = { PATCHLOOM_MCP_SURFACE: "core" };
+  }
+  return entry;
 }
 
-function withPatchloomEntry(kind: McpTargetKind, config: Record<string, unknown>, commandPath: string): Record<string, unknown> {
-  const entry = buildPatchloomMcpEntry(commandPath);
+function withPatchloomEntry(
+  kind: McpTargetKind,
+  config: Record<string, unknown>,
+  commandPath: string,
+  mcpSurface: McpSurface = "full"
+): Record<string, unknown> {
+  const entry = buildPatchloomMcpEntry(commandPath, mcpSurface);
   if (kind === "windsurf-user") {
     const servers = objectValue(config.mcpServers);
     return {

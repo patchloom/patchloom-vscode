@@ -54,7 +54,7 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 
 ### Agent rules generation
 
-`Patchloom: Initialize Project` generates an `AGENTS.md` file from `patchloom agent-rules`. If one already exists, the extension opens a diff so you can merge updates manually.
+`Patchloom: Initialize Project` generates an `AGENTS.md` file from `patchloom agent-rules`. You pick integration mode (CLI/MCP/all), shell platform, and surface (`full` document or `core` pack for system-prompt injection, CLI 0.24+). If `AGENTS.md` already exists, the extension opens a diff so you can merge updates manually.
 
 ### MCP server configuration
 
@@ -64,7 +64,9 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 - **Cursor** (`.cursor/mcp.json`)
 - **Windsurf** (`~/.codeium/windsurf/mcp_config.json`)
 
-CLI 0.24.0 exposes **58** MCP tools by default (including `list_files` and `apply_fragment`). For coding agents that need a smaller handshake inventory, set `PATCHLOOM_MCP_SURFACE=core` in the server environment (11 tools: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `server_info`). Absolute paths that resolve inside the MCP workspace root are allowed; `../` and outside paths still reject.
+When configuring, pick **Full tool inventory** (default) or **Core pack**. Core sets `PATCHLOOM_MCP_SURFACE=core` on the server entry.
+
+CLI 0.24.0 exposes **58** MCP tools by default (including `list_files` and `apply_fragment`). The core pack is 11 tools: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `server_info`. Absolute paths that resolve inside the MCP workspace root are allowed; `../` and outside paths still reject.
 
 ### Status bar
 
@@ -133,8 +135,8 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | Command | Description |
 |---------|-------------|
 | `Patchloom: Setup Workspace` | Guided walkthrough for binary, AGENTS.md, and MCP readiness |
-| `Patchloom: Initialize Project` | Generate or diff `AGENTS.md` from `patchloom agent-rules` (mode: all/cli/mcp, platform: all/linux/windows) |
-| `Patchloom: Configure MCP` | Inject Patchloom MCP server config into editor config files |
+| `Patchloom: Initialize Project` | Generate or diff `AGENTS.md` from `patchloom agent-rules` (mode, platform, surface full/core) |
+| `Patchloom: Configure MCP` | Inject Patchloom MCP server config (full or core tool surface) into editor config files |
 | `Patchloom: Quick Action` | Build a Patchloom CLI command from an interactive picker |
 | `Patchloom: Batch Apply` | Open a batch plan and execute all operations atomically |
 | `Patchloom: Show Output` | Open the Patchloom output channel for CLI logs and diagnostics |
