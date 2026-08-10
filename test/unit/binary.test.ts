@@ -14,6 +14,7 @@ import {
   patchloomNeedsUpgrade,
   parsePatchloomVersion,
   ensurePatchloomReadyOrNotify,
+  preferredBinaryRemediationAction,
   resolvePatchloomStatusWithInputs
 } from "../../src/binary/patchloom.js";
 import {
@@ -138,10 +139,106 @@ test("ensurePatchloomReadyOrNotify returns path for ready supported status (test
   assert.equal(path, "/good/patchloom");
 });
 
-// Note: error paths (not-ready, upgrade) execute vscode.window.show* which is
-// not unit-testable in pure node (would require full VS Code test env or mocks).
-// They are exercised via command integration and manual. The core logic delegates
-// to resolve+needsUpgrade which are unit tested.
+test("preferredBinaryRemediationAction installs when CLI missing and managed available", () => {
+  const action = preferredBinaryRemediationAction({
+    ready: false,
+    source: "missing",
+    message: "Patchloom binary not found.",
+    managedInstall: {
+      exists: false,
+      binaryPath: "/managed/managed-bin/patchloom",
+      target: {
+        platform: "darwin",
+        arch: "arm64",
+        targetTriple: "aarch64-apple-darwin",
+        archiveFormat: ".tar.xz"
+      }
+    }
+  });
+  assert.deepEqual(action, {
+    title: "Install Patchloom",
+    command: "patchloom.installBinary"
+  });
+});
+
+test("preferredBinaryRemediationAction reinstalls when managed binary present but not ready", () => {
+  const action = preferredBinaryRemediationAction({
+    ready: false,
+    source: "managed",
+    message: "Managed Patchloom binary is not executable.",
+    managedInstall: {
+      exists: true,
+      binaryPath: "/managed/managed-bin/patchloom",
+      target: {
+        platform: "darwin",
+        arch: "arm64",
+        targetTriple: "aarch64-apple-darwin",
+        archiveFormat: ".tar.xz"
+      }
+    }
+  });
+  assert.deepEqual(action, {
+    title: "Reinstall Patchloom",
+    command: "patchloom.reinstallBinary"
+  });
+});
+
+test("preferredBinaryRemediationAction updates outdated managed install", () => {
+  const action = preferredBinaryRemediationAction({
+    ready: true,
+    source: "managed",
+    message: "Using managed Patchloom install.",
+    binaryPath: "/managed/managed-bin/patchloom",
+    version: "patchloom 0.0.9",
+    detectedVersion: "0.0.9",
+    compatibility: "unsupported",
+    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
+    compatibilityMessage: `Patchloom 0.0.9 is older than the minimum supported version ${MINIMUM_SUPPORTED_PATCHLOOM_VERSION}.`,
+    managedInstall: {
+      exists: true,
+      binaryPath: "/managed/managed-bin/patchloom",
+      target: {
+        platform: "darwin",
+        arch: "arm64",
+        targetTriple: "aarch64-apple-darwin",
+        archiveFormat: ".tar.xz"
+      }
+    }
+  });
+  assert.deepEqual(action, {
+    title: "Update Patchloom",
+    command: "patchloom.updateBinary"
+  });
+});
+
+test("preferredBinaryRemediationAction opens settings when no managed path exists", () => {
+  const action = preferredBinaryRemediationAction({
+    ready: false,
+    source: "missing",
+    message: "Patchloom binary not found."
+  });
+  assert.deepEqual(action, {
+    title: "Open Settings",
+    command: "patchloom.openPatchloomSettings"
+  });
+});
+
+test("preferredBinaryRemediationAction is undefined when ready and supported", () => {
+  const action = preferredBinaryRemediationAction({
+    ready: true,
+    source: "path",
+    message: "Using Patchloom from PATH.",
+    binaryPath: "/usr/local/bin/patchloom",
+    version: "patchloom 0.28.0",
+    detectedVersion: "0.28.0",
+    compatibility: "supported",
+    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION
+  });
+  assert.equal(action, undefined);
+});
+
+// Note: ensurePatchloomReadyOrNotify UI branches call vscode.window.show* which is
+// not unit-testable in pure node. Remediation selection is covered above.
 
 test("defaultWorkspaceFolderIndex prefers active folders and only auto-selects single roots", () => {
   assert.equal(defaultWorkspaceFolderIndex(3, 2), 2);

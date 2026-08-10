@@ -153,10 +153,65 @@ export function patchloomNeedsUpgrade(status: PatchloomStatus): boolean {
   return status.compatibility === "unsupported";
 }
 
+/** Primary palette action when the CLI is missing or too old. */
+export interface PatchloomRemediationAction {
+  readonly title: string;
+  readonly command: string;
+}
+
+/**
+ * Choose the best one-click remediation for a missing or outdated CLI.
+ * Prefers managed install/update (GitHub Releases) so users do not stick on
+ * lagging community packages (winget, Chocolatey). Pure: unit-testable without VS Code.
+ */
+export function preferredBinaryRemediationAction(
+  status: PatchloomStatus
+): PatchloomRemediationAction | undefined {
+  if (!status.ready || !status.binaryPath) {
+    if (status.managedInstall?.exists) {
+      return {
+        title: "Reinstall Patchloom",
+        command: "patchloom.reinstallBinary"
+      };
+    }
+    if (status.managedInstall) {
+      return {
+        title: "Install Patchloom",
+        command: "patchloom.installBinary"
+      };
+    }
+    return {
+      title: "Open Settings",
+      command: "patchloom.openPatchloomSettings"
+    };
+  }
+
+  if (patchloomNeedsUpgrade(status)) {
+    if (status.source === "managed" || status.managedInstall?.exists) {
+      return {
+        title: "Update Patchloom",
+        command: "patchloom.updateBinary"
+      };
+    }
+    if (status.managedInstall) {
+      return {
+        title: "Install Patchloom",
+        command: "patchloom.installBinary"
+      };
+    }
+    return {
+      title: "Open Releases",
+      command: "patchloom.openPatchloomReleases"
+    };
+  }
+
+  return undefined;
+}
+
 /**
  * Ensures Patchloom is ready (found + compatible). If not, shows a warning
- * and offers to open Settings or Releases. Returns the binaryPath if ready,
- * otherwise null (after showing UI).
+ * with the preferred remediation (managed install/update when available).
+ * Returns the binaryPath if ready, otherwise null (after showing UI).
  *
  * This removes duplicated ready-check + notify logic across commands.
  */
@@ -168,43 +223,24 @@ export async function ensurePatchloomReadyOrNotify(
     ? await resolvePatchloomStatusWithInputs(testInputs)
     : await resolvePatchloomStatus();
 
-  if (!status.ready || !status.binaryPath) {
-    const vscode = await import("vscode");
-    const choice = await vscode.window.showWarningMessage(
-      `${status.message}${contextSuffix ? `\n\n${contextSuffix}` : ""}`,
-      "Open Settings"
-    );
-    if (choice === "Open Settings") {
-      await vscode.commands.executeCommand("patchloom.openPatchloomSettings");
-    }
-    return null;
+  const remediation = preferredBinaryRemediationAction(status);
+  if (!remediation) {
+    return status.binaryPath ?? null;
   }
 
-  if (patchloomNeedsUpgrade(status)) {
-    const vscode = await import("vscode");
-    // Prefer managed install/update (GitHub Releases) over lagging community packages.
-    const canUpdateManaged = status.source === "managed" || status.managedInstall?.exists === true;
-    const canInstallManaged = status.managedInstall !== undefined;
-    const primaryAction = canUpdateManaged
-      ? "Update Patchloom"
-      : canInstallManaged
-        ? "Install Patchloom"
-        : "Open Releases";
-    const choice = await vscode.window.showWarningMessage(
-      `${status.compatibilityMessage}${contextSuffix ? `\n\n${contextSuffix}` : ""}`,
-      primaryAction
-    );
-    if (choice === "Update Patchloom") {
-      await vscode.commands.executeCommand("patchloom.updateBinary");
-    } else if (choice === "Install Patchloom") {
-      await vscode.commands.executeCommand("patchloom.installBinary");
-    } else if (choice === "Open Releases") {
-      await vscode.commands.executeCommand("patchloom.openPatchloomReleases");
-    }
-    return null;
+  const vscode = await import("vscode");
+  const baseMessage =
+    status.ready && patchloomNeedsUpgrade(status)
+      ? (status.compatibilityMessage ?? status.message)
+      : status.message;
+  const choice = await vscode.window.showWarningMessage(
+    `${baseMessage}${contextSuffix ? `\n\n${contextSuffix}` : ""}`,
+    remediation.title
+  );
+  if (choice === remediation.title) {
+    await vscode.commands.executeCommand(remediation.command);
   }
-
-  return status.binaryPath;
+  return null;
 }
 
 export function parsePatchloomVersion(versionText?: string): string | undefined {

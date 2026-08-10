@@ -253,7 +253,7 @@
     "check": "npm run test && npm run test:coverage && npm run package"
   },
   "overrides": {
-    "brace-expansion": "5.0.8",
+    "brace-expansion": "5.0.9",
     "mocha": {
       "diff": "^8.0.3",
       "serialize-javascript": "^7.0.5"
@@ -261,7 +261,7 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/vscode": "^1.90.0",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.0.0",
