@@ -2,6 +2,7 @@ import {
   describePatchloomCompatibility,
   describePatchloomSource,
   patchloomNeedsUpgrade,
+  preferredBinaryRemediationAction,
   PatchloomStatus
 } from "../binary/patchloom.js";
 import type { McpTargetStatus } from "../mcp/config.js";
@@ -43,38 +44,9 @@ export function buildStatusDetails(status: PatchloomStatus, workspaceReadiness?:
 }
 
 export function preferredStatusAction(status: PatchloomStatus, workspaceReadiness?: WorkspaceReadiness): SetupAction | undefined {
-  if (!status.ready) {
-    if (status.source === "missing" && status.managedInstall && !status.managedInstall.exists) {
-      return {
-        title: "Install Patchloom",
-        command: "patchloom.installBinary"
-      };
-    }
-    return {
-      title: "Open Settings",
-      command: "patchloom.openPatchloomSettings"
-    };
-  }
-
-  if (patchloomNeedsUpgrade(status)) {
-    // Prefer managed install/update so users stay on GitHub Releases (not lagging
-    // community packages such as winget/Chocolatey).
-    if (status.source === "managed" || status.managedInstall?.exists) {
-      return {
-        title: "Update Patchloom",
-        command: "patchloom.updateBinary"
-      };
-    }
-    if (status.managedInstall) {
-      return {
-        title: "Install Patchloom",
-        command: "patchloom.installBinary"
-      };
-    }
-    return {
-      title: "Open Releases",
-      command: "patchloom.openPatchloomReleases"
-    };
+  // Missing or outdated CLI: shared remediation (managed install preferred).
+  if (!status.ready || patchloomNeedsUpgrade(status)) {
+    return preferredBinaryRemediationAction(status);
   }
 
   if (workspaceReadiness?.hasWorkspace && workspaceReadiness.hasAgentsFile === false) {
