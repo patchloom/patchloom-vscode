@@ -162,7 +162,7 @@
           {
             "id": "installCli",
             "title": "Install the Patchloom CLI",
-            "description": "Install the Patchloom CLI via the managed installer, Homebrew, or cargo.\n\n[Install Patchloom](command:patchloom.installBinary)",
+            "description": "Install the Patchloom CLI via the managed installer (recommended), Scoop on Windows, Homebrew, or cargo. Avoid winget and Chocolatey; they lag releases.\n\n[Install Patchloom](command:patchloom.installBinary)",
             "media": {
               "markdown": "walkthrough/install.md"
             },

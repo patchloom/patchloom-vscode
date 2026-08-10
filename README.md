@@ -25,17 +25,16 @@ Or search for **Patchloom** in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+
 
 ## Get started in 30 seconds
 
-1. Install the [Patchloom CLI](https://github.com/patchloom/patchloom) (or run **Patchloom: Install Patchloom** from the command palette)
+1. Install the [Patchloom CLI](https://github.com/patchloom/patchloom) (or run **Patchloom: Install Patchloom** from the command palette; recommended: tracks GitHub Releases with checksum verification)
    ```sh
    brew install patchloom/tap/patchloom          # macOS / Linux (Homebrew)
    npm install -g patchloom                      # npm (Node.js)
    curl -LsSf https://github.com/patchloom/patchloom/releases/latest/download/patchloom-installer.sh | sh  # shell script
    cargo install patchloom                        # from source
    scoop bucket add patchloom https://github.com/patchloom/scoop-bucket
-   scoop install patchloom                        # Windows (Scoop)
-   choco install patchloom                        # Windows (Chocolatey; first listing may wait on moderation)
-   winget install Patchloom.Patchloom             # Windows (WinGet; when the community PR is approved)
+   scoop install patchloom                        # Windows (Scoop; preferred PATH channel)
    ```
+   On Windows, prefer the extension managed installer or Scoop. Avoid winget and Chocolatey for install or upgrade: both lag GitHub Releases and often leave you on an old CLI.
 2. Open a project and run **Patchloom: Setup Workspace**
 
 <p align="center">
@@ -66,7 +65,7 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 
 When configuring, pick **Full tool inventory** (default) or **Core pack**. Core sets `PATCHLOOM_MCP_SURFACE=core` on the server entry.
 
-CLI 0.24.0 exposes **58** MCP tools by default (including `list_files` and `apply_fragment`). The core pack is 11 tools: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `server_info`. Absolute paths that resolve inside the MCP workspace root are allowed; `../` and outside paths still reject.
+CLI **0.28.0** (and 0.24+) exposes **58** MCP tools by default (including `list_files` and `apply_fragment`). The core pack is 11 tools: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `server_info`. Absolute paths that resolve inside the MCP workspace root are allowed; empty paths, `../`, and outside paths still reject with stable `error_kind` peels.
 
 ### Status bar
 
@@ -118,7 +117,7 @@ Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay insid
 
 ### Batch operations
 
-`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, doc set, multi-doc `doc.merge`, file append, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
+`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, multi-match `doc.update`, multi-doc `doc.merge`, file append, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
 
 ### Output channel
 
@@ -175,11 +174,20 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 **Patchloom not found**
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
-**CLI compatibility warning**
-Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.3.0 or newer; 0.24.0 is recommended.
+**CLI compatibility warning / upgrade path**
+The extension requires Patchloom **0.3.0** or newer; **0.28.0** is recommended. Prefer channels that track GitHub Releases the same day:
+
+1. **Patchloom: Update Patchloom** (or **Install Patchloom**) for the extension managed install (checksum-verified download from GitHub Releases)
+2. **Scoop** on Windows: `scoop update patchloom` after `scoop install patchloom`
+3. Homebrew / npm / cargo / the official installer script on macOS and Linux
+
+Do **not** rely on winget or Chocolatey to stay current. Those community packages lag moderation and Microsoft publish, so upgrades often stay stuck on older CLI versions.
 
 **Path rejected by workspace guard**
 Quick Actions and Batch Apply pass `--contain` so paths stay inside the open workspace folder. On CLI 0.18+, sandbox escapes report `error_kind: guard_rejected` (not a generic `invalid_input`). Keep targets under the workspace root, or open the folder that owns the files.
+
+**Empty or blank path**
+On CLI 0.28+, empty, whitespace-only, or format-character-only paths fail early with `error_kind: invalid_input` and message `path must not be empty` (they no longer look like workspace-root failures). Prefer a real relative or workspace-absolute path.
 
 **Batch replace shape**
 Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). Do not paste CLI form `replace OLD --new NEW path` into a batch plan; CLI 0.18+ returns a clear parse error with the PATH OLD NEW hint.
@@ -187,11 +195,17 @@ Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). D
 **Create or rename destination already exists**
 On CLI 0.19+, create/rename conflicts report `error_kind: already_exists` (not a generic `invalid_input`). Use the force flag when overwriting is intentional, or pick a free destination path.
 
-**Binary or invalid UTF-8 target**
-On CLI 0.20+, sole-path loads of binary or invalid UTF-8 files report `error_kind: binary` or `invalid_encoding` (not a soft `no_matches`). Use a text file, or force-create when overwriting non-text is intentional.
+**Binary, invalid UTF-8, or non-regular file**
+On CLI 0.20+, sole-path loads of binary or invalid UTF-8 files report `error_kind: binary` or `invalid_encoding` (not a soft `no_matches`). On CLI 0.26+, FIFOs and other special nodes refuse with multi-path `refused[].reason: not_regular_file` (not a permission error). Use a regular text file, or force-create when overwriting non-text is intentional.
 
 **Fuzzy match span refused**
 On CLI 0.22+, over-wide fuzzy matches can report `error_kind: fuzzy_span_suspicious`. Prefer an exact `old` string, structured `doc`/`md`/`ast` edits, or `apply-fragment` with a unique anchor.
+
+**Doc selector needs multi-match op**
+On CLI 0.27+, `doc set` / `doc ensure` / `doc delete` with a predicate or wildcard selector stay `error_kind: invalid_input` and may include `suggested_op` (`doc.update` or `doc.delete_where`). The extension surfaces that hint in the Output channel and notifications. Use the multi-match op (or a concrete index path such as `items.0.val`).
+
+**Ambiguous markdown heading**
+On CLI 0.25+, section ops that match the same heading more than once report `error_kind: ambiguous`. Make the heading unique or use a level-qualified query (for example `## Rules`).
 
 **MCP config not injected**
 Run `Patchloom: Configure MCP` and select the target editor config.
@@ -226,7 +240,7 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 ## Requirements
 
 - VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
-- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (0.24.0+ recommended for `list_files` MCP inventory, `apply-fragment`, `error_kind` peels including `binary` / `invalid_encoding` / `fuzzy_span_suspicious` / `already_exists` / `guard_rejected`, optional `PATCHLOOM_MCP_SURFACE=core` 11-tool pack, multi-doc `doc merge --selector`, line-oriented inserts, batch `replace PATH OLD NEW` hints, 58 MCP tools, JSON `applied` honesty, and agent-facing envelopes)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (**0.28.0+ recommended** for empty-path fail-closed (`path must not be empty`), `suggested_op` on fail-closed doc navigation, `not_regular_file` soft peels, ambiguous markdown headings, `list_files` MCP inventory, `apply-fragment`, full `error_kind` peels (`binary` / `invalid_encoding` / `fuzzy_span_suspicious` / `already_exists` / `guard_rejected` / `ambiguous`), optional `PATCHLOOM_MCP_SURFACE=core` 11-tool pack, multi-doc `doc merge --selector`, line-oriented inserts, batch `replace PATH OLD NEW` hints, 58 MCP tools, and agent-facing JSON envelopes)
 
 ## Contributing
 

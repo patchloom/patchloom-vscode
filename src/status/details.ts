@@ -57,6 +57,20 @@ export function preferredStatusAction(status: PatchloomStatus, workspaceReadines
   }
 
   if (patchloomNeedsUpgrade(status)) {
+    // Prefer managed install/update so users stay on GitHub Releases (not lagging
+    // community packages such as winget/Chocolatey).
+    if (status.source === "managed" || status.managedInstall?.exists) {
+      return {
+        title: "Update Patchloom",
+        command: "patchloom.updateBinary"
+      };
+    }
+    if (status.managedInstall) {
+      return {
+        title: "Install Patchloom",
+        command: "patchloom.installBinary"
+      };
+    }
     return {
       title: "Open Releases",
       command: "patchloom.openPatchloomReleases"

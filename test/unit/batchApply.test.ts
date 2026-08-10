@@ -6,19 +6,20 @@ import {
   parseBatchOperationCount
 } from "../../src/commands/batchApply.js";
 
-test("buildBatchTemplate returns line-oriented format with eight operations", () => {
+test("buildBatchTemplate returns line-oriented format with nine operations", () => {
   const template = buildBatchTemplate();
   const lines = template.split("\n").filter((line) => line.trim().length > 0);
 
-  assert.equal(lines.length, 8);
+  assert.equal(lines.length, 9);
   assert.ok(lines[0].startsWith("replace "), "first line should be a replace operation");
   assert.ok(lines[1].startsWith("replace ") && lines[1].includes("--fuzzy"), "second line should be fuzzy replace");
   assert.ok(lines[2].startsWith("replace ") && lines[2].includes("--insert-after"), "third line should be insert-after");
   assert.ok(lines[3].startsWith("doc.set "), "fourth line should be a doc.set operation");
-  assert.ok(lines[4].startsWith("doc.merge "), "fifth line should be multi-doc doc.merge");
-  assert.ok(lines[5].startsWith("file.append "), "sixth line should be a file.append operation");
-  assert.ok(lines[6].startsWith("md.insert_after_section "), "seventh line should be md.insert_after_section");
-  assert.ok(lines[7].startsWith("tidy.fix "), "eighth line should be a tidy.fix operation");
+  assert.ok(lines[4].startsWith("doc.update "), "fifth line should be multi-match doc.update");
+  assert.ok(lines[5].startsWith("doc.merge "), "sixth line should be multi-doc doc.merge");
+  assert.ok(lines[6].startsWith("file.append "), "seventh line should be a file.append operation");
+  assert.ok(lines[7].startsWith("md.insert_after_section "), "eighth line should be md.insert_after_section");
+  assert.ok(lines[8].startsWith("tidy.fix "), "ninth line should be a tidy.fix operation");
 });
 
 test("buildBatchTemplate ends with a newline", () => {
@@ -117,6 +118,18 @@ test("buildBatchTemplate includes replace --insert-after example (CLI 0.16)", ()
     /replace \S+ ".+" --insert-after=/,
     "insert-after should use batch flag form path pattern --insert-after=payload"
   );
+});
+
+test("buildBatchTemplate includes doc.update multi-match example (CLI 0.27+ suggested_op sibling)", () => {
+  const lines = buildBatchTemplate().split("\n");
+  const updateLine = lines.find((l) => l.startsWith("doc.update "));
+  assert.ok(updateLine, "template should contain a doc.update line");
+  assert.match(
+    updateLine,
+    /doc\.update \S+ ".+" \S+/,
+    "doc.update should have path, selector, and value"
+  );
+  assert.match(updateLine, /\[\*\]|\[.+=.+\]/, "selector should use wildcard or predicate form");
 });
 
 test("buildBatchApplyArgs prefixes global --contain before batch --apply", () => {

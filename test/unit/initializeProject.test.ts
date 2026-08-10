@@ -137,6 +137,47 @@ test("formatCliOutput surfaces fuzzy_span_suspicious kind (CLI 0.22+)", () => {
   );
 });
 
+test("formatCliOutput surfaces empty path invalid_input (CLI 0.28+)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "path must not be empty",
+    error_kind: "invalid_input",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    "invalid_input: path must not be empty"
+  );
+});
+
+test("formatCliOutput appends suggested_op when present (CLI 0.27+)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error:
+      "selector uses wildcard/predicate, which is not valid for doc.set (single path only)",
+    error_kind: "invalid_input",
+    suggested_op: "doc.update",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    "invalid_input: selector uses wildcard/predicate, which is not valid for doc.set (single path only) (suggested_op: doc.update)"
+  );
+});
+
+test("formatCliOutput surfaces ambiguous kind (CLI 0.25+)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: 'ambiguous heading: "H" matches 2 times',
+    error_kind: "ambiguous",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    'ambiguous: ambiguous heading: "H" matches 2 times'
+  );
+});
+
 test("classifyAgentsFile returns missing when AGENTS.md does not exist", () => {
   assert.equal(classifyAgentsFile(undefined, "# Rules\n"), "missing");
 });
@@ -303,7 +344,65 @@ test("buildStatusDetails surfaces managed install failure diagnostics", () => {
   assert.match(details, /Managed install diagnostic: Checksum mismatch/);
 });
 
-test("preferredStatusAction points outdated CLI users to releases", () => {
+test("preferredStatusAction points outdated PATH CLI users to managed install", () => {
+  const action = preferredStatusAction({
+    ready: true,
+    source: "path",
+    message: "Using Patchloom from PATH.",
+    binaryPath: "/usr/local/bin/patchloom",
+    version: "patchloom 0.0.9",
+    detectedVersion: "0.0.9",
+    compatibility: "unsupported",
+    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
+    compatibilityMessage: `Patchloom 0.0.9 is older than the minimum supported version ${MINIMUM_SUPPORTED_PATCHLOOM_VERSION}.`,
+    managedInstall: {
+      exists: false,
+      binaryPath: "/managed/managed-bin/patchloom",
+      target: {
+        platform: "darwin",
+        arch: "arm64",
+        targetTriple: "aarch64-apple-darwin",
+        archiveFormat: ".tar.xz"
+      }
+    }
+  });
+
+  assert.deepEqual(action, {
+    title: "Install Patchloom",
+    command: "patchloom.installBinary"
+  });
+});
+
+test("preferredStatusAction points outdated managed CLI users to update", () => {
+  const action = preferredStatusAction({
+    ready: true,
+    source: "managed",
+    message: "Using managed Patchloom install.",
+    binaryPath: "/managed/managed-bin/patchloom",
+    version: "patchloom 0.0.9",
+    detectedVersion: "0.0.9",
+    compatibility: "unsupported",
+    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
+    compatibilityMessage: `Patchloom 0.0.9 is older than the minimum supported version ${MINIMUM_SUPPORTED_PATCHLOOM_VERSION}.`,
+    managedInstall: {
+      exists: true,
+      binaryPath: "/managed/managed-bin/patchloom",
+      target: {
+        platform: "darwin",
+        arch: "arm64",
+        targetTriple: "aarch64-apple-darwin",
+        archiveFormat: ".tar.xz"
+      }
+    }
+  });
+
+  assert.deepEqual(action, {
+    title: "Update Patchloom",
+    command: "patchloom.updateBinary"
+  });
+});
+
+test("preferredStatusAction falls back to releases when managed install unavailable", () => {
   const action = preferredStatusAction({
     ready: true,
     source: "path",
