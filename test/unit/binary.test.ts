@@ -211,6 +211,53 @@ test("preferredBinaryRemediationAction updates outdated managed install", () => 
   });
 });
 
+test("preferredBinaryRemediationAction opens releases for outdated PATH even when managed exists", () => {
+  // PATH wins resolution over managed; updating managed would not change the active binary.
+  const action = preferredBinaryRemediationAction({
+    ready: true,
+    source: "path",
+    message: "Using Patchloom from PATH.",
+    binaryPath: "/usr/local/bin/patchloom",
+    version: "patchloom 0.0.9",
+    detectedVersion: "0.0.9",
+    compatibility: "unsupported",
+    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
+    compatibilityMessage: `Patchloom 0.0.9 is older than the minimum supported version ${MINIMUM_SUPPORTED_PATCHLOOM_VERSION}.`,
+    managedInstall: {
+      exists: true,
+      binaryPath: "/managed/managed-bin/patchloom",
+      target: {
+        platform: "darwin",
+        arch: "arm64",
+        targetTriple: "aarch64-apple-darwin",
+        archiveFormat: ".tar.xz"
+      }
+    }
+  });
+  assert.deepEqual(action, {
+    title: "Open Releases",
+    command: "patchloom.openPatchloomReleases"
+  });
+});
+
+test("preferredBinaryRemediationAction opens settings for outdated patchloom.path", () => {
+  const action = preferredBinaryRemediationAction({
+    ready: true,
+    source: "setting",
+    message: "Using Patchloom from patchloom.path.",
+    binaryPath: "/custom/old/patchloom",
+    version: "patchloom 0.0.9",
+    detectedVersion: "0.0.9",
+    compatibility: "unsupported",
+    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
+    compatibilityMessage: `Patchloom 0.0.9 is older than the minimum supported version ${MINIMUM_SUPPORTED_PATCHLOOM_VERSION}.`
+  });
+  assert.deepEqual(action, {
+    title: "Open Settings",
+    command: "patchloom.openPatchloomSettings"
+  });
+});
+
 test("preferredBinaryRemediationAction opens settings when no managed path exists", () => {
   const action = preferredBinaryRemediationAction({
     ready: false,

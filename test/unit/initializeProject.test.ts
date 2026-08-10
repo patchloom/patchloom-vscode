@@ -344,7 +344,8 @@ test("buildStatusDetails surfaces managed install failure diagnostics", () => {
   assert.match(details, /Managed install diagnostic: Checksum mismatch/);
 });
 
-test("preferredStatusAction points outdated PATH CLI users to managed install", () => {
+test("preferredStatusAction points outdated PATH CLI users to releases", () => {
+  // PATH wins over managed install; Install managed would not replace the active binary.
   const action = preferredStatusAction({
     ready: true,
     source: "path",
@@ -368,8 +369,8 @@ test("preferredStatusAction points outdated PATH CLI users to managed install", 
   });
 
   assert.deepEqual(action, {
-    title: "Install Patchloom",
-    command: "patchloom.installBinary"
+    title: "Open Releases",
+    command: "patchloom.openPatchloomReleases"
   });
 });
 

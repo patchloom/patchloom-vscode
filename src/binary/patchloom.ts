@@ -187,16 +187,19 @@ export function preferredBinaryRemediationAction(
   }
 
   if (patchloomNeedsUpgrade(status)) {
-    if (status.source === "managed" || status.managedInstall?.exists) {
+    // Managed Update only refreshes the extension storage binary. PATH and
+    // patchloom.path still win resolution order, so Install/Update managed
+    // would not replace an active outdated PATH/setting binary.
+    if (status.source === "managed") {
       return {
         title: "Update Patchloom",
         command: "patchloom.updateBinary"
       };
     }
-    if (status.managedInstall) {
+    if (status.source === "setting") {
       return {
-        title: "Install Patchloom",
-        command: "patchloom.installBinary"
+        title: "Open Settings",
+        command: "patchloom.openPatchloomSettings"
       };
     }
     return {

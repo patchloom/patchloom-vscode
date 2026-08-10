@@ -175,11 +175,11 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
 **CLI compatibility warning / upgrade path**
-The extension requires Patchloom **0.3.0** or newer; **0.28.0** is recommended. Prefer channels that track GitHub Releases the same day:
+The extension requires Patchloom **0.3.0** or newer; **0.28.0** is recommended. Which fix to use depends on how the CLI was resolved (status shows Source):
 
-1. **Patchloom: Update Patchloom** (or **Install Patchloom**) for the extension managed install (checksum-verified download from GitHub Releases)
-2. **Scoop** on Windows: `scoop update patchloom` after `scoop install patchloom`
-3. Homebrew / npm / cargo / the official installer script on macOS and Linux
+1. **Source: managed install** → **Patchloom: Update Patchloom** (checksum-verified GitHub release into extension storage)
+2. **Source: PATH** → upgrade that install in place (**Scoop** `scoop update patchloom` on Windows; Homebrew / npm / cargo / the official installer elsewhere). Managed Install will not override a PATH binary.
+3. **Source: patchloom.path** → **Open Settings** and point at a current binary, or clear the setting so PATH/managed resolution can take over
 
 Do **not** rely on winget or Chocolatey to stay current. Those community packages lag moderation and Microsoft publish, so upgrades often stay stuck on older CLI versions.
 
