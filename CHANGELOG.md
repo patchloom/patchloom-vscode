@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.3.0...patchloom-v0.4.0) (2026-08-10)
+
+
+### Features
+
+* align extension with patchloom CLI 0.28.0 ([#226](https://github.com/patchloom/patchloom-vscode/issues/226)) ([8bad5bd](https://github.com/patchloom/patchloom-vscode/commit/8bad5bd338088b0a92d37c922906bc87538ff381))
+
+
+### Bug Fixes
+
+* do not offer managed update for outdated PATH/setting CLI ([e521f1e](https://github.com/patchloom/patchloom-vscode/commit/e521f1ee77ff3545b8267f2590fbd9b5e7266312))
+* remediation respects PATH vs managed resolution order ([#229](https://github.com/patchloom/patchloom-vscode/issues/229)) ([e521f1e](https://github.com/patchloom/patchloom-vscode/commit/e521f1ee77ff3545b8267f2590fbd9b5e7266312))
+* unify CLI remediation and clear npm audit findings ([#228](https://github.com/patchloom/patchloom-vscode/issues/228)) ([208b497](https://github.com/patchloom/patchloom-vscode/commit/208b497179e40a728de35eec92fc8b1498b85e69))
+
 ## [0.3.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.2.0...patchloom-v0.3.0) (2026-07-31)
 
 
