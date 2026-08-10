@@ -182,11 +182,23 @@ export async function ensurePatchloomReadyOrNotify(
 
   if (patchloomNeedsUpgrade(status)) {
     const vscode = await import("vscode");
+    // Prefer managed install/update (GitHub Releases) over lagging community packages.
+    const canUpdateManaged = status.source === "managed" || status.managedInstall?.exists === true;
+    const canInstallManaged = status.managedInstall !== undefined;
+    const primaryAction = canUpdateManaged
+      ? "Update Patchloom"
+      : canInstallManaged
+        ? "Install Patchloom"
+        : "Open Releases";
     const choice = await vscode.window.showWarningMessage(
       `${status.compatibilityMessage}${contextSuffix ? `\n\n${contextSuffix}` : ""}`,
-      "Open Releases"
+      primaryAction
     );
-    if (choice === "Open Releases") {
+    if (choice === "Update Patchloom") {
+      await vscode.commands.executeCommand("patchloom.updateBinary");
+    } else if (choice === "Install Patchloom") {
+      await vscode.commands.executeCommand("patchloom.installBinary");
+    } else if (choice === "Open Releases") {
       await vscode.commands.executeCommand("patchloom.openPatchloomReleases");
     }
     return null;

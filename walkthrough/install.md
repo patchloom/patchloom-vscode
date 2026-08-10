@@ -1,17 +1,34 @@
 # Install the Patchloom CLI
 
-Patchloom needs the CLI binary to work. Choose one of these methods:
+Patchloom needs the CLI binary to work. Prefer channels that track
+GitHub Releases promptly (same day as the tag).
 
-## Managed Install (Recommended)
+## Managed Install (Recommended on all platforms)
 
 Click **Install Patchloom** above to download and install the CLI
 automatically. The extension handles download, checksum verification,
-and installation.
+and installation from GitHub Releases.
 
-## Homebrew
+To upgrade later, run **Patchloom: Update Patchloom** (managed install
+only). That path always pulls the latest GitHub release.
+
+## Scoop (preferred Windows PATH install)
+
+```bash
+scoop bucket add patchloom https://github.com/patchloom/scoop-bucket
+scoop install patchloom
+scoop update patchloom
+```
+
+Scoop tracks the project release bucket. Use it when you want the CLI on
+`PATH` yourself. Avoid winget and Chocolatey for install or upgrade:
+both lag GitHub Releases and often leave you on an old version.
+
+## Homebrew (macOS / Linux)
 
 ```bash
 brew install patchloom/tap/patchloom
+brew upgrade patchloom
 ```
 
 ## npm
@@ -20,31 +37,6 @@ brew install patchloom/tap/patchloom
 npm install -g patchloom
 # or one-shot: npx patchloom --version
 ```
-
-## Scoop (Windows, preferred)
-
-```bash
-scoop bucket add patchloom https://github.com/patchloom/scoop-bucket
-scoop install patchloom
-```
-
-Scoop tracks GitHub Releases promptly. Prefer it when you manage Windows installs yourself.
-
-## WinGet (Windows)
-
-```bash
-winget install Patchloom.Patchloom
-```
-
-After a new release, you may need `winget source update` before the package appears. Microsoft publish can lag the GitHub tag by a short window.
-
-## Chocolatey (Windows)
-
-```bash
-choco install patchloom
-```
-
-Community moderation often lags Scoop and GitHub portable assets.
 
 ## Cargo
 

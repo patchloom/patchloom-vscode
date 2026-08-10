@@ -25,17 +25,16 @@ Or search for **Patchloom** in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+
 
 ## Get started in 30 seconds
 
-1. Install the [Patchloom CLI](https://github.com/patchloom/patchloom) (or run **Patchloom: Install Patchloom** from the command palette)
+1. Install the [Patchloom CLI](https://github.com/patchloom/patchloom) (or run **Patchloom: Install Patchloom** from the command palette; recommended: tracks GitHub Releases with checksum verification)
    ```sh
    brew install patchloom/tap/patchloom          # macOS / Linux (Homebrew)
    npm install -g patchloom                      # npm (Node.js)
    curl -LsSf https://github.com/patchloom/patchloom/releases/latest/download/patchloom-installer.sh | sh  # shell script
    cargo install patchloom                        # from source
    scoop bucket add patchloom https://github.com/patchloom/scoop-bucket
-   scoop install patchloom                        # Windows (Scoop; preferred Windows channel)
-   winget install Patchloom.Patchloom             # Windows (WinGet; run winget source update if the package is missing)
-   choco install patchloom                        # Windows (Chocolatey; often lags moderation)
+   scoop install patchloom                        # Windows (Scoop; preferred PATH channel)
    ```
+   On Windows, prefer the extension managed installer or Scoop. Avoid winget and Chocolatey for install or upgrade: both lag GitHub Releases and often leave you on an old CLI.
 2. Open a project and run **Patchloom: Setup Workspace**
 
 <p align="center">
@@ -175,8 +174,14 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 **Patchloom not found**
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
-**CLI compatibility warning**
-Run `Patchloom: Open Releases` to download the latest release. The extension requires 0.3.0 or newer; **0.28.0** is recommended.
+**CLI compatibility warning / upgrade path**
+The extension requires Patchloom **0.3.0** or newer; **0.28.0** is recommended. Prefer channels that track GitHub Releases the same day:
+
+1. **Patchloom: Update Patchloom** (or **Install Patchloom**) for the extension managed install (checksum-verified download from GitHub Releases)
+2. **Scoop** on Windows: `scoop update patchloom` after `scoop install patchloom`
+3. Homebrew / npm / cargo / the official installer script on macOS and Linux
+
+Do **not** rely on winget or Chocolatey to stay current. Those community packages lag moderation and Microsoft publish, so upgrades often stay stuck on older CLI versions.
 
 **Path rejected by workspace guard**
 Quick Actions and Batch Apply pass `--contain` so paths stay inside the open workspace folder. On CLI 0.18+, sandbox escapes report `error_kind: guard_rejected` (not a generic `invalid_input`). Keep targets under the workspace root, or open the folder that owns the files.

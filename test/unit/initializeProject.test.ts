@@ -344,7 +344,65 @@ test("buildStatusDetails surfaces managed install failure diagnostics", () => {
   assert.match(details, /Managed install diagnostic: Checksum mismatch/);
 });
 
-test("preferredStatusAction points outdated CLI users to releases", () => {
+test("preferredStatusAction points outdated PATH CLI users to managed install", () => {
+  const action = preferredStatusAction({
+    ready: true,
+    source: "path",
+    message: "Using Patchloom from PATH.",
+    binaryPath: "/usr/local/bin/patchloom",
+    version: "patchloom 0.0.9",
+    detectedVersion: "0.0.9",
+    compatibility: "unsupported",
+    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
+    compatibilityMessage: `Patchloom 0.0.9 is older than the minimum supported version ${MINIMUM_SUPPORTED_PATCHLOOM_VERSION}.`,
+    managedInstall: {
+      exists: false,
+      binaryPath: "/managed/managed-bin/patchloom",
+      target: {
+        platform: "darwin",
+        arch: "arm64",
+        targetTriple: "aarch64-apple-darwin",
+        archiveFormat: ".tar.xz"
+      }
+    }
+  });
+
+  assert.deepEqual(action, {
+    title: "Install Patchloom",
+    command: "patchloom.installBinary"
+  });
+});
+
+test("preferredStatusAction points outdated managed CLI users to update", () => {
+  const action = preferredStatusAction({
+    ready: true,
+    source: "managed",
+    message: "Using managed Patchloom install.",
+    binaryPath: "/managed/managed-bin/patchloom",
+    version: "patchloom 0.0.9",
+    detectedVersion: "0.0.9",
+    compatibility: "unsupported",
+    minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION,
+    compatibilityMessage: `Patchloom 0.0.9 is older than the minimum supported version ${MINIMUM_SUPPORTED_PATCHLOOM_VERSION}.`,
+    managedInstall: {
+      exists: true,
+      binaryPath: "/managed/managed-bin/patchloom",
+      target: {
+        platform: "darwin",
+        arch: "arm64",
+        targetTriple: "aarch64-apple-darwin",
+        archiveFormat: ".tar.xz"
+      }
+    }
+  });
+
+  assert.deepEqual(action, {
+    title: "Update Patchloom",
+    command: "patchloom.updateBinary"
+  });
+});
+
+test("preferredStatusAction falls back to releases when managed install unavailable", () => {
   const action = preferredStatusAction({
     ready: true,
     source: "path",
