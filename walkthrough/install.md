@@ -21,20 +21,14 @@ npm install -g patchloom
 # or one-shot: npx patchloom --version
 ```
 
-## Scoop (Windows)
+## Scoop (Windows, preferred)
 
 ```bash
 scoop bucket add patchloom https://github.com/patchloom/scoop-bucket
 scoop install patchloom
 ```
 
-## Chocolatey (Windows)
-
-```bash
-choco install patchloom
-```
-
-First listing on the community repository may wait on Chocolatey moderation.
+Scoop tracks GitHub Releases promptly. Prefer it when you manage Windows installs yourself.
 
 ## WinGet (Windows)
 
@@ -42,7 +36,15 @@ First listing on the community repository may wait on Chocolatey moderation.
 winget install Patchloom.Patchloom
 ```
 
-Available after the community package PR is approved.
+After a new release, you may need `winget source update` before the package appears. Microsoft publish can lag the GitHub tag by a short window.
+
+## Chocolatey (Windows)
+
+```bash
+choco install patchloom
+```
+
+Community moderation often lags Scoop and GitHub portable assets.
 
 ## Cargo
 
