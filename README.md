@@ -53,7 +53,7 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 
 ### Agent rules generation
 
-`Patchloom: Initialize Project` generates an `AGENTS.md` file from `patchloom agent-rules`. You pick integration mode (CLI/MCP/all), shell platform, and surface (`full` document or `core` pack for system-prompt injection, CLI 0.24+). If `AGENTS.md` already exists, the extension opens a diff so you can merge updates manually.
+`Patchloom: Initialize Project` generates an `AGENTS.md` file from `patchloom agent-rules`. You pick integration mode (CLI/MCP/all), shell platform, and surface (`full` document or `core` pack for system-prompt injection, CLI 0.24+). On CLI 0.29+, `--surface core` honors `--mode` the same way the full surface does. If `AGENTS.md` already exists, the extension opens a diff so you can merge updates manually.
 
 ### MCP server configuration
 
@@ -65,7 +65,7 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 
 When configuring, pick **Full tool inventory** (default) or **Core pack**. Core sets `PATCHLOOM_MCP_SURFACE=core` on the server entry.
 
-CLI **0.28.0** (and 0.24+) exposes **58** MCP tools by default (including `list_files` and `apply_fragment`). The core pack is 11 tools: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `server_info`. Absolute paths that resolve inside the MCP workspace root are allowed; empty paths, `../`, and outside paths still reject with stable `error_kind` peels.
+CLI **0.31.0** (and 0.24+) exposes **58** MCP tools by default (including `list_files` and `apply_fragment`). The core pack is 11 tools: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `server_info`. `search_files` accepts `files_without_match` (CLI 0.29+). `apply_patch` accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE (CLI 0.30+). Absolute paths that resolve inside the MCP workspace root are allowed; empty paths, `../`, and outside paths still reject with stable `error_kind` peels.
 
 ### Status bar
 
@@ -94,6 +94,7 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Tidy file** | Whitespace and newline cleanup with diff preview |
 | **Set structured value** | Update a JSON, YAML, or TOML key with diff preview |
 | **Search text** | Find pattern matches across workspace files (results in output channel) |
+| **Search files without match** | List files that do not contain the pattern (`search -L`, CLI 0.29+) |
 | **Create file** | Scaffold a new file with optional content and open it in the editor |
 | **Append to file** | Append content to an existing file |
 | **Prepend to file** | Prepend content to the start of an existing file (CLI 0.9+) |
@@ -175,7 +176,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
 **CLI compatibility warning / upgrade path**
-The extension requires Patchloom **0.3.0** or newer; **0.28.0** is recommended. Which fix to use depends on how the CLI was resolved (status shows Source):
+The extension requires Patchloom **0.3.0** or newer; **0.31.0** is recommended. Which fix to use depends on how the CLI was resolved (status shows Source):
 
 1. **Source: managed install** → **Patchloom: Update Patchloom** (checksum-verified GitHub release into extension storage)
 2. **Source: PATH** → upgrade that install in place (**Scoop** `scoop update patchloom` on Windows; Homebrew / npm / cargo / the official installer elsewhere). Managed Install will not override a PATH binary.
@@ -188,6 +189,21 @@ Quick Actions and Batch Apply pass `--contain` so paths stay inside the open wor
 
 **Empty or blank path**
 On CLI 0.28+, empty, whitespace-only, or format-character-only paths fail early with `error_kind: invalid_input` and message `path must not be empty` (they no longer look like workspace-root failures). Prefer a real relative or workspace-absolute path.
+
+**Create or rename parent is not a directory**
+On CLI 0.31+, create and rename check each parent of the destination before staging. A parent that is a regular file (or a dangling / file symlink) reports `error_kind: invalid_input` and `parent path is not a directory`. Create the missing directory first, or pick a destination whose parents are directories.
+
+**Numeric or negated doc selector**
+On CLI 0.30+, selectors accept `!=`, `>`, `>=`, `<`, `<=`, and `[!key]` (for example `servers[port>8000]`). A non-numeric compare reports `error_kind: invalid_input`. Use a number on the right-hand side, or a concrete index path.
+
+**Search files without match**
+On CLI 0.29+, `search -L` / `--files-without-match` lists files that do not contain the pattern. Combining it with `--files-with-matches` or `--count` is `invalid_input`. When every scanned file contains the pattern, the CLI reports `error_kind: no_matches` and the text `no files without matches for 'PATTERN' in SCOPE` (that is not a content miss).
+
+**YAML mapping alias stayed an alias**
+On CLI 0.31+, `doc set` on a mapping that is only `service_a: *shared` writes a merge key plus local fields (`<<: *shared` and your new keys) instead of inlining the whole object. Sequence items (`- *shared`) still expand or stay not-applied.
+
+**Patch apply formats**
+On CLI 0.30+, `patch apply` (and MCP `apply_patch`) accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE. Update and SEARCH matches must be unique unless you pass `--replace-all` (SEARCH/REPLACE only). The Quick Action **Merge patch (three-way)** is still `patch merge` for stale unified diffs.
 
 **Batch replace shape**
 Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). Do not paste CLI form `replace OLD --new NEW path` into a batch plan; CLI 0.18+ returns a clear parse error with the PATH OLD NEW hint.
@@ -240,7 +256,7 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 ## Requirements
 
 - VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
-- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (**0.28.0+ recommended** for empty-path fail-closed (`path must not be empty`), `suggested_op` on fail-closed doc navigation, `not_regular_file` soft peels, ambiguous markdown headings, `list_files` MCP inventory, `apply-fragment`, full `error_kind` peels (`binary` / `invalid_encoding` / `fuzzy_span_suspicious` / `already_exists` / `guard_rejected` / `ambiguous`), optional `PATCHLOOM_MCP_SURFACE=core` 11-tool pack, multi-doc `doc merge --selector`, line-oriented inserts, batch `replace PATH OLD NEW` hints, 58 MCP tools, and agent-facing JSON envelopes)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (**0.31.0+ recommended** for YAML alias-to-merge on `doc set`, create/rename `parent path is not a directory`, numeric selector compares (`servers[port>8000]`), `search -L` / `files_without_match`, Codex Begin Patch and Aider SEARCH/REPLACE on `patch apply`, `agent-rules --surface core` honoring `--mode`, empty-path fail-closed (`path must not be empty`), `suggested_op` on fail-closed doc navigation, `not_regular_file` soft peels, ambiguous markdown headings, `list_files` MCP inventory, `apply-fragment`, full `error_kind` peels (`binary` / `invalid_encoding` / `fuzzy_span_suspicious` / `already_exists` / `guard_rejected` / `ambiguous`), optional `PATCHLOOM_MCP_SURFACE=core` 11-tool pack, multi-doc `doc merge --selector`, line-oriented inserts, batch `replace PATH OLD NEW` hints, 58 MCP tools, and agent-facing JSON envelopes)
 
 ## Contributing
 

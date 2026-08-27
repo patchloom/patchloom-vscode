@@ -150,6 +150,32 @@ test("formatCliOutput surfaces empty path invalid_input (CLI 0.28+)", () => {
   );
 });
 
+test("formatCliOutput surfaces parent path invalid_input (CLI 0.31+)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "parent path is not a directory: /tmp/notdir",
+    error_kind: "invalid_input",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    "invalid_input: parent path is not a directory: /tmp/notdir"
+  );
+});
+
+test("formatCliOutput surfaces numeric selector invalid_input (CLI 0.30+)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "selector error: comparison operand must be numeric (got 'abc' after >)",
+    error_kind: "invalid_input",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    "invalid_input: selector error: comparison operand must be numeric (got 'abc' after >)"
+  );
+});
+
 test("formatCliOutput appends suggested_op when present (CLI 0.27+)", () => {
   const stdout = JSON.stringify({
     ok: false,

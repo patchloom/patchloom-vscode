@@ -266,6 +266,28 @@ test("buildSearchQuickAction includes glob when provided", () => {
   assert.deepEqual(action.targetArgIndices, [4]);
 });
 
+test("buildSearchQuickAction includes --files-without-match (CLI 0.29+)", () => {
+  const action = buildSearchQuickAction("/workspace/demo", "TODO", undefined, {
+    filesWithoutMatch: true
+  });
+
+  assert.equal(action.title, 'Search files without "TODO"');
+  assert.deepEqual(action.args, ["search", "TODO", "--files-without-match", "/workspace/demo"]);
+  assert.deepEqual(action.targetArgIndices, [3]);
+});
+
+test("buildSearchQuickAction combines --files-without-match with glob", () => {
+  const action = buildSearchQuickAction("/workspace/demo", "TODO", "*.ts", {
+    filesWithoutMatch: true
+  });
+
+  assert.equal(action.title, 'Search files without "TODO"');
+  assert.deepEqual(action.args, [
+    "search", "TODO", "--files-without-match", "--glob", "*.ts", "/workspace/demo"
+  ]);
+  assert.deepEqual(action.targetArgIndices, [5]);
+});
+
 test("buildCreateQuickAction builds a create command with content and apply", () => {
   const action = buildCreateQuickAction("/workspace/demo/src/newfile.ts", "hello");
 

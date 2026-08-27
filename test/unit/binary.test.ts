@@ -276,8 +276,8 @@ test("preferredBinaryRemediationAction is undefined when ready and supported", (
     source: "path",
     message: "Using Patchloom from PATH.",
     binaryPath: "/usr/local/bin/patchloom",
-    version: "patchloom 0.28.0",
-    detectedVersion: "0.28.0",
+    version: "patchloom 0.31.0",
+    detectedVersion: "0.31.0",
     compatibility: "supported",
     minimumSupportedVersion: MINIMUM_SUPPORTED_PATCHLOOM_VERSION
   });
