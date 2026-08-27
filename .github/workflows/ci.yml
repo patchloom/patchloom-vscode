@@ -157,7 +157,7 @@ jobs:
         uses: ./.github/actions/setup-node
 
       - name: Compile extension and tests
-        run: npm run compile && npm run compile-tests
+        run: npm run compile && npm run compile-tests && npm run compile-uitests
 
       - name: Run extension integration tests (Linux)
         if: runner.os == 'Linux'

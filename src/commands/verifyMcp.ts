@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
-import { getPatchloomLog } from "../logging/outputChannel.js";
+import { getPatchloomLog, getPatchloomRuntimeConfig, logCliCommand } from "../logging/outputChannel.js";
+import { mergePatchloomEnv } from "../util.js";
 
 export interface VerifyMcpInputs {
   readonly binaryPath: string;
@@ -55,12 +56,17 @@ export async function verifyMcpServer(inputs: VerifyMcpInputs): Promise<VerifyMc
   }
 }
 
-function spawnMcpServer(binaryPath: string): Promise<VerifyMcpResult> {
+async function spawnMcpServer(binaryPath: string): Promise<VerifyMcpResult> {
+  const runtime = await getPatchloomRuntimeConfig();
+  const env = mergePatchloomEnv(process.env, runtime.extraEnv);
+  logCliCommand(getPatchloomLog(), runtime.trace, binaryPath, ["mcp-server"], process.cwd());
+
   return new Promise((resolve) => {
     const child = spawn(binaryPath, ["mcp-server"], {
       stdio: ["pipe", "pipe", "pipe"],
       timeout: 10_000,
-      windowsHide: true
+      windowsHide: true,
+      env
     });
 
     let stdout = "";
@@ -79,7 +85,7 @@ function spawnMcpServer(binaryPath: string): Promise<VerifyMcpResult> {
     const timer = setTimeout(() => {
       finish({
         ok: false,
-        message: "MCP server did not respond within 10 seconds."
+        message: "MCP server did not respond within 10 seconds. Open Patchloom: Show Output, then run patchloom mcp-server --help in a terminal."
       });
     }, 10_000);
 

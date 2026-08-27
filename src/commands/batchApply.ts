@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import type * as VSCode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
-import { formatCliOutput } from "../util.js";
-import { getPatchloomLog } from "../logging/outputChannel.js";
+import { formatCliOutput, mergePatchloomEnv } from "../util.js";
+import { getPatchloomLog, getPatchloomRuntimeConfig, logCliCommand, logCliResult } from "../logging/outputChannel.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
 // Batch replace is PATH OLD NEW (not CLI `replace OLD --new NEW path`). See CLI 0.18+ batch --help.
@@ -65,11 +65,13 @@ export async function batchApply(): Promise<void> {
 
   const plan = doc.getText();
   const log = getPatchloomLog();
+  const runtime = await getPatchloomRuntimeConfig();
+  const env = mergePatchloomEnv(process.env, runtime.extraEnv);
   const args = buildBatchApplyArgs();
-  log?.logCommand(binaryPath, args, folder.uri.fsPath);
+  logCliCommand(log, runtime.trace, binaryPath, args, folder.uri.fsPath);
 
-  const result = await executePatchloomWithStdin(binaryPath, args, folder.uri.fsPath, plan);
-  log?.logResult(result.exitCode, result.stdout, result.stderr);
+  const result = await executePatchloomWithStdin(binaryPath, args, folder.uri.fsPath, plan, env);
+  logCliResult(log, runtime.trace, result.exitCode, result.stdout, result.stderr);
 
   if (result.exitCode !== 0) {
     log?.show();
@@ -96,11 +98,13 @@ function executePatchloomWithStdin(
   binaryPath: string,
   args: readonly string[],
   cwd: string,
-  stdin: string
+  stdin: string,
+  env: NodeJS.ProcessEnv
 ): Promise<BatchCommandResult> {
   return new Promise((resolve) => {
     const child = execFile(binaryPath, [...args], {
       cwd,
+      env,
       timeout: 30_000,
       maxBuffer: 8 * 1024 * 1024,
       windowsHide: true

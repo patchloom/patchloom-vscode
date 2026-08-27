@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createPatchloomLog, getPatchloomLog, setPatchloomLog } from "../../src/logging/outputChannel.js";
+import {
+  createPatchloomLog,
+  getPatchloomLog,
+  logCliCommand,
+  logCliResult,
+  setPatchloomLog
+} from "../../src/logging/outputChannel.js";
 
 test("createPatchloomLog lazily creates channel on first log call", () => {
   let channelCreated = false;
@@ -168,4 +174,68 @@ test("logResult handles multiline stderr", () => {
   assert.ok(lines.some(l => l === "stderr: error line 1"));
   assert.ok(lines.some(l => l === "stderr: error line 2"));
   assert.ok(lines.some(l => l.includes("Exit code: 1")));
+});
+
+test("logCliResult skips when trace is off", () => {
+  let called = false;
+  const log = createPatchloomLog(() => ({
+    appendLine() { called = true; },
+    show() {},
+    dispose() {}
+  }));
+
+  logCliResult(log, "off", 1, "stdout-body", "stderr-body");
+  assert.equal(called, false);
+});
+
+test("logCliCommand skips when trace is off", () => {
+  let called = false;
+  const log = createPatchloomLog(() => ({
+    appendLine() { called = true; },
+    show() {},
+    dispose() {}
+  }));
+
+  logCliCommand(log, "off", "/bin/patchloom", ["agent-rules"], "/tmp");
+  assert.equal(called, false);
+});
+
+test("logCliCommand writes when trace is messages", () => {
+  const lines: string[] = [];
+  const log = createPatchloomLog(() => ({
+    appendLine(value: string) { lines.push(value); },
+    show() {},
+    dispose() {}
+  }));
+
+  logCliCommand(log, "messages", "/bin/patchloom", ["agent-rules"], "/tmp");
+  assert.ok(lines.some(l => l.includes("agent-rules")));
+});
+
+test("logCliResult omits streams when trace is messages", () => {
+  const lines: string[] = [];
+  const log = createPatchloomLog(() => ({
+    appendLine(value: string) { lines.push(value); },
+    show() {},
+    dispose() {}
+  }));
+
+  logCliResult(log, "messages", 1, "stdout-body", "stderr-body");
+  assert.equal(lines.length, 1);
+  assert.ok(lines[0].includes("Exit code: 1"));
+  assert.ok(!lines.some(l => l.includes("stdout-body") || l.includes("stderr-body")));
+});
+
+test("logCliResult dumps streams when trace is verbose", () => {
+  const lines: string[] = [];
+  const log = createPatchloomLog(() => ({
+    appendLine(value: string) { lines.push(value); },
+    show() {},
+    dispose() {}
+  }));
+
+  logCliResult(log, "verbose", 0, "stdout-body", "stderr-body");
+  assert.ok(lines.some(l => l === "stdout-body"));
+  assert.ok(lines.some(l => l === "stderr: stderr-body"));
+  assert.ok(lines.some(l => l.includes("Exit code: 0")));
 });

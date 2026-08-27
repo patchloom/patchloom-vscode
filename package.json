@@ -227,7 +227,8 @@
         "patchloom.env": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Additional environment variables passed to the Patchloom CLI. For example, `{\"PATCHLOOM_LOG\": \"debug\"}` enables debug logging in the CLI."
+          "restricted": true,
+          "markdownDescription": "Additional `PATCHLOOM_*` environment variables passed to the CLI (for example `{\"PATCHLOOM_LOG\": \"debug\"}`). Workspace values apply only in a trusted folder. Loader keys such as PATH and LD_PRELOAD are ignored."
         },
         "patchloom.managedInstall.autoUpdate": {
           "type": "boolean",
@@ -246,7 +247,7 @@
     "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-exclude='out-test/src/extension*' --test-coverage-exclude='out-test/src/commands/showStatus*' --test-coverage-exclude='out-test/src/commands/configureMcp*' --test-coverage-exclude='out-test/src/commands/setupWorkspace*' --test-coverage-exclude='out-test/src/commands/batchApply*' --test-coverage-exclude='out-test/src/commands/quickActions*' --test-coverage-exclude='out-test/src/status/statusBar*' --test-coverage-exclude='out-test/test/unit/patchloomCli*' ./out-test/test/unit/*.test.js",
     "test:extension": "node ./out-test/test/suite/runExtensionTests.js",
     "test:ui": "npm run compile && npm run compile-uitests && extest setup-and-run './out-uitest/test/ui/*.test.js' --code_version max --extensions_dir .vscode-test/extensions",
-    "test": "npm run compile && npm run compile-tests && npm run test:unit",
+    "test": "npm run compile && npm run compile-tests && npm run compile-uitests && npm run test:unit",
     "test:all": "npm run compile && npm run compile-tests && npm run test:unit && npm run test:extension",
     "vscode:prepublish": "npm run compile",
     "package": "vsce package",
@@ -261,8 +262,8 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^26.2.0",
-    "@types/vscode": "^1.90.0",
+    "@types/node": "^26.4.0",
+    "@types/vscode": "~1.90.0",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.0.0",
     "fast-check": "^4.9.0",

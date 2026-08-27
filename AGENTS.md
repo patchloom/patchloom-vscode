@@ -15,7 +15,7 @@ Patchloom for VS Code is the official VS Code extension for [Patchloom](https://
 | `npm run test:extension` | Run VS Code extension integration tests |
 | `npm run test:ui` | Run ExTester UI tests (downloads VS Code if needed) |
 | `npm run test:all` | Compile + unit tests + extension integration tests |
-| `npm run test` | Compile + compile-tests + unit tests |
+| `npm run test` | Compile + compile-tests + compile-uitests + unit tests |
 | `npm run test:coverage` | Unit tests with line coverage (80% threshold) |
 | `npm run package` | Package the `.vsix` using `@vscode/vsce` |
 | `npm run check` | Full CI gate: test + coverage + package |
@@ -51,13 +51,13 @@ test/
     batchApply.test.ts   Batch template and operation count parsing (16 tests)
     binary.test.ts       Binary discovery, managed install, compatibility, workspace env (66 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
-    initializeProject.test.ts  Status display, agents file classification, formatError (41 tests)
+    initializeProject.test.ts  Status display, agents file classification, formatError (61 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (22 tests)
     mcpConfig.test.ts    MCP config with real temp directories (12 tests)
-    outputChannel.test.ts Output channel logging wrapper (10 tests)
-    patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (40 tests incl. e2e)
+    outputChannel.test.ts Output channel logging wrapper (15 tests)
+    patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (46 tests incl. e2e)
     propertyBased.test.ts  Property-based tests with fast-check (13 tests)
-    quickActions.test.ts Quick action command building, path containment, patch merge (62 tests)
+    quickActions.test.ts Quick action command building, path containment, patch merge (64 tests)
     verifyMcp.test.ts    MCP server verify and JSON-RPC response parsing (15 tests)
     downloadIntegration.test.ts  HTTP download, redirect, streaming SHA-256 (9 tests)
   suite/

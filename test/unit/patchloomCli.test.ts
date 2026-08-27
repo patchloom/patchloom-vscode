@@ -22,10 +22,13 @@ import {
   assessPatchloomCompatibility,
   resolvePatchloomStatusWithInputs
 } from "../../src/binary/patchloom.js";
-import { classifyAgentsFile } from "../../src/commands/initializeProject.js";
+import { classifyAgentsFile, generateAgentRules } from "../../src/commands/initializeProject.js";
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import {
+  buildCreateQuickAction,
+  buildDocGetQuickAction,
   buildDocMergeQuickAction,
+  buildDocSetQuickAction,
   buildApplyFragmentQuickAction,
   buildInsertAfterMatchQuickAction,
   buildReplaceQuickAction,
@@ -35,6 +38,7 @@ import {
 } from "../../src/commands/quickActions.js";
 import { configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
 import { performManagedInstall } from "../../src/install/managed.js";
+import { formatCliOutput } from "../../src/util.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -605,6 +609,73 @@ describe("patchloom CLI integration", async () => {
     });
   });
 
+  test("search --files-without-match all-hits is no_matches via Quick Action args (CLI 0.29+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.29.0") < 0) {
+      t.skip(`requires patchloom >= 0.29.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      await fs.writeFile(path.join(dir, "a.txt"), "TODO\n", "utf8");
+      await fs.writeFile(path.join(dir, "b.txt"), "TODO\n", "utf8");
+
+      const action = buildSearchQuickAction(dir, "TODO", undefined, { filesWithoutMatch: true });
+      try {
+        await execFileAsync(binaryPath, ["--json", ...action.args], { timeout: 5000 });
+        assert.fail("all-hit --files-without-match should fail");
+      } catch (error) {
+        const failed = error as { code?: number; stdout?: string; stderr?: string };
+        assert.equal(failed.code, 3, "no-match exit code should be 3");
+        const payload = `${failed.stdout ?? ""}${failed.stderr ?? ""}`;
+        assert.match(payload, /no_matches/);
+        assert.match(payload, /no files without matches/);
+      }
+    });
+  });
+
+  test("doc get numeric-compare selector via Quick Action args (CLI 0.30+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.30.0") < 0) {
+      t.skip(`requires patchloom >= 0.30.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "servers.json");
+      await fs.writeFile(
+        file,
+        JSON.stringify({ servers: [{ name: "a", port: 9000 }, { name: "b", port: 80 }] }),
+        "utf8"
+      );
+
+      const getAction = buildDocGetQuickAction(file, "servers[port>8000]");
+      const result = await execFileAsync(binaryPath, ["--json", ...getAction.args], { timeout: 5000 });
+      const parsed = JSON.parse(result.stdout) as { value?: { port?: number } };
+      assert.equal(parsed.value?.port, 9000, "numeric compare should return the 9000 entry");
+
+      const badAction = buildDocGetQuickAction(file, "servers[port>abc]");
+      try {
+        await execFileAsync(binaryPath, ["--json", ...badAction.args], { timeout: 5000 });
+        assert.fail("non-numeric comparison operand should fail");
+      } catch (error) {
+        const failed = error as { code?: number; stdout?: string; stderr?: string };
+        const payload = `${failed.stdout ?? ""}${failed.stderr ?? ""}`;
+        assert.match(payload, /invalid_input/);
+        assert.match(payload, /must be numeric/);
+        const formatted = formatCliOutput({
+          exitCode: typeof failed.code === "number" ? failed.code : 1,
+          stdout: failed.stdout ?? "",
+          stderr: failed.stderr ?? ""
+        });
+        assert.match(formatted, /invalid_input/);
+        assert.match(formatted, /must be numeric/);
+      }
+    });
+  });
+
   test("create through a file parent is invalid_input (CLI 0.31+)", async (t) => {
     const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
     const version = parsePatchloomVersion(`${stdout}${stderr}`);
@@ -617,9 +688,10 @@ describe("patchloom CLI integration", async () => {
       const parent = path.join(dir, "notdir");
       await fs.writeFile(parent, "file\n", "utf8");
       const dest = path.join(parent, "child.txt");
+      const action = buildCreateQuickAction(dest, "x");
 
       try {
-        await execFileAsync(binaryPath, ["--json", "create", dest, "--content", "x", "--apply"], {
+        await execFileAsync(binaryPath, ["--json", ...action.args], {
           timeout: 5000
         });
         assert.fail("create through a file parent should fail");
@@ -629,6 +701,49 @@ describe("patchloom CLI integration", async () => {
         assert.match(payload, /parent path is not a directory/);
         assert.match(payload, /invalid_input/);
       }
+    });
+  });
+
+  test("doc set YAML alias via Quick Action args (CLI 0.31+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.31.0") < 0) {
+      t.skip(`requires patchloom >= 0.31.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "svc.yaml");
+      await fs.writeFile(file, [
+        "shared: &shared",
+        "  timeout: 30",
+        "service_a: *shared",
+        ""
+      ].join("\n"), "utf8");
+
+      const action = buildDocSetQuickAction(file, "service_a.retries", "3");
+      await execFileAsync(binaryPath, withApplyFlag(action.args), { timeout: 5000 });
+
+      const content = await fs.readFile(file, "utf8");
+      assert.match(content, /<<: \*shared/, "alias merge key should be preserved");
+      assert.match(content, /retries/, "new field should be written onto the alias");
+    });
+  });
+
+  test("generateAgentRules core surface honors mode (CLI 0.29+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.29.0") < 0) {
+      t.skip(`requires patchloom >= 0.29.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const mcp = await generateAgentRules(binaryPath, dir, { surface: "core", mode: "mcp" });
+      const cli = await generateAgentRules(binaryPath, dir, { surface: "core", mode: "cli" });
+      assert.match(mcp, /^#/m, "core mcp rules should be markdown");
+      assert.match(cli, /^#/m, "core cli rules should be markdown");
+      assert.notEqual(mcp, cli, "core mcp and cli texts should differ");
     });
   });
 

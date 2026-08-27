@@ -5,12 +5,21 @@ import { MINIMUM_SUPPORTED_PATCHLOOM_VERSION } from "../../src/binary/patchloom.
 import {
   buildAgentRulesArgs,
   classifyAgentsFile,
-  generateAgentRules
+  generateAgentRules,
+  isMissingFileError
 } from "../../src/commands/initializeProject.js";
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import { buildPatchloomMcpEntry, configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
 import { setPatchloomLog } from "../../src/logging/outputChannel.js";
-import { formatCliOutput, formatError } from "../../src/util.js";
+import {
+  formatCliOutput,
+  formatError,
+  isAllowedPatchloomEnvKey,
+  mergePatchloomEnv,
+  resolvePatchloomEnvFromInspect,
+  shouldLogCliCommands,
+  shouldLogCliStreams
+} from "../../src/util.js";
 
 test("formatError extracts message from Error instances", () => {
   assert.equal(formatError(new Error("disk full")), "disk full");
@@ -26,6 +35,79 @@ test("formatError converts non-Error values to strings", () => {
 test("formatError falls back to String for Error with empty message", () => {
   const err = new Error("");
   assert.equal(formatError(err), String(err));
+});
+
+test("mergePatchloomEnv is identity when extra is undefined", () => {
+  const base = { PATH: "/usr/bin", HOME: "/home/user" };
+  assert.equal(mergePatchloomEnv(base, undefined), base);
+});
+
+test("mergePatchloomEnv is identity when extra is empty", () => {
+  const base = { PATH: "/usr/bin", HOME: "/home/user" };
+  assert.equal(mergePatchloomEnv(base, {}), base);
+});
+
+test("mergePatchloomEnv adds new keys from extra", () => {
+  const merged = mergePatchloomEnv(
+    { PATH: "/usr/bin" },
+    { PATCHLOOM_LOG: "debug" }
+  );
+  assert.equal(merged.PATH, "/usr/bin");
+  assert.equal(merged.PATCHLOOM_LOG, "debug");
+});
+
+test("mergePatchloomEnv overwrites matching keys from extra", () => {
+  const merged = mergePatchloomEnv(
+    { PATH: "/usr/bin", PATCHLOOM_LOG: "info" },
+    { PATCHLOOM_LOG: "debug" }
+  );
+  assert.equal(merged.PATH, "/usr/bin");
+  assert.equal(merged.PATCHLOOM_LOG, "debug");
+});
+
+test("mergePatchloomEnv ignores loader keys such as PATH and LD_PRELOAD", () => {
+  const merged = mergePatchloomEnv(
+    { PATH: "/usr/bin" },
+    { PATH: "/tmp/evil/bin", LD_PRELOAD: "/tmp/evil.so", PATCHLOOM_LOG: "debug" }
+  );
+  assert.equal(merged.PATH, "/usr/bin");
+  assert.equal(merged.LD_PRELOAD, undefined);
+  assert.equal(merged.PATCHLOOM_LOG, "debug");
+});
+
+test("isAllowedPatchloomEnvKey accepts only PATCHLOOM_ prefix", () => {
+  assert.equal(isAllowedPatchloomEnvKey("PATCHLOOM_LOG"), true);
+  assert.equal(isAllowedPatchloomEnvKey("PATH"), false);
+  assert.equal(isAllowedPatchloomEnvKey("DYLD_INSERT_LIBRARIES"), false);
+});
+
+test("resolvePatchloomEnvFromInspect uses merged env when trusted", () => {
+  const merged = { PATCHLOOM_LOG: "workspace" };
+  const inspect = { globalValue: { PATCHLOOM_LOG: "user" }, workspaceValue: merged };
+  assert.deepEqual(resolvePatchloomEnvFromInspect(true, inspect, merged), merged);
+});
+
+test("resolvePatchloomEnvFromInspect ignores workspace env when untrusted", () => {
+  const inspect = {
+    globalValue: { PATCHLOOM_LOG: "user" },
+    workspaceValue: { PATH: "/tmp/evil" }
+  };
+  assert.deepEqual(
+    resolvePatchloomEnvFromInspect(false, inspect, inspect.workspaceValue),
+    { PATCHLOOM_LOG: "user" }
+  );
+});
+
+test("shouldLogCliCommands is true for messages and verbose", () => {
+  assert.equal(shouldLogCliCommands("off"), false);
+  assert.equal(shouldLogCliCommands("messages"), true);
+  assert.equal(shouldLogCliCommands("verbose"), true);
+});
+
+test("shouldLogCliStreams is true only for verbose", () => {
+  assert.equal(shouldLogCliStreams("off"), false);
+  assert.equal(shouldLogCliStreams("messages"), false);
+  assert.equal(shouldLogCliStreams("verbose"), true);
 });
 
 // --- #36: direct unit tests for formatCliOutput ---
@@ -174,6 +256,27 @@ test("formatCliOutput surfaces numeric selector invalid_input (CLI 0.30+)", () =
     formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
     "invalid_input: selector error: comparison operand must be numeric (got 'abc' after >)"
   );
+});
+
+test("formatCliOutput surfaces no_matches kind from stderr (CLI 0.29+)", () => {
+  const stderr = JSON.stringify({
+    ok: false,
+    error: "no files without matches for 'TODO' in /tmp/ws",
+    error_kind: "no_matches"
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 3, stdout: "", stderr }),
+    "no_matches: no files without matches for 'TODO' in /tmp/ws"
+  );
+});
+
+test("formatCliOutput falls through when stdout starts with { but is not JSON", () => {
+  const result = formatCliOutput({
+    exitCode: 1,
+    stdout: "{not valid json",
+    stderr: "fallback text"
+  });
+  assert.equal(result, "fallback text {not valid json");
 });
 
 test("formatCliOutput appends suggested_op when present (CLI 0.27+)", () => {
@@ -629,6 +732,85 @@ test("buildAgentRulesArgs includes --surface core (CLI 0.24+)", () => {
   );
 });
 
+test("generateAgentRules merges extraEnv into execFile env", async () => {
+  let seenEnv: NodeJS.ProcessEnv | undefined;
+  const output = await generateAgentRules("/fake/patchloom", "/tmp", {}, {
+    extraEnv: { PATCHLOOM_LOG: "debug" },
+    processEnv: { PATH: "/usr/bin", HOME: "/home/user" },
+    execFile: async (_file, _args, options) => {
+      seenEnv = options.env;
+      return { stdout: "# rules\n", stderr: "" };
+    }
+  });
+  assert.equal(output, "# rules\n");
+  assert.ok(seenEnv);
+  assert.equal(seenEnv.PATH, "/usr/bin");
+  assert.equal(seenEnv.HOME, "/home/user");
+  assert.equal(seenEnv.PATCHLOOM_LOG, "debug");
+});
+
+test("generateAgentRules logs command and streams when trace is verbose", async () => {
+  const commands: { binary: string; args: readonly string[]; cwd: string }[] = [];
+  const logged: { exitCode: number; stdout: string; stderr: string }[] = [];
+  setPatchloomLog({
+    log() {},
+    logCommand(binary, args, cwd) { commands.push({ binary, args, cwd }); },
+    logResult(exitCode, stdout, stderr) { logged.push({ exitCode, stdout, stderr }); },
+    show() {},
+    dispose() {}
+  });
+  try {
+    await generateAgentRules("/fake/patchloom", "/tmp", {}, {
+      trace: "verbose",
+      execFile: async () => ({ stdout: "# rules\n", stderr: "note" })
+    });
+    assert.equal(commands.length, 1);
+    assert.equal(commands[0].binary, "/fake/patchloom");
+    assert.deepEqual(commands[0].args, ["agent-rules"]);
+    assert.equal(logged.length, 1);
+    assert.equal(logged[0].stdout, "# rules\n");
+    assert.equal(logged[0].stderr, "note");
+  } finally {
+    setPatchloomLog(undefined);
+  }
+});
+
+test("generateAgentRules skips CLI logs when trace is off", async () => {
+  let commands = 0;
+  let results = 0;
+  setPatchloomLog({
+    log() {},
+    logCommand() { commands += 1; },
+    logResult() { results += 1; },
+    show() {},
+    dispose() {}
+  });
+  try {
+    await generateAgentRules("/fake/patchloom", "/tmp", {}, {
+      execFile: async () => ({ stdout: "# rules\n", stderr: "" })
+    });
+    assert.equal(commands, 0);
+    assert.equal(results, 0);
+  } finally {
+    setPatchloomLog(undefined);
+  }
+});
+
+test("generateAgentRules extraEnv overwrites processEnv keys", async () => {
+  let seenEnv: NodeJS.ProcessEnv | undefined;
+  await generateAgentRules("/fake/patchloom", "/tmp", {}, {
+    extraEnv: { PATCHLOOM_LOG: "debug" },
+    processEnv: { PATH: "/usr/bin", PATCHLOOM_LOG: "info" },
+    execFile: async (_file, _args, options) => {
+      seenEnv = options.env;
+      return { stdout: "# rules\n", stderr: "" };
+    }
+  });
+  assert.ok(seenEnv);
+  assert.equal(seenEnv.PATCHLOOM_LOG, "debug");
+  assert.equal(seenEnv.PATH, "/usr/bin");
+});
+
 test("generateAgentRules logs error to output channel on CLI failure", async () => {
   const logged: { exitCode: number; stdout: string; stderr: string }[] = [];
   const commands: { binary: string; args: readonly string[]; cwd: string }[] = [];
@@ -641,7 +823,9 @@ test("generateAgentRules logs error to output channel on CLI failure", async () 
   });
   try {
     await assert.rejects(
-      () => generateAgentRules("/nonexistent/patchloom", "/tmp", { mode: "mcp", platform: "linux" }),
+      () => generateAgentRules("/nonexistent/patchloom", "/tmp", { mode: "mcp", platform: "linux" }, {
+        trace: "verbose"
+      }),
       (err: Error) => {
         assert.match(err.message, /ENOENT|not found|No such file/i);
         return true;
@@ -656,4 +840,66 @@ test("generateAgentRules logs error to output channel on CLI failure", async () 
   } finally {
     setPatchloomLog(undefined);
   }
+});
+
+test("generateAgentRules surfaces formatCliOutput envelope on CLI failure", async () => {
+  const logged: { exitCode: number; stdout: string; stderr: string }[] = [];
+  setPatchloomLog({
+    log() {},
+    logCommand() {},
+    logResult(exitCode, stdout, stderr) { logged.push({ exitCode, stdout, stderr }); },
+    show() {},
+    dispose() {}
+  });
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "selector uses wildcard/predicate, which is not valid for doc.set (single path only)",
+    error_kind: "invalid_input",
+    suggested_op: "doc.update",
+    applied: false
+  });
+  const execError = Object.assign(new Error("Command failed: patchloom agent-rules"), {
+    code: 1,
+    stdout,
+    stderr: ""
+  });
+  try {
+    await assert.rejects(
+      () => generateAgentRules("/fake/patchloom", "/tmp", {}, {
+        trace: "verbose",
+        execFile: async () => {
+          throw execError;
+        }
+      }),
+      (err: Error) => {
+        assert.match(err.message, /invalid_input/);
+        assert.match(err.message, /suggested_op: doc\.update/);
+        return true;
+      }
+    );
+    assert.equal(logged.length, 1, "logResult should be called once on failure");
+    assert.match(`${logged[0].stdout}\n${logged[0].stderr}`, /invalid_input|suggested_op/);
+  } finally {
+    setPatchloomLog(undefined);
+  }
+});
+
+test("isMissingFileError is true for FileNotFound-shaped errors", () => {
+  assert.equal(isMissingFileError({ code: "FileNotFound" }), true);
+  assert.equal(isMissingFileError({
+    code: "FileNotFound",
+    name: "EntryNotFound (FileSystemError)"
+  }), true);
+});
+
+test("isMissingFileError is false for permission-shaped errors", () => {
+  assert.equal(isMissingFileError({ code: "NoPermissions" }), false);
+  assert.equal(isMissingFileError({ code: "Unavailable" }), false);
+});
+
+test("isMissingFileError is false for generic Error", () => {
+  assert.equal(isMissingFileError(new Error("EACCES: permission denied")), false);
+  assert.equal(isMissingFileError("disk full"), false);
+  assert.equal(isMissingFileError(null), false);
+  assert.equal(isMissingFileError(undefined), false);
 });
