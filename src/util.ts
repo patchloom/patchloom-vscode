@@ -1,3 +1,24 @@
+/** Overlay `patchloom.env` onto a process env. Empty/undefined extra is identity. */
+export function mergePatchloomEnv(
+  base: NodeJS.ProcessEnv,
+  extra: Record<string, string> | undefined
+): NodeJS.ProcessEnv {
+  if (extra === undefined || Object.keys(extra).length === 0) {
+    return base;
+  }
+  return { ...base, ...extra };
+}
+
+/** `messages` and `verbose` log command lines and exit codes. */
+export function shouldLogCliCommands(trace: string): boolean {
+  return trace === "messages" || trace === "verbose";
+}
+
+/** Only `verbose` dumps CLI stdout/stderr into the output channel. */
+export function shouldLogCliStreams(trace: string): boolean {
+  return trace === "verbose";
+}
+
 export function formatError(error: unknown): string {
   if (error instanceof Error && error.message.length > 0) {
     return error.message;

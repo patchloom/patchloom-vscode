@@ -11,7 +11,13 @@ import {
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import { buildPatchloomMcpEntry, configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
 import { setPatchloomLog } from "../../src/logging/outputChannel.js";
-import { formatCliOutput, formatError } from "../../src/util.js";
+import {
+  formatCliOutput,
+  formatError,
+  mergePatchloomEnv,
+  shouldLogCliCommands,
+  shouldLogCliStreams
+} from "../../src/util.js";
 
 test("formatError extracts message from Error instances", () => {
   assert.equal(formatError(new Error("disk full")), "disk full");
@@ -27,6 +33,46 @@ test("formatError converts non-Error values to strings", () => {
 test("formatError falls back to String for Error with empty message", () => {
   const err = new Error("");
   assert.equal(formatError(err), String(err));
+});
+
+test("mergePatchloomEnv is identity when extra is undefined", () => {
+  const base = { PATH: "/usr/bin", HOME: "/home/user" };
+  assert.equal(mergePatchloomEnv(base, undefined), base);
+});
+
+test("mergePatchloomEnv is identity when extra is empty", () => {
+  const base = { PATH: "/usr/bin", HOME: "/home/user" };
+  assert.equal(mergePatchloomEnv(base, {}), base);
+});
+
+test("mergePatchloomEnv adds new keys from extra", () => {
+  const merged = mergePatchloomEnv(
+    { PATH: "/usr/bin" },
+    { PATCHLOOM_LOG: "debug" }
+  );
+  assert.equal(merged.PATH, "/usr/bin");
+  assert.equal(merged.PATCHLOOM_LOG, "debug");
+});
+
+test("mergePatchloomEnv overwrites matching keys from extra", () => {
+  const merged = mergePatchloomEnv(
+    { PATH: "/usr/bin", PATCHLOOM_LOG: "info" },
+    { PATCHLOOM_LOG: "debug" }
+  );
+  assert.equal(merged.PATH, "/usr/bin");
+  assert.equal(merged.PATCHLOOM_LOG, "debug");
+});
+
+test("shouldLogCliCommands is true for messages and verbose", () => {
+  assert.equal(shouldLogCliCommands("off"), false);
+  assert.equal(shouldLogCliCommands("messages"), true);
+  assert.equal(shouldLogCliCommands("verbose"), true);
+});
+
+test("shouldLogCliStreams is true only for verbose", () => {
+  assert.equal(shouldLogCliStreams("off"), false);
+  assert.equal(shouldLogCliStreams("messages"), false);
+  assert.equal(shouldLogCliStreams("verbose"), true);
 });
 
 // --- #36: direct unit tests for formatCliOutput ---
@@ -651,6 +697,85 @@ test("buildAgentRulesArgs includes --surface core (CLI 0.24+)", () => {
   );
 });
 
+test("generateAgentRules merges extraEnv into execFile env", async () => {
+  let seenEnv: NodeJS.ProcessEnv | undefined;
+  const output = await generateAgentRules("/fake/patchloom", "/tmp", {}, {
+    extraEnv: { PATCHLOOM_LOG: "debug" },
+    processEnv: { PATH: "/usr/bin", HOME: "/home/user" },
+    execFile: async (_file, _args, options) => {
+      seenEnv = options.env;
+      return { stdout: "# rules\n", stderr: "" };
+    }
+  });
+  assert.equal(output, "# rules\n");
+  assert.ok(seenEnv);
+  assert.equal(seenEnv.PATH, "/usr/bin");
+  assert.equal(seenEnv.HOME, "/home/user");
+  assert.equal(seenEnv.PATCHLOOM_LOG, "debug");
+});
+
+test("generateAgentRules logs command and streams when trace is verbose", async () => {
+  const commands: { binary: string; args: readonly string[]; cwd: string }[] = [];
+  const logged: { exitCode: number; stdout: string; stderr: string }[] = [];
+  setPatchloomLog({
+    log() {},
+    logCommand(binary, args, cwd) { commands.push({ binary, args, cwd }); },
+    logResult(exitCode, stdout, stderr) { logged.push({ exitCode, stdout, stderr }); },
+    show() {},
+    dispose() {}
+  });
+  try {
+    await generateAgentRules("/fake/patchloom", "/tmp", {}, {
+      trace: "verbose",
+      execFile: async () => ({ stdout: "# rules\n", stderr: "note" })
+    });
+    assert.equal(commands.length, 1);
+    assert.equal(commands[0].binary, "/fake/patchloom");
+    assert.deepEqual(commands[0].args, ["agent-rules"]);
+    assert.equal(logged.length, 1);
+    assert.equal(logged[0].stdout, "# rules\n");
+    assert.equal(logged[0].stderr, "note");
+  } finally {
+    setPatchloomLog(undefined);
+  }
+});
+
+test("generateAgentRules skips CLI logs when trace is off", async () => {
+  let commands = 0;
+  let results = 0;
+  setPatchloomLog({
+    log() {},
+    logCommand() { commands += 1; },
+    logResult() { results += 1; },
+    show() {},
+    dispose() {}
+  });
+  try {
+    await generateAgentRules("/fake/patchloom", "/tmp", {}, {
+      execFile: async () => ({ stdout: "# rules\n", stderr: "" })
+    });
+    assert.equal(commands, 0);
+    assert.equal(results, 0);
+  } finally {
+    setPatchloomLog(undefined);
+  }
+});
+
+test("generateAgentRules extraEnv overwrites processEnv keys", async () => {
+  let seenEnv: NodeJS.ProcessEnv | undefined;
+  await generateAgentRules("/fake/patchloom", "/tmp", {}, {
+    extraEnv: { PATCHLOOM_LOG: "debug" },
+    processEnv: { PATH: "/usr/bin", PATCHLOOM_LOG: "info" },
+    execFile: async (_file, _args, options) => {
+      seenEnv = options.env;
+      return { stdout: "# rules\n", stderr: "" };
+    }
+  });
+  assert.ok(seenEnv);
+  assert.equal(seenEnv.PATCHLOOM_LOG, "debug");
+  assert.equal(seenEnv.PATH, "/usr/bin");
+});
+
 test("generateAgentRules logs error to output channel on CLI failure", async () => {
   const logged: { exitCode: number; stdout: string; stderr: string }[] = [];
   const commands: { binary: string; args: readonly string[]; cwd: string }[] = [];
@@ -663,7 +788,9 @@ test("generateAgentRules logs error to output channel on CLI failure", async () 
   });
   try {
     await assert.rejects(
-      () => generateAgentRules("/nonexistent/patchloom", "/tmp", { mode: "mcp", platform: "linux" }),
+      () => generateAgentRules("/nonexistent/patchloom", "/tmp", { mode: "mcp", platform: "linux" }, {
+        trace: "verbose"
+      }),
       (err: Error) => {
         assert.match(err.message, /ENOENT|not found|No such file/i);
         return true;
@@ -704,6 +831,7 @@ test("generateAgentRules surfaces formatCliOutput envelope on CLI failure", asyn
   try {
     await assert.rejects(
       () => generateAgentRules("/fake/patchloom", "/tmp", {}, {
+        trace: "verbose",
         execFile: async () => {
           throw execError;
         }

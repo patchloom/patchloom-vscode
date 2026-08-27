@@ -1,3 +1,61 @@
+import { shouldLogCliCommands, shouldLogCliStreams } from "../util.js";
+
+export interface PatchloomRuntimeConfig {
+  readonly extraEnv: Record<string, string> | undefined;
+  readonly trace: string;
+}
+
+export async function getPatchloomRuntimeConfig(): Promise<PatchloomRuntimeConfig> {
+  const vscode = await import("vscode");
+  const config = vscode.workspace.getConfiguration("patchloom");
+  return {
+    extraEnv: asStringEnv(config.get("env")),
+    trace: config.get<string>("trace.server", "off") ?? "off"
+  };
+}
+
+function asStringEnv(value: unknown): Record<string, string> | undefined {
+  if (value === undefined || value === null || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const extra: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof raw === "string") {
+      extra[key] = raw;
+    }
+  }
+  return extra;
+}
+
+export function logCliCommand(
+  log: PatchloomLog | undefined,
+  trace: string,
+  binary: string,
+  args: readonly string[],
+  cwd: string
+): void {
+  if (shouldLogCliCommands(trace)) {
+    log?.logCommand(binary, args, cwd);
+  }
+}
+
+export function logCliResult(
+  log: PatchloomLog | undefined,
+  trace: string,
+  exitCode: number,
+  stdout: string,
+  stderr: string
+): void {
+  if (!shouldLogCliCommands(trace)) {
+    return;
+  }
+  if (shouldLogCliStreams(trace)) {
+    log?.logResult(exitCode, stdout, stderr);
+    return;
+  }
+  log?.logResult(exitCode, "", "");
+}
+
 export interface OutputChannelLike {
   appendLine(value: string): void;
   show(preserveFocus?: boolean): void;

@@ -11,10 +11,9 @@ CLI 0.29+, the core pack text follows the mode you pick.
 
 ## What AGENTS.md Contains
 
-- Project structure and conventions
-- Build and test commands
-- Coding style guidelines
-- Architecture notes
+`AGENTS.md` is Patchloom agent-rules text: how to call the CLI and MCP
+tools, command examples, and integration notes. It is not a generic
+project overview (structure, build commands, or coding style).
 
 The file is placed at the root of your workspace and works with
 GitHub Copilot, Claude Code, Grok, Cursor, and other AI coding tools.

@@ -5,8 +5,8 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
-import { getPatchloomLog } from "../logging/outputChannel.js";
-import { formatCliOutput, formatError } from "../util.js";
+import { getPatchloomLog, getPatchloomRuntimeConfig, logCliCommand, logCliResult } from "../logging/outputChannel.js";
+import { formatCliOutput, formatError, mergePatchloomEnv } from "../util.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 
 const execFileAsync = promisify(execFile);
@@ -745,7 +745,7 @@ export async function runQuickAction(): Promise<void> {
 
         if (!isMarkdownPath(target.absolutePath)) {
           await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a markdown file.`
+            `${target.relativePath} is not a markdown file. Pick a .md, .markdown, or .mdx file.`
           );
           return;
         }
@@ -783,7 +783,7 @@ export async function runQuickAction(): Promise<void> {
 
         if (!isMarkdownPath(target.absolutePath)) {
           await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a markdown file.`
+            `${target.relativePath} is not a markdown file. Pick a .md, .markdown, or .mdx file.`
           );
           return;
         }
@@ -821,7 +821,7 @@ export async function runQuickAction(): Promise<void> {
 
         if (!isMarkdownPath(target.absolutePath)) {
           await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a markdown file.`
+            `${target.relativePath} is not a markdown file. Pick a .md, .markdown, or .mdx file.`
           );
           return;
         }
@@ -859,7 +859,7 @@ export async function runQuickAction(): Promise<void> {
 
         if (!isMarkdownPath(target.absolutePath)) {
           await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a markdown file.`
+            `${target.relativePath} is not a markdown file. Pick a .md, .markdown, or .mdx file.`
           );
           return;
         }
@@ -897,7 +897,7 @@ export async function runQuickAction(): Promise<void> {
 
         if (!isMarkdownPath(target.absolutePath)) {
           await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a markdown file.`
+            `${target.relativePath} is not a markdown file. Pick a .md, .markdown, or .mdx file.`
           );
           return;
         }
@@ -935,7 +935,7 @@ export async function runQuickAction(): Promise<void> {
 
         if (!isMarkdownPath(target.absolutePath)) {
           await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a markdown file.`
+            `${target.relativePath} is not a markdown file. Pick a .md, .markdown, or .mdx file.`
           );
           return;
         }
@@ -1393,7 +1393,16 @@ async function previewAndMaybeApply(
   const vscode = await import("vscode");
   const originalDocument = await vscode.workspace.openTextDocument(target.uri);
   const originalContent = await fs.readFile(target.absolutePath, "utf8");
-  const preview = await buildPreviewDocument(binaryPath, action, originalContent, originalDocument.languageId);
+  let preview: VSCode.TextDocument | undefined;
+  try {
+    preview = await buildPreviewDocument(binaryPath, action, originalContent, originalDocument.languageId);
+  } catch (error) {
+    getPatchloomLog()?.show();
+    await vscode.window.showErrorMessage(
+      `Patchloom failed while previewing changes to ${target.relativePath}: ${formatError(error)}`
+    );
+    return;
+  }
   if (!preview) {
     await vscode.window.showInformationMessage(`No changes to preview for ${target.relativePath}.`);
     return;
@@ -1547,7 +1556,9 @@ export function resolveWorkspaceRelativePath(workspaceRoot: string, absolutePath
   const resolvedPath = path.resolve(absolutePath);
   const relativePath = path.relative(resolvedRoot, resolvedPath);
   if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-    throw new Error("File path must stay inside the current workspace folder.");
+    throw new Error(
+      "File path must stay inside the current workspace folder. Use a path under this folder (for example src/app.ts), or open the folder that owns the file."
+    );
   }
   return relativePath.split(path.sep).join("/");
 }
@@ -1569,7 +1580,9 @@ async function ensureWorkspaceFileReady(target: WorkspaceFileTarget): Promise<bo
   try {
     stat = await fs.stat(target.absolutePath);
   } catch {
-    await vscode.window.showWarningMessage(`File not found: ${target.relativePath}`);
+    await vscode.window.showWarningMessage(
+      `File not found: ${target.relativePath}. Use Create a new file, or pick an existing file.`
+    );
     return false;
   }
 
@@ -1608,17 +1621,20 @@ async function executePatchloom(
 ): Promise<PatchloomCommandResult> {
   const finalArgs = options.contain === false ? [...args] : withContainFlag(args);
   const log = getPatchloomLog();
-  log?.logCommand(binaryPath, finalArgs, cwd);
+  const runtime = await getPatchloomRuntimeConfig();
+  const env = mergePatchloomEnv(process.env, runtime.extraEnv);
+  logCliCommand(log, runtime.trace, binaryPath, finalArgs, cwd);
 
   try {
     const { stdout, stderr } = await execFileAsync(binaryPath, finalArgs, {
       cwd,
+      env,
       timeout: 30_000,
       maxBuffer: 8 * 1024 * 1024,
       windowsHide: true
     });
     const result: PatchloomCommandResult = { exitCode: 0, stdout, stderr };
-    log?.logResult(result.exitCode, result.stdout, result.stderr);
+    logCliResult(log, runtime.trace, result.exitCode, result.stdout, result.stderr);
     return result;
   } catch (error) {
     const execFailure = asExecFailure(error);
@@ -1629,7 +1645,7 @@ async function executePatchloom(
         ? execFailure.stderr || execFailure.message
         : formatError(error)
     };
-    log?.logResult(result.exitCode, result.stdout, result.stderr);
+    logCliResult(log, runtime.trace, result.exitCode, result.stdout, result.stderr);
     return result;
   }
 }

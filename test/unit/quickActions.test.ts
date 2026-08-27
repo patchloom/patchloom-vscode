@@ -342,21 +342,21 @@ test("resolveWorkspaceRelativePath accepts nested subdirectory", () => {
 test("resolveWorkspaceRelativePath rejects traversal with ..", () => {
   assert.throws(
     () => resolveWorkspaceRelativePath("/workspace/demo", "/workspace/demo/../../etc/passwd"),
-    { message: "File path must stay inside the current workspace folder." }
+    { message: "File path must stay inside the current workspace folder. Use a path under this folder (for example src/app.ts), or open the folder that owns the file." }
   );
 });
 
 test("resolveWorkspaceRelativePath rejects absolute path outside workspace", () => {
   assert.throws(
     () => resolveWorkspaceRelativePath("/workspace/demo", "/tmp/evil.txt"),
-    { message: "File path must stay inside the current workspace folder." }
+    { message: "File path must stay inside the current workspace folder. Use a path under this folder (for example src/app.ts), or open the folder that owns the file." }
   );
 });
 
 test("resolveWorkspaceRelativePath rejects workspace root itself", () => {
   assert.throws(
     () => resolveWorkspaceRelativePath("/workspace/demo", "/workspace/demo"),
-    { message: "File path must stay inside the current workspace folder." }
+    { message: "File path must stay inside the current workspace folder. Use a path under this folder (for example src/app.ts), or open the folder that owns the file." }
   );
 });
 
