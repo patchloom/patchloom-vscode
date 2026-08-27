@@ -15,7 +15,7 @@ Patchloom for VS Code is the official VS Code extension for [Patchloom](https://
 | `npm run test:extension` | Run VS Code extension integration tests |
 | `npm run test:ui` | Run ExTester UI tests (downloads VS Code if needed) |
 | `npm run test:all` | Compile + unit tests + extension integration tests |
-| `npm run test` | Compile + compile-tests + unit tests |
+| `npm run test` | Compile + compile-tests + compile-uitests + unit tests |
 | `npm run test:coverage` | Unit tests with line coverage (80% threshold) |
 | `npm run package` | Package the `.vsix` using `@vscode/vsce` |
 | `npm run check` | Full CI gate: test + coverage + package |
@@ -57,7 +57,7 @@ test/
     outputChannel.test.ts Output channel logging wrapper (15 tests)
     patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (46 tests incl. e2e)
     propertyBased.test.ts  Property-based tests with fast-check (13 tests)
-    quickActions.test.ts Quick action command building, path containment, patch merge (63 tests)
+    quickActions.test.ts Quick action command building, path containment, patch merge (64 tests)
     verifyMcp.test.ts    MCP server verify and JSON-RPC response parsing (15 tests)
     downloadIntegration.test.ts  HTTP download, redirect, streaming SHA-256 (9 tests)
   suite/

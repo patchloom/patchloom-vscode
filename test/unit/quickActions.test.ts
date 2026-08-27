@@ -343,6 +343,13 @@ test("resolveWorkspaceRelativePath accepts nested subdirectory", () => {
 test("isPathInsideWorkspace is true only for paths under the workspace", () => {
   assert.equal(isPathInsideWorkspace("/workspace/demo", "/workspace/demo/changes.patch"), true);
   assert.equal(isPathInsideWorkspace("/workspace/demo", "/tmp/outside.patch"), false);
+  assert.equal(isPathInsideWorkspace("/workspace/demo", "/workspace/demo/..changes.patch"), true);
+  assert.equal(isPathInsideWorkspace("/workspace/demo", "/workspace/other/fix.patch"), false);
+});
+
+test("resolveWorkspaceRelativePath allows a filename that starts with ..", () => {
+  const rel = resolveWorkspaceRelativePath("/workspace/demo", "/workspace/demo/..changes.patch");
+  assert.equal(rel, "..changes.patch");
 });
 
 test("resolveWorkspaceRelativePath rejects traversal with ..", () => {

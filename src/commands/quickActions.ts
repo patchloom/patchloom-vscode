@@ -1553,11 +1553,15 @@ async function inputWorkspaceFileTarget(folder: VSCode.WorkspaceFolder): Promise
   }
 }
 
+function pathEscapesWorkspace(relativePath: string): boolean {
+  return relativePath === ".." || relativePath.startsWith(`..${path.sep}`);
+}
+
 export function resolveWorkspaceRelativePath(workspaceRoot: string, absolutePath: string): string {
   const resolvedRoot = path.resolve(workspaceRoot);
   const resolvedPath = path.resolve(absolutePath);
   const relativePath = path.relative(resolvedRoot, resolvedPath);
-  if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+  if (!relativePath || pathEscapesWorkspace(relativePath) || path.isAbsolute(relativePath)) {
     throw new Error(
       "File path must stay inside the current workspace folder. Use a path under this folder (for example src/app.ts), or open the folder that owns the file."
     );
@@ -1566,12 +1570,14 @@ export function resolveWorkspaceRelativePath(workspaceRoot: string, absolutePath
 }
 
 export function isPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
-  try {
-    resolveWorkspaceRelativePath(workspaceRoot, absolutePath);
-    return true;
-  } catch {
-    return false;
-  }
+  const resolvedRoot = path.resolve(workspaceRoot);
+  const resolvedPath = path.resolve(absolutePath);
+  const fold = process.platform === "win32" || process.platform === "darwin"
+    ? (value: string) => value.toLowerCase()
+    : (value: string) => value;
+  const root = fold(resolvedRoot);
+  const target = fold(resolvedPath);
+  return target === root || target.startsWith(`${root}${path.sep}`);
 }
 
 function toWorkspaceFileTarget(folder: VSCode.WorkspaceFolder, absolutePath: string): WorkspaceFileTarget {
