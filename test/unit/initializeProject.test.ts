@@ -176,6 +176,27 @@ test("formatCliOutput surfaces numeric selector invalid_input (CLI 0.30+)", () =
   );
 });
 
+test("formatCliOutput surfaces no_matches kind from stderr (CLI 0.29+)", () => {
+  const stderr = JSON.stringify({
+    ok: false,
+    error: "no files without matches for 'TODO' in /tmp/ws",
+    error_kind: "no_matches"
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 3, stdout: "", stderr }),
+    "no_matches: no files without matches for 'TODO' in /tmp/ws"
+  );
+});
+
+test("formatCliOutput falls through when stdout starts with { but is not JSON", () => {
+  const result = formatCliOutput({
+    exitCode: 1,
+    stdout: "{not valid json",
+    stderr: "fallback text"
+  });
+  assert.equal(result, "fallback text {not valid json");
+});
+
 test("formatCliOutput appends suggested_op when present (CLI 0.27+)", () => {
   const stdout = JSON.stringify({
     ok: false,
