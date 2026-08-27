@@ -156,11 +156,14 @@ describe("Patchloom Extension UI", function () {
           const picks = await input.getQuickPicks();
           const labels: string[] = [];
           for (const pick of picks) labels.push(await pick.getLabel());
-          return { kind: "input", labels };
+          if (labels.some((label) => label.includes("Replace") || label.includes("Tidy"))) {
+            return { kind: "input", labels };
+          }
+          return undefined;
         } catch {
           return undefined; // keep polling
         }
-      });
+      }, 15_000);
 
       assert.ok(result, "Quick Action should produce a notification or quick pick");
       if (result.kind === "input") {
