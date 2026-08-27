@@ -35,8 +35,8 @@ jobs:
       - name: Setup Node.js
         uses: ./.github/actions/setup-node
 
-      - name: Audit production dependencies
-        run: npm audit --audit-level=high --omit=dev
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
 
   trivy:
     name: Trivy vulnerability scan
