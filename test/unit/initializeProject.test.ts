@@ -5,7 +5,8 @@ import { MINIMUM_SUPPORTED_PATCHLOOM_VERSION } from "../../src/binary/patchloom.
 import {
   buildAgentRulesArgs,
   classifyAgentsFile,
-  generateAgentRules
+  generateAgentRules,
+  isMissingFileError
 } from "../../src/commands/initializeProject.js";
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import { buildPatchloomMcpEntry, configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
@@ -677,4 +678,65 @@ test("generateAgentRules logs error to output channel on CLI failure", async () 
   } finally {
     setPatchloomLog(undefined);
   }
+});
+
+test("generateAgentRules surfaces formatCliOutput envelope on CLI failure", async () => {
+  const logged: { exitCode: number; stdout: string; stderr: string }[] = [];
+  setPatchloomLog({
+    log() {},
+    logCommand() {},
+    logResult(exitCode, stdout, stderr) { logged.push({ exitCode, stdout, stderr }); },
+    show() {},
+    dispose() {}
+  });
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "selector uses wildcard/predicate, which is not valid for doc.set (single path only)",
+    error_kind: "invalid_input",
+    suggested_op: "doc.update",
+    applied: false
+  });
+  const execError = Object.assign(new Error("Command failed: patchloom agent-rules"), {
+    code: 1,
+    stdout,
+    stderr: ""
+  });
+  try {
+    await assert.rejects(
+      () => generateAgentRules("/fake/patchloom", "/tmp", {}, {
+        execFile: async () => {
+          throw execError;
+        }
+      }),
+      (err: Error) => {
+        assert.match(err.message, /invalid_input/);
+        assert.match(err.message, /suggested_op: doc\.update/);
+        return true;
+      }
+    );
+    assert.equal(logged.length, 1, "logResult should be called once on failure");
+    assert.match(`${logged[0].stdout}\n${logged[0].stderr}`, /invalid_input|suggested_op/);
+  } finally {
+    setPatchloomLog(undefined);
+  }
+});
+
+test("isMissingFileError is true for FileNotFound-shaped errors", () => {
+  assert.equal(isMissingFileError({ code: "FileNotFound" }), true);
+  assert.equal(isMissingFileError({
+    code: "FileNotFound",
+    name: "EntryNotFound (FileSystemError)"
+  }), true);
+});
+
+test("isMissingFileError is false for permission-shaped errors", () => {
+  assert.equal(isMissingFileError({ code: "NoPermissions" }), false);
+  assert.equal(isMissingFileError({ code: "Unavailable" }), false);
+});
+
+test("isMissingFileError is false for generic Error", () => {
+  assert.equal(isMissingFileError(new Error("EACCES: permission denied")), false);
+  assert.equal(isMissingFileError("disk full"), false);
+  assert.equal(isMissingFileError(null), false);
+  assert.equal(isMissingFileError(undefined), false);
 });

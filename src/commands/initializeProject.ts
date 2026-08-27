@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import type * as VSCode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import { getPatchloomLog } from "../logging/outputChannel.js";
-import { formatError } from "../util.js";
+import { formatCliOutput, formatError } from "../util.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
 const execFileAsync = promisify(execFile);
@@ -160,16 +160,31 @@ export function buildAgentRulesArgs(options: AgentRulesOptions = {}): string[] {
   return args;
 }
 
+export interface GenerateAgentRulesDeps {
+  readonly execFile?: (
+    file: string,
+    args: readonly string[],
+    options: {
+      cwd?: string;
+      timeout?: number;
+      maxBuffer?: number;
+      windowsHide?: boolean;
+    }
+  ) => Promise<{ stdout: string; stderr: string }>;
+}
+
 export async function generateAgentRules(
   binaryPath: string,
   cwd: string,
-  options: AgentRulesOptions = {}
+  options: AgentRulesOptions = {},
+  deps: GenerateAgentRulesDeps = {}
 ): Promise<string> {
   const log = getPatchloomLog();
   const args = buildAgentRulesArgs(options);
   log?.logCommand(binaryPath, args, cwd);
+  const run = deps.execFile ?? execFileAsync;
   try {
-    const { stdout, stderr } = await execFileAsync(binaryPath, args, {
+    const { stdout, stderr } = await run(binaryPath, args, {
       cwd,
       timeout: 10_000,
       maxBuffer: 1024 * 1024,
@@ -178,9 +193,23 @@ export async function generateAgentRules(
     log?.logResult(0, stdout, stderr);
     return stdout.endsWith("\n") ? stdout : `${stdout}\n`;
   } catch (error) {
-    log?.logResult(1, "", formatError(error));
-    throw error;
+    const candidate = error as { code?: unknown; stdout?: unknown; stderr?: unknown };
+    const exitCode = typeof candidate.code === "number" ? candidate.code : 1;
+    const stdout = typeof candidate.stdout === "string" ? candidate.stdout : "";
+    const stderr = typeof candidate.stderr === "string" && candidate.stderr.length > 0
+      ? candidate.stderr
+      : formatError(error);
+    log?.logResult(exitCode, stdout, stderr);
+    throw new Error(formatCliOutput({ exitCode, stdout, stderr }));
   }
+}
+
+/** True only for VS Code FileNotFound (missing file). Other FS errors must propagate. */
+export function isMissingFileError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  return "code" in error && (error as { code: unknown }).code === "FileNotFound";
 }
 
 async function readTextFileIfExists(uri: VSCode.Uri): Promise<string | undefined> {
@@ -188,8 +217,11 @@ async function readTextFileIfExists(uri: VSCode.Uri): Promise<string | undefined
   try {
     const bytes = await vscode.workspace.fs.readFile(uri);
     return decoder.decode(bytes);
-  } catch {
-    return undefined;
+  } catch (error) {
+    if (isMissingFileError(error)) {
+      return undefined;
+    }
+    throw error;
   }
 }
 

@@ -398,9 +398,10 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const absolutePath = path.resolve(folder.uri.fsPath, relativePath.trim());
-        const relative = path.relative(folder.uri.fsPath, absolutePath);
-        if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
-          await vscode.window.showWarningMessage("File path must stay inside the workspace folder.");
+        try {
+          resolveWorkspaceRelativePath(folder.uri.fsPath, absolutePath);
+        } catch (error) {
+          await vscode.window.showWarningMessage(formatError(error));
           return;
         }
 
