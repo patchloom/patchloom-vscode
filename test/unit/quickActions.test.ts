@@ -28,6 +28,7 @@ import {
   buildUndoQuickAction,
   isMarkdownPath,
   isStructuredDocumentPath,
+  isPathInsideWorkspace,
   resolveWorkspaceRelativePath,
   retargetQuickAction,
   withApplyFlag,
@@ -337,6 +338,11 @@ test("resolveWorkspaceRelativePath accepts path inside workspace", () => {
 test("resolveWorkspaceRelativePath accepts nested subdirectory", () => {
   const rel = resolveWorkspaceRelativePath("/workspace/demo", "/workspace/demo/a/b/c/d.txt");
   assert.equal(rel, "a/b/c/d.txt");
+});
+
+test("isPathInsideWorkspace is true only for paths under the workspace", () => {
+  assert.equal(isPathInsideWorkspace("/workspace/demo", "/workspace/demo/changes.patch"), true);
+  assert.equal(isPathInsideWorkspace("/workspace/demo", "/tmp/outside.patch"), false);
 });
 
 test("resolveWorkspaceRelativePath rejects traversal with ..", () => {

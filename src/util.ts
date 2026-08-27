@@ -1,4 +1,8 @@
-/** Overlay `patchloom.env` onto a process env. Empty/undefined extra is identity. */
+/** Overlay allowed `patchloom.env` keys onto a process env. Only `PATCHLOOM_*` keys apply. */
+export function isAllowedPatchloomEnvKey(key: string): boolean {
+  return key.startsWith("PATCHLOOM_");
+}
+
 export function mergePatchloomEnv(
   base: NodeJS.ProcessEnv,
   extra: Record<string, string> | undefined
@@ -6,7 +10,35 @@ export function mergePatchloomEnv(
   if (extra === undefined || Object.keys(extra).length === 0) {
     return base;
   }
-  return { ...base, ...extra };
+  const allowed: Record<string, string> = {};
+  for (const [key, value] of Object.entries(extra)) {
+    if (isAllowedPatchloomEnvKey(key)) {
+      allowed[key] = value;
+    }
+  }
+  if (Object.keys(allowed).length === 0) {
+    return base;
+  }
+  return { ...base, ...allowed };
+}
+
+/**
+ * Workspace/folder env applies only in a trusted workspace. Untrusted
+ * folders may still set user/global `patchloom.env`.
+ */
+export function resolvePatchloomEnvFromInspect(
+  isTrusted: boolean,
+  inspect: {
+    globalValue?: unknown;
+    workspaceValue?: unknown;
+    workspaceFolderValue?: unknown;
+  } | undefined,
+  merged: unknown
+): unknown {
+  if (isTrusted) {
+    return merged;
+  }
+  return inspect?.globalValue;
 }
 
 /** `messages` and `verbose` log command lines and exit codes. */

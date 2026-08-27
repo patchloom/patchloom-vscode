@@ -994,8 +994,10 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const action = buildPatchMergeQuickAction(patchUri[0].fsPath, allowConflicts.allow);
-        // Patch files may live outside the workspace; skip --contain so external patches work.
-        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath, { contain: false });
+        // External patch files are meta-inputs; --contain rejects them. Keep the
+        // write sandbox when the patch itself lives inside the workspace.
+        const contain = isPathInsideWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
+        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath, { contain });
         const log = getPatchloomLog();
 
         if (result.exitCode === 8) {
@@ -1013,7 +1015,7 @@ export async function runQuickAction(): Promise<void> {
     {
       label: "Undo last change",
       description: "Restore files from the last patchloom backup",
-      detail: "Runs `patchloom undo`",
+      detail: "Runs `patchloom undo --apply`",
       run: async () => {
         const folder = await activeWorkspaceFolder({
           promptIfMany: true,
@@ -1561,6 +1563,15 @@ export function resolveWorkspaceRelativePath(workspaceRoot: string, absolutePath
     );
   }
   return relativePath.split(path.sep).join("/");
+}
+
+export function isPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
+  try {
+    resolveWorkspaceRelativePath(workspaceRoot, absolutePath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function toWorkspaceFileTarget(folder: VSCode.WorkspaceFolder, absolutePath: string): WorkspaceFileTarget {

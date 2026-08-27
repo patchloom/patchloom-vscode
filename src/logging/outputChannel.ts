@@ -1,4 +1,4 @@
-import { shouldLogCliCommands, shouldLogCliStreams } from "../util.js";
+import { resolvePatchloomEnvFromInspect, shouldLogCliCommands, shouldLogCliStreams } from "../util.js";
 
 export interface PatchloomRuntimeConfig {
   readonly extraEnv: Record<string, string> | undefined;
@@ -8,8 +8,13 @@ export interface PatchloomRuntimeConfig {
 export async function getPatchloomRuntimeConfig(): Promise<PatchloomRuntimeConfig> {
   const vscode = await import("vscode");
   const config = vscode.workspace.getConfiguration("patchloom");
+  const envSource = resolvePatchloomEnvFromInspect(
+    vscode.workspace.isTrusted,
+    config.inspect("env"),
+    config.get("env")
+  );
   return {
-    extraEnv: asStringEnv(config.get("env")),
+    extraEnv: asStringEnv(envSource),
     trace: config.get<string>("trace.server", "off") ?? "off"
   };
 }

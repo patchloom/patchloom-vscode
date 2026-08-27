@@ -14,7 +14,9 @@ import { setPatchloomLog } from "../../src/logging/outputChannel.js";
 import {
   formatCliOutput,
   formatError,
+  isAllowedPatchloomEnvKey,
   mergePatchloomEnv,
+  resolvePatchloomEnvFromInspect,
   shouldLogCliCommands,
   shouldLogCliStreams
 } from "../../src/util.js";
@@ -61,6 +63,39 @@ test("mergePatchloomEnv overwrites matching keys from extra", () => {
   );
   assert.equal(merged.PATH, "/usr/bin");
   assert.equal(merged.PATCHLOOM_LOG, "debug");
+});
+
+test("mergePatchloomEnv ignores loader keys such as PATH and LD_PRELOAD", () => {
+  const merged = mergePatchloomEnv(
+    { PATH: "/usr/bin" },
+    { PATH: "/tmp/evil/bin", LD_PRELOAD: "/tmp/evil.so", PATCHLOOM_LOG: "debug" }
+  );
+  assert.equal(merged.PATH, "/usr/bin");
+  assert.equal(merged.LD_PRELOAD, undefined);
+  assert.equal(merged.PATCHLOOM_LOG, "debug");
+});
+
+test("isAllowedPatchloomEnvKey accepts only PATCHLOOM_ prefix", () => {
+  assert.equal(isAllowedPatchloomEnvKey("PATCHLOOM_LOG"), true);
+  assert.equal(isAllowedPatchloomEnvKey("PATH"), false);
+  assert.equal(isAllowedPatchloomEnvKey("DYLD_INSERT_LIBRARIES"), false);
+});
+
+test("resolvePatchloomEnvFromInspect uses merged env when trusted", () => {
+  const merged = { PATCHLOOM_LOG: "workspace" };
+  const inspect = { globalValue: { PATCHLOOM_LOG: "user" }, workspaceValue: merged };
+  assert.deepEqual(resolvePatchloomEnvFromInspect(true, inspect, merged), merged);
+});
+
+test("resolvePatchloomEnvFromInspect ignores workspace env when untrusted", () => {
+  const inspect = {
+    globalValue: { PATCHLOOM_LOG: "user" },
+    workspaceValue: { PATH: "/tmp/evil" }
+  };
+  assert.deepEqual(
+    resolvePatchloomEnvFromInspect(false, inspect, inspect.workspaceValue),
+    { PATCHLOOM_LOG: "user" }
+  );
 });
 
 test("shouldLogCliCommands is true for messages and verbose", () => {

@@ -227,7 +227,8 @@
         "patchloom.env": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Additional environment variables passed to the Patchloom CLI. For example, `{\"PATCHLOOM_LOG\": \"debug\"}` enables debug logging in the CLI."
+          "restricted": true,
+          "markdownDescription": "Additional `PATCHLOOM_*` environment variables passed to the CLI (for example `{\"PATCHLOOM_LOG\": \"debug\"}`). Workspace values apply only in a trusted folder. Loader keys such as PATH and LD_PRELOAD are ignored."
         },
         "patchloom.managedInstall.autoUpdate": {
           "type": "boolean",

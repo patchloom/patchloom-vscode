@@ -157,7 +157,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | `patchloom.showStatusBar` | `true` | Show a status bar item reporting whether Patchloom is available. |
 | `patchloom.enable` | `true` | Enable the extension. When disabled, the status bar is hidden and background checks are skipped. |
 | `patchloom.trace.server` | `"off"` | Trace level for CLI output (`off`, `messages`, `verbose`). |
-| `patchloom.env` | `{}` | Additional environment variables passed to the CLI (e.g., `{"PATCHLOOM_LOG": "debug"}`). |
+| `patchloom.env` | `{}` | Extra `PATCHLOOM_*` variables for the CLI (for example `{"PATCHLOOM_LOG": "debug"}`). Workspace values apply only in a trusted folder. |
 | `patchloom.managedInstall.autoUpdate` | `true` | Automatically check for CLI updates on activation. |
 
 ---
