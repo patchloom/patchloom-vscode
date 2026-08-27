@@ -62,7 +62,7 @@ export async function initializeProject(): Promise<void> {
       },
       {
         label: "Core pack",
-        description: "Short rules for system-prompt injection (CLI 0.24+ --surface core)",
+        description: "Short rules for system-prompt injection (CLI 0.24+ --surface core; 0.29+ honors --mode)",
         surface: "core" as const
       }
     ],

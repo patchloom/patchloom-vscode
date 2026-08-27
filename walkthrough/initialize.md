@@ -6,7 +6,8 @@ your codebase.
 Click **Initialize Project** above to run `patchloom agent-rules` in
 your workspace. You can choose integration mode (CLI + MCP, CLI only, or
 MCP only), shell platform examples (all, Linux/macOS, or Windows), and
-surface (full document or core pack for system-prompt injection).
+surface (full document or core pack for system-prompt injection). On
+CLI 0.29+, the core pack text follows the mode you pick.
 
 ## What AGENTS.md Contains
 

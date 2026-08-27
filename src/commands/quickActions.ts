@@ -259,8 +259,8 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const selector = await vscode.window.showInputBox({
-          prompt: "Selector path",
-          placeHolder: "scripts.test",
+          prompt: "Selector path (CLI 0.30+ accepts numeric compares such as servers[port>8000])",
+          placeHolder: "scripts.test or servers[port>8000]",
           validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
         });
         if (selector === undefined) {
@@ -322,6 +322,55 @@ export async function runQuickAction(): Promise<void> {
         } else {
           log?.show();
           await vscode.window.showInformationMessage("Search results displayed in the Patchloom output channel.");
+        }
+      }
+    },
+    {
+      label: "Search files without match",
+      description: "List files that do not contain the pattern (CLI 0.29+ -L)",
+      detail: "Builds `patchloom search <pattern> --files-without-match [--glob <glob>] <workspace>`",
+      run: async () => {
+        const folder = await activeWorkspaceFolder({
+          promptIfMany: true,
+          placeHolder: "Select workspace folder for Patchloom search -L"
+        });
+        if (!folder) {
+          await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom search.");
+          return;
+        }
+
+        const pattern = await vscode.window.showInputBox({
+          prompt: "Pattern that listed files must not contain",
+          placeHolder: "TODO|FIXME",
+          validateInput: (value) => value.length > 0 ? undefined : "Pattern is required."
+        });
+        if (pattern === undefined) {
+          return;
+        }
+
+        const glob = await vscode.window.showInputBox({
+          prompt: "File glob (optional, leave empty for all files)",
+          placeHolder: "*.ts"
+        });
+        if (glob === undefined) {
+          return;
+        }
+
+        const action = buildSearchQuickAction(folder.uri.fsPath, pattern, glob || undefined, {
+          filesWithoutMatch: true
+        });
+        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
+        const log = getPatchloomLog();
+
+        if (result.exitCode === 3) {
+          await vscode.window.showInformationMessage(`Every scanned file contains "${pattern}".`);
+        } else if (result.exitCode !== 0) {
+          await vscode.window.showErrorMessage(`Patchloom search failed: ${formatCliOutput(result)}`);
+        } else {
+          log?.show();
+          await vscode.window.showInformationMessage(
+            "Files without matches are listed in the Patchloom output channel."
+          );
         }
       }
     },
@@ -440,8 +489,8 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const selector = await vscode.window.showInputBox({
-          prompt: "Selector path",
-          placeHolder: "scripts.test",
+          prompt: "Selector path (CLI 0.30+ accepts numeric compares such as servers[port>8000])",
+          placeHolder: "scripts.test or servers[port>8000]",
           validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
         });
         if (selector === undefined) {
@@ -1097,8 +1146,16 @@ export function buildDocSetQuickAction(targetPath: string, selector: string, val
   };
 }
 
-export function buildSearchQuickAction(workspacePath: string, pattern: string, glob?: string): PlannedQuickAction {
+export function buildSearchQuickAction(
+  workspacePath: string,
+  pattern: string,
+  glob?: string,
+  options?: { readonly filesWithoutMatch?: boolean }
+): PlannedQuickAction {
   const args: string[] = ["search", pattern];
+  if (options?.filesWithoutMatch) {
+    args.push("--files-without-match");
+  }
   if (glob) {
     args.push("--glob", glob);
   }
@@ -1106,7 +1163,9 @@ export function buildSearchQuickAction(workspacePath: string, pattern: string, g
   const targetIndex = args.length - 1;
 
   return {
-    title: `Search for "${pattern}"`,
+    title: options?.filesWithoutMatch
+      ? `Search files without "${pattern}"`
+      : `Search for "${pattern}"`,
     targetPath: workspacePath,
     targetArgIndices: [targetIndex],
     args

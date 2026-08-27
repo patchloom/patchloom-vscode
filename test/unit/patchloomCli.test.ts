@@ -29,6 +29,7 @@ import {
   buildApplyFragmentQuickAction,
   buildInsertAfterMatchQuickAction,
   buildReplaceQuickAction,
+  buildSearchQuickAction,
   retargetQuickAction,
   withApplyFlag
 } from "../../src/commands/quickActions.js";
@@ -578,6 +579,56 @@ describe("patchloom CLI integration", async () => {
 
       const content = await fs.readFile(file, "utf8");
       assert.equal(content, "fn foo() {\n  let x = 2;\n  let a = 1;\n}\n");
+    });
+  });
+
+  test("search --files-without-match via Quick Action args (CLI 0.29+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.29.0") < 0) {
+      t.skip(`requires patchloom >= 0.29.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      await fs.writeFile(path.join(dir, "hit.txt"), "TODO\n", "utf8");
+      await fs.writeFile(path.join(dir, "miss.txt"), "ok\n", "utf8");
+
+      const action = buildSearchQuickAction(dir, "TODO", undefined, { filesWithoutMatch: true });
+      const result = await execFileAsync(binaryPath, ["--json", ...action.args], { timeout: 5000 });
+      const parsed = JSON.parse(result.stdout) as {
+        files?: Array<{ path?: string }>;
+      };
+      const files = (parsed.files ?? []).map((entry) => path.basename(entry.path ?? ""));
+      assert.ok(files.includes("miss.txt"), "files without the pattern should be listed");
+      assert.ok(!files.includes("hit.txt"), "files that contain the pattern should be omitted");
+    });
+  });
+
+  test("create through a file parent is invalid_input (CLI 0.31+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.31.0") < 0) {
+      t.skip(`requires patchloom >= 0.31.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const parent = path.join(dir, "notdir");
+      await fs.writeFile(parent, "file\n", "utf8");
+      const dest = path.join(parent, "child.txt");
+
+      try {
+        await execFileAsync(binaryPath, ["--json", "create", dest, "--content", "x", "--apply"], {
+          timeout: 5000
+        });
+        assert.fail("create through a file parent should fail");
+      } catch (error) {
+        const failed = error as { stdout?: string; stderr?: string };
+        const payload = `${failed.stdout ?? ""}${failed.stderr ?? ""}`;
+        assert.match(payload, /parent path is not a directory/);
+        assert.match(payload, /invalid_input/);
+      }
     });
   });
 
