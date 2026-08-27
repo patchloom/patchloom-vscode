@@ -79,8 +79,11 @@ describe("Patchloom Extension UI", function () {
     this.timeout(90_000);
     await VSBrowser.instance.waitForWorkbench();
     workbench = new Workbench();
-    // Wait for the extension to activate and create its status bar item
-    await poll(findPatchloomStatus, 15_000);
+    // Content-based activation (AGENTS.md / .patchloom.toml) may not fire in
+    // the ExTester workspace. A Patchloom command loads the extension so the
+    // status bar item exists before the suite runs.
+    await workbench.executeCommand("Patchloom: Show Status");
+    await poll(findPatchloomStatus, 30_000);
   });
 
   describe("Status bar", function () {
