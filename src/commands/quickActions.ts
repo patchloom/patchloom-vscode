@@ -65,6 +65,11 @@ export function withEndOfOptions(head: readonly string[], operands: readonly str
   return [...head, "--", ...operands];
 }
 
+/** `--flag=value` so clap does not treat `--` / `-n` as options. */
+export function withOption(flag: string, value: string): string {
+  return `${flag}=${value}`;
+}
+
 export function presentSearchOutcome(
   log: PatchloomLog | undefined,
   result: { exitCode: number; stdout: string; stderr: string }
@@ -1211,7 +1216,7 @@ export async function runQuickAction(): Promise<void> {
 }
 
 export function buildReplaceQuickAction(targetPath: string, from: string, to: string): PlannedQuickAction {
-  const args = withEndOfOptions(["replace", "--new", to], [from, targetPath]);
+  const args = withEndOfOptions(["replace", withOption("--new", to)], [from, targetPath]);
   return {
     title: `Replace text in ${path.basename(targetPath)}`,
     targetPath,
@@ -1225,7 +1230,7 @@ export function buildInsertAfterMatchQuickAction(
   pattern: string,
   content: string
 ): PlannedQuickAction {
-  const args = withEndOfOptions(["replace", "--insert-after", content], [pattern, targetPath]);
+  const args = withEndOfOptions(["replace", withOption("--insert-after", content)], [pattern, targetPath]);
   return {
     title: `Insert after match in ${path.basename(targetPath)}`,
     targetPath,
@@ -1239,7 +1244,7 @@ export function buildInsertBeforeMatchQuickAction(
   pattern: string,
   content: string
 ): PlannedQuickAction {
-  const args = withEndOfOptions(["replace", "--insert-before", content], [pattern, targetPath]);
+  const args = withEndOfOptions(["replace", withOption("--insert-before", content)], [pattern, targetPath]);
   return {
     title: `Insert before match in ${path.basename(targetPath)}`,
     targetPath,
@@ -1262,30 +1267,35 @@ export function buildApplyFragmentQuickAction(
 ): PlannedQuickAction {
   const flag =
     placement === "after" ? "--after" : placement === "before" ? "--before" : "--old";
+  const args = withEndOfOptions(
+    ["apply-fragment", withOption(flag, anchor), withOption("--fragment", fragment)],
+    [targetPath]
+  );
   return {
     title: `Apply fragment in ${path.basename(targetPath)}`,
     targetPath,
-    targetArgIndices: [1],
-    args: ["apply-fragment", targetPath, flag, anchor, "--fragment", fragment]
+    targetArgIndices: [args.length - 1],
+    args
   };
 }
 
 export function buildTidyQuickAction(targetPath: string, fixes: readonly TidyFix[]): PlannedQuickAction {
-  const args = ["tidy", "fix", targetPath];
+  const head = ["tidy", "fix"];
   if (fixes.includes("ensure-final-newline")) {
-    args.push("--ensure-final-newline");
+    head.push("--ensure-final-newline");
   }
   if (fixes.includes("trim-trailing-whitespace")) {
-    args.push("--trim-trailing-whitespace");
+    head.push("--trim-trailing-whitespace");
   }
   if (fixes.includes("normalize-eol-lf")) {
-    args.push("--normalize-eol", "lf");
+    head.push("--normalize-eol", "lf");
   }
+  const args = withEndOfOptions(head, [targetPath]);
 
   return {
     title: `Tidy ${path.basename(targetPath)}`,
     targetPath,
-    targetArgIndices: [2],
+    targetArgIndices: [args.length - 1],
     args
   };
 }
@@ -1321,7 +1331,7 @@ export function buildSearchQuickAction(
     head.push("--files-without-match");
   }
   if (glob) {
-    head.push("--glob", glob);
+    head.push(withOption("--glob", glob));
   }
   const args = withEndOfOptions(head, [pattern, workspacePath]);
   const targetIndex = args.length - 1;
@@ -1337,31 +1347,33 @@ export function buildSearchQuickAction(
 }
 
 export function buildCreateQuickAction(filePath: string, content = ""): PlannedQuickAction {
+  const args = withEndOfOptions(["create", withOption("--content", content)], [filePath]);
   return {
     title: `Create ${path.basename(filePath)}`,
     targetPath: filePath,
-    targetArgIndices: [1],
-    // CLI requires --content/--stdin and --apply; preview-only create returns exit 2 and does not write.
-    args: ["create", filePath, "--content", content],
+    targetArgIndices: [args.length - 1],
+    args,
     apply: true
   };
 }
 
 export function buildAppendQuickAction(targetPath: string, content: string): PlannedQuickAction {
+  const args = withEndOfOptions(["append", withOption("--content", content)], [targetPath]);
   return {
     title: `Append to ${path.basename(targetPath)}`,
     targetPath,
-    targetArgIndices: [1],
-    args: ["append", targetPath, "--content", content]
+    targetArgIndices: [args.length - 1],
+    args
   };
 }
 
 export function buildPrependQuickAction(targetPath: string, content: string): PlannedQuickAction {
+  const args = withEndOfOptions(["prepend", withOption("--content", content)], [targetPath]);
   return {
     title: `Prepend to ${path.basename(targetPath)}`,
     targetPath,
-    targetArgIndices: [1],
-    args: ["prepend", targetPath, "--content", content]
+    targetArgIndices: [args.length - 1],
+    args
   };
 }
 
@@ -1393,8 +1405,8 @@ export function buildDocDeleteWhereQuickAction(
   return {
     title: `Delete where ${predicate} from ${selector} in ${path.basename(targetPath)}`,
     targetPath,
-    targetArgIndices: [5],
-    args: withEndOfOptions(["doc", "delete-where", "--predicate", predicate], [targetPath, selector])
+    targetArgIndices: [4],
+    args: withEndOfOptions(["doc", "delete-where", withOption("--predicate", predicate)], [targetPath, selector])
   };
 }
 
@@ -1404,11 +1416,12 @@ export function buildDocMergeQuickAction(
   selector?: string
 ): PlannedQuickAction {
   const trimmedSelector = selector?.trim() ?? "";
-  const args = ["doc", "merge", targetPath];
+  const head = ["doc", "merge"];
   if (trimmedSelector.length > 0) {
-    args.push("--selector", trimmedSelector);
+    head.push(withOption("--selector", trimmedSelector));
   }
-  args.push("--value", value);
+  head.push(withOption("--value", value));
+  const args = withEndOfOptions(head, [targetPath]);
 
   const title = trimmedSelector.length > 0
     ? `Merge into ${trimmedSelector} in ${path.basename(targetPath)}`
@@ -1417,7 +1430,7 @@ export function buildDocMergeQuickAction(
   return {
     title,
     targetPath,
-    targetArgIndices: [2],
+    targetArgIndices: [args.length - 1],
     args
   };
 }
@@ -1432,29 +1445,41 @@ export function buildDocAppendQuickAction(targetPath: string, selector: string, 
 }
 
 export function buildMdTableAppendQuickAction(targetPath: string, heading: string, row: string): PlannedQuickAction {
+  const args = withEndOfOptions(
+    ["md", "table-append", withOption("--heading", heading), withOption("--row", row)],
+    [targetPath]
+  );
   return {
     title: `Append table row under "${heading}" in ${path.basename(targetPath)}`,
     targetPath,
-    targetArgIndices: [2],
-    args: ["md", "table-append", targetPath, "--heading", heading, "--row", row]
+    targetArgIndices: [args.length - 1],
+    args
   };
 }
 
 export function buildMdUpsertBulletQuickAction(targetPath: string, heading: string, bullet: string): PlannedQuickAction {
+  const args = withEndOfOptions(
+    ["md", "upsert-bullet", withOption("--heading", heading), withOption("--bullet", bullet)],
+    [targetPath]
+  );
   return {
     title: `Upsert bullet under "${heading}" in ${path.basename(targetPath)}`,
     targetPath,
-    targetArgIndices: [2],
-    args: ["md", "upsert-bullet", targetPath, "--heading", heading, "--bullet", bullet]
+    targetArgIndices: [args.length - 1],
+    args
   };
 }
 
 export function buildMdReplaceSectionQuickAction(targetPath: string, heading: string, content: string): PlannedQuickAction {
+  const args = withEndOfOptions(
+    ["md", "replace-section", withOption("--heading", heading), withOption("--content", content)],
+    [targetPath]
+  );
   return {
     title: `Replace "${heading}" in ${path.basename(targetPath)}`,
     targetPath,
-    targetArgIndices: [2],
-    args: ["md", "replace-section", targetPath, "--heading", heading, "--content", content]
+    targetArgIndices: [args.length - 1],
+    args
   };
 }
 
@@ -1486,51 +1511,65 @@ export function buildDocMoveQuickAction(targetPath: string, from: string, to: st
 }
 
 export function buildMdInsertAfterHeadingQuickAction(targetPath: string, heading: string, content: string): PlannedQuickAction {
+  const args = withEndOfOptions(
+    ["md", "insert-after-heading", withOption("--heading", heading), withOption("--content", content)],
+    [targetPath]
+  );
   return {
     title: `Insert after "${heading}" in ${path.basename(targetPath)}`,
     targetPath,
-    targetArgIndices: [2],
-    args: ["md", "insert-after-heading", targetPath, "--heading", heading, "--content", content]
+    targetArgIndices: [args.length - 1],
+    args
   };
 }
 
 export function buildMdInsertAfterSectionQuickAction(targetPath: string, heading: string, content: string): PlannedQuickAction {
+  const args = withEndOfOptions(
+    ["md", "insert-after-section", withOption("--heading", heading), withOption("--content", content)],
+    [targetPath]
+  );
   return {
     title: `Insert after section "${heading}" in ${path.basename(targetPath)}`,
     targetPath,
-    targetArgIndices: [2],
-    args: ["md", "insert-after-section", targetPath, "--heading", heading, "--content", content]
+    targetArgIndices: [args.length - 1],
+    args
   };
 }
 
 export function buildMdInsertBeforeHeadingQuickAction(targetPath: string, heading: string, content: string): PlannedQuickAction {
+  const args = withEndOfOptions(
+    ["md", "insert-before-heading", withOption("--heading", heading), withOption("--content", content)],
+    [targetPath]
+  );
   return {
     title: `Insert before "${heading}" in ${path.basename(targetPath)}`,
     targetPath,
-    targetArgIndices: [2],
-    args: ["md", "insert-before-heading", targetPath, "--heading", heading, "--content", content]
+    targetArgIndices: [args.length - 1],
+    args
   };
 }
 
 export function buildPatchApplyQuickAction(patchPath: string): PlannedQuickAction {
+  const args = withEndOfOptions(["patch", "apply"], [patchPath]);
   return {
     title: `Apply patch ${path.basename(patchPath)}`,
     targetPath: patchPath,
-    targetArgIndices: [2],
-    args: ["patch", "apply", patchPath],
+    targetArgIndices: [args.length - 1],
+    args,
     apply: true
   };
 }
 
 export function buildPatchMergeQuickAction(patchPath: string, allowConflicts: boolean): PlannedQuickAction {
-  const args: string[] = ["patch", "merge", patchPath];
+  const head = ["patch", "merge"];
   if (allowConflicts) {
-    args.push("--allow-conflicts");
+    head.push("--allow-conflicts");
   }
+  const args = withEndOfOptions(head, [patchPath]);
   return {
     title: `Merge patch ${path.basename(patchPath)}`,
     targetPath: patchPath,
-    targetArgIndices: [2],
+    targetArgIndices: [args.length - 1],
     args,
     apply: true
   };
