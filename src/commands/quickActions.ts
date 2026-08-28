@@ -27,7 +27,31 @@ export interface PlannedQuickAction {
   readonly title: string;
   readonly targetPath: string;
   readonly targetArgIndices: readonly number[];
+  /** Subcommand and operands. Do not put `--apply` or `--contain` here. */
   readonly args: readonly string[];
+  /** When true, `serializePatchloomArgs` appends `--apply`. */
+  readonly apply?: boolean;
+}
+
+export interface PatchloomInvocation {
+  readonly args: readonly string[];
+  readonly apply?: boolean;
+  /** When true, prefix global `--contain`. `executePatchloom` defaults this to true. */
+  readonly contain?: boolean;
+}
+
+/**
+ * Build argv from flags plus operands. Never scans `args` for flag names.
+ */
+export function serializePatchloomArgs(invocation: PatchloomInvocation): string[] {
+  const argv = [...invocation.args];
+  if (invocation.contain) {
+    argv.unshift("--contain");
+  }
+  if (invocation.apply) {
+    argv.push("--apply");
+  }
+  return argv;
 }
 
 export function presentSearchOutcome(
@@ -398,7 +422,7 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const action = buildSearchQuickAction(folder.uri.fsPath, pattern, glob || undefined);
-        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
+        const result = await executePatchloom(binaryPath, action, folder.uri.fsPath);
         const log = getPatchloomLog();
         const outcome = presentSearchOutcome(log, result);
 
@@ -445,7 +469,7 @@ export async function runQuickAction(): Promise<void> {
         const action = buildSearchQuickAction(folder.uri.fsPath, pattern, glob || undefined, {
           filesWithoutMatch: true
         });
-        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
+        const result = await executePatchloom(binaryPath, action, folder.uri.fsPath);
         const log = getPatchloomLog();
         const outcome = presentSearchOutcome(log, result);
 
@@ -501,7 +525,7 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const action = buildCreateQuickAction(absolutePath, content);
-        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
+        const result = await executePatchloom(binaryPath, action, folder.uri.fsPath);
 
         if (result.exitCode !== 0) {
           await vscode.window.showErrorMessage(`Patchloom create failed: ${formatCliOutput(result)}`);
@@ -578,7 +602,7 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const action = buildDocGetQuickAction(target.absolutePath, selector);
-        const result = await executePatchloom(binaryPath, action.args, target.workspaceFolder.uri.fsPath);
+        const result = await executePatchloom(binaryPath, action, target.workspaceFolder.uri.fsPath);
 
         if (result.exitCode !== 0) {
           await vscode.window.showErrorMessage(`Patchloom doc get failed: ${formatCliOutput(result)}`);
@@ -1061,7 +1085,7 @@ export async function runQuickAction(): Promise<void> {
         const staged = await stageExternalPatchInWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
         try {
           const planned = retargetQuickAction(action, staged.patchPath);
-          const result = await executePatchloom(binaryPath, planned.args, folder.uri.fsPath);
+          const result = await executePatchloom(binaryPath, planned, folder.uri.fsPath);
           const log = getPatchloomLog();
           presentCliResultInOutput(log, result);
 
@@ -1111,7 +1135,7 @@ export async function runQuickAction(): Promise<void> {
         const staged = await stageExternalPatchInWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
         try {
           const planned = retargetQuickAction(action, staged.patchPath);
-          const result = await executePatchloom(binaryPath, planned.args, folder.uri.fsPath);
+          const result = await executePatchloom(binaryPath, planned, folder.uri.fsPath);
           const log = getPatchloomLog();
           const outcome = presentPatchMergeOutcome(log, result);
 
@@ -1151,7 +1175,7 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const action = buildUndoQuickAction(folder.uri.fsPath);
-        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
+        const result = await executePatchloom(binaryPath, action, folder.uri.fsPath);
 
         if (result.exitCode !== 0) {
           await vscode.window.showWarningMessage(formatUndoFailureMessage(result));
@@ -1302,7 +1326,8 @@ export function buildCreateQuickAction(filePath: string, content = ""): PlannedQ
     targetPath: filePath,
     targetArgIndices: [1],
     // CLI requires --content/--stdin and --apply; preview-only create returns exit 2 and does not write.
-    args: ["create", filePath, "--content", content, "--apply"]
+    args: ["create", filePath, "--content", content],
+    apply: true
   };
 }
 
@@ -1474,12 +1499,13 @@ export function buildPatchApplyQuickAction(patchPath: string): PlannedQuickActio
     title: `Apply patch ${path.basename(patchPath)}`,
     targetPath: patchPath,
     targetArgIndices: [2],
-    args: ["patch", "apply", patchPath, "--apply"]
+    args: ["patch", "apply", patchPath],
+    apply: true
   };
 }
 
 export function buildPatchMergeQuickAction(patchPath: string, allowConflicts: boolean): PlannedQuickAction {
-  const args: string[] = ["patch", "merge", patchPath, "--apply"];
+  const args: string[] = ["patch", "merge", patchPath];
   if (allowConflicts) {
     args.push("--allow-conflicts");
   }
@@ -1487,7 +1513,8 @@ export function buildPatchMergeQuickAction(patchPath: string, allowConflicts: bo
     title: `Merge patch ${path.basename(patchPath)}`,
     targetPath: patchPath,
     targetArgIndices: [2],
-    args
+    args,
+    apply: true
   };
 }
 
@@ -1496,7 +1523,8 @@ export function buildUndoQuickAction(workspacePath: string): PlannedQuickAction 
     title: "Undo last patchloom change",
     targetPath: workspacePath,
     targetArgIndices: [],
-    args: ["undo", "--apply"]
+    args: ["undo"],
+    apply: true
   };
 }
 
@@ -1512,7 +1540,7 @@ export function isAllowedPreviewMiss(action: PlannedQuickAction, exitCode: numbe
   if (exitCode !== 3) {
     return false;
   }
-  // PlannedQuickAction.args are pre-contain. executePatchloom prepends --contain later.
+  // PlannedQuickAction.args are operands only. executePatchloom adds --contain.
   // doc update and delete-where: exit 3 is a path miss (key not found), not a soft no-op.
   return !(
     action.args[0] === "doc" &&
@@ -1535,17 +1563,7 @@ export function retargetQuickAction(action: PlannedQuickAction, nextTargetPath: 
   };
 }
 
-export function withApplyFlag(args: readonly string[]): string[] {
-  return args.at(-1) === "--apply" ? [...args] : [...args, "--apply"];
-}
 
-/**
- * Prepend the global `--contain` flag so CLI ops cannot escape the cwd workspace.
- * Global flags must appear before the subcommand (`patchloom --contain replace ...`).
- */
-export function withContainFlag(args: readonly string[]): string[] {
-  return args[0] === "--contain" ? [...args] : ["--contain", ...args];
-}
 
 async function previewAndMaybeApply(
   binaryPath: string,
@@ -1591,7 +1609,11 @@ async function previewAndMaybeApply(
     return;
   }
 
-  const result = await executePatchloom(binaryPath, withApplyFlag(action.args), target.workspaceFolder.uri.fsPath);
+  const result = await executePatchloom(
+    binaryPath,
+    { args: action.args, apply: true },
+    target.workspaceFolder.uri.fsPath
+  );
   if (result.exitCode !== 0) {
     presentCliResultInOutput(getPatchloomLog(), result);
     await vscode.window.showErrorMessage(
@@ -1620,7 +1642,7 @@ async function buildPreviewDocument(
   try {
     await fs.writeFile(tempPath, originalContent, "utf8");
     const previewAction = retargetQuickAction(action, tempPath);
-    const result = await executePatchloom(binaryPath, withApplyFlag(previewAction.args), tempDir);
+    const result = await executePatchloom(binaryPath, { args: previewAction.args, apply: true }, tempDir);
     if (result.exitCode !== 0 && !isAllowedPreviewMiss(action, result.exitCode)) {
       presentCliResultInOutput(getPatchloomLog(), result);
       throw new Error(formatQuickActionCliOutput(result));
@@ -1873,18 +1895,16 @@ async function ensureWorkspaceFileReady(target: WorkspaceFileTarget): Promise<bo
   return true;
 }
 
-export interface ExecutePatchloomOptions {
-  /** When true (default), prefix args with global `--contain` for workspace path guarding. */
-  readonly contain?: boolean;
-}
-
 async function executePatchloom(
   binaryPath: string,
-  args: readonly string[],
-  cwd: string,
-  options: ExecutePatchloomOptions = {}
+  invocation: PatchloomInvocation,
+  cwd: string
 ): Promise<PatchloomCommandResult> {
-  const finalArgs = options.contain === false ? [...args] : withContainFlag(args);
+  const finalArgs = serializePatchloomArgs({
+    args: invocation.args,
+    apply: invocation.apply,
+    contain: invocation.contain !== false
+  });
   const log = getPatchloomLog();
   const runtime = await getPatchloomRuntimeConfig();
   const env = mergePatchloomEnv(process.env, runtime.extraEnv);

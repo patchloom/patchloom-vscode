@@ -10,6 +10,7 @@ import {
   presentCliResultInOutput
 } from "../logging/outputChannel.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
+import { serializePatchloomArgs } from "./quickActions.js";
 
 // Batch replace is PATH OLD NEW (not CLI `replace OLD --new NEW path`). See CLI 0.18+ batch --help.
 // doc.update / doc.delete_where are the multi-match siblings of doc.set / doc.delete
@@ -44,9 +45,9 @@ export function isEmptyBatchPlan(plan: string): boolean {
   return parseBatchOperationCount(plan) === 0;
 }
 
-/** CLI argv for Batch Apply. Global --contain first (CLI 0.10+ path guard). */
+/** CLI argv for Batch Apply. Flags come from serializePatchloomArgs, not from scanning operands. */
 export function buildBatchApplyArgs(): string[] {
-  return ["--contain", "batch", "--apply"];
+  return serializePatchloomArgs({ args: ["batch"], apply: true, contain: true });
 }
 
 export async function batchApply(): Promise<void> {

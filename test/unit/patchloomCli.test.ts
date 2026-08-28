@@ -37,7 +37,7 @@ import {
   buildReplaceQuickAction,
   buildSearchQuickAction,
   retargetQuickAction,
-  withApplyFlag
+  serializePatchloomArgs
 } from "../../src/commands/quickActions.js";
 import { configureMcpTargets, inspectMcpTargets } from "../../src/mcp/config.js";
 import { performManagedInstall } from "../../src/install/managed.js";
@@ -380,7 +380,7 @@ describe("patchloom CLI integration", async () => {
       await fs.writeFile(previewFile, originalContent, "utf8");
 
       const previewAction = retargetQuickAction(action, previewFile);
-      const applyArgs = withApplyFlag([...previewAction.args]);
+      const applyArgs = serializePatchloomArgs({ args: [...previewAction.args], apply: true });
 
       await execFileAsync(binaryPath, applyArgs, { cwd: previewDir, timeout: 5000 });
 
@@ -529,7 +529,7 @@ describe("patchloom CLI integration", async () => {
       await fs.writeFile(file, "---\na: 1\n---\nb: 2\n", "utf8");
 
       const action = buildDocMergeQuickAction(file, '{"c": 3}', "0");
-      await execFileAsync(binaryPath, withApplyFlag(action.args), { timeout: 5000 });
+      await execFileAsync(binaryPath, serializePatchloomArgs({ args: action.args, apply: true }), { timeout: 5000 });
 
       const content = await fs.readFile(file, "utf8");
       assert.match(content, /a:\s*1/, "first document field preserved");
@@ -556,7 +556,7 @@ describe("patchloom CLI integration", async () => {
       await fs.writeFile(file, "alpha\nbeta\n", "utf8");
 
       const action = buildInsertAfterMatchQuickAction(file, "beta", "gamma");
-      await execFileAsync(binaryPath, withApplyFlag(action.args), { timeout: 5000 });
+      await execFileAsync(binaryPath, serializePatchloomArgs({ args: action.args, apply: true }), { timeout: 5000 });
 
       const content = await fs.readFile(file, "utf8");
       assert.equal(content, "alpha\nbeta\ngamma\n");
@@ -576,7 +576,7 @@ describe("patchloom CLI integration", async () => {
       await fs.writeFile(file, "fn foo() {\n  let a = 1;\n}\n", "utf8");
 
       const action = buildApplyFragmentQuickAction(file, "after", "fn foo() {", "  let x = 2;");
-      await execFileAsync(binaryPath, withApplyFlag(action.args), { timeout: 5000 });
+      await execFileAsync(binaryPath, serializePatchloomArgs({ args: action.args, apply: true }), { timeout: 5000 });
 
       const content = await fs.readFile(file, "utf8");
       assert.equal(content, "fn foo() {\n  let x = 2;\n  let a = 1;\n}\n");
@@ -700,7 +700,11 @@ describe("patchloom CLI integration", async () => {
       );
 
       const action = buildPatchApplyQuickAction(patchFile);
-      await execFileAsync(binaryPath, action.args, { cwd: dir, timeout: 5000 });
+      await execFileAsync(
+        binaryPath,
+        serializePatchloomArgs({ args: action.args, apply: action.apply }),
+        { cwd: dir, timeout: 5000 }
+      );
 
       const content = await fs.readFile(file, "utf8");
       assert.match(content, /fn new\(\) \{\}/);
@@ -723,9 +727,11 @@ describe("patchloom CLI integration", async () => {
       const action = buildCreateQuickAction(dest, "x");
 
       try {
-        await execFileAsync(binaryPath, ["--json", ...action.args], {
-          timeout: 5000
-        });
+        await execFileAsync(
+          binaryPath,
+          ["--json", ...serializePatchloomArgs({ args: action.args, apply: action.apply })],
+          { timeout: 5000 }
+        );
         assert.fail("create through a file parent should fail");
       } catch (error) {
         const failed = error as { stdout?: string; stderr?: string };
@@ -754,7 +760,7 @@ describe("patchloom CLI integration", async () => {
       ].join("\n"), "utf8");
 
       const action = buildDocSetQuickAction(file, "service_a.retries", "3");
-      await execFileAsync(binaryPath, withApplyFlag(action.args), { timeout: 5000 });
+      await execFileAsync(binaryPath, serializePatchloomArgs({ args: action.args, apply: true }), { timeout: 5000 });
 
       const content = await fs.readFile(file, "utf8");
       assert.match(content, /<<: \*shared/, "alias merge key should be preserved");
@@ -779,7 +785,7 @@ describe("patchloom CLI integration", async () => {
       );
 
       const action = buildDocUpdateQuickAction(file, "items[*].enabled", "false");
-      await execFileAsync(binaryPath, withApplyFlag(action.args), { timeout: 5000 });
+      await execFileAsync(binaryPath, serializePatchloomArgs({ args: action.args, apply: true }), { timeout: 5000 });
 
       const content = JSON.parse(await fs.readFile(file, "utf8")) as { items: Array<{ enabled: boolean }> };
       assert.deepEqual(content.items, [{ enabled: false }, { enabled: false }]);
@@ -803,7 +809,7 @@ describe("patchloom CLI integration", async () => {
       );
 
       const action = buildDocDeleteWhereQuickAction(file, "items", "name=stale");
-      await execFileAsync(binaryPath, withApplyFlag(action.args), { timeout: 5000 });
+      await execFileAsync(binaryPath, serializePatchloomArgs({ args: action.args, apply: true }), { timeout: 5000 });
 
       const content = JSON.parse(await fs.readFile(file, "utf8")) as { items: Array<{ name: string }> };
       assert.deepEqual(content.items, [{ name: "keep" }]);
