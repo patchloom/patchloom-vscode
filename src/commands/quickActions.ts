@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
-import { getPatchloomLog, getPatchloomRuntimeConfig, logCliCommand, logCliResult } from "../logging/outputChannel.js";
+import { getPatchloomLog, getPatchloomRuntimeConfig, logCliCommand, logCliResult, writeUserVisibleOutput } from "../logging/outputChannel.js";
 import { formatCliOutput, formatError, mergePatchloomEnv } from "../util.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 
@@ -320,6 +320,8 @@ export async function runQuickAction(): Promise<void> {
         } else if (result.exitCode !== 0) {
           await vscode.window.showErrorMessage(`Patchloom search failed: ${formatCliOutput(result)}`);
         } else {
+          writeUserVisibleOutput(log, result.stdout);
+          writeUserVisibleOutput(log, result.stderr);
           log?.show();
           await vscode.window.showInformationMessage("Search results displayed in the Patchloom output channel.");
         }
@@ -367,6 +369,8 @@ export async function runQuickAction(): Promise<void> {
         } else if (result.exitCode !== 0) {
           await vscode.window.showErrorMessage(`Patchloom search failed: ${formatCliOutput(result)}`);
         } else {
+          writeUserVisibleOutput(log, result.stdout);
+          writeUserVisibleOutput(log, result.stderr);
           log?.show();
           await vscode.window.showInformationMessage(
             "Files without matches are listed in the Patchloom output channel."
@@ -1007,6 +1011,8 @@ export async function runQuickAction(): Promise<void> {
           log?.show();
           await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
         } else {
+          writeUserVisibleOutput(log, result.stdout);
+          writeUserVisibleOutput(log, result.stderr);
           log?.show();
           await vscode.window.showInformationMessage("Patch merged successfully.");
         }
@@ -1047,6 +1053,8 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const log = getPatchloomLog();
+        writeUserVisibleOutput(log, result.stdout);
+        writeUserVisibleOutput(log, result.stderr);
         log?.show();
         await vscode.window.showInformationMessage("Patchloom undo complete. Restored files shown in the output channel.");
       }

@@ -61,6 +61,17 @@ export function logCliResult(
   log?.logResult(exitCode, "", "");
 }
 
+/** Always write user-facing CLI output, independent of `patchloom.trace.server`. */
+export function writeUserVisibleOutput(
+  log: PatchloomLog | undefined,
+  text: string
+): void {
+  if (log === undefined || text === "") {
+    return;
+  }
+  log.log(text);
+}
+
 export interface OutputChannelLike {
   appendLine(value: string): void;
   show(preserveFocus?: boolean): void;

@@ -122,7 +122,7 @@ Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay insid
 
 ### Output channel
 
-All CLI invocations, arguments, and output are logged to the **Patchloom** output channel. Run `Patchloom: Show Output` to open it. Useful for debugging and copying full error messages for bug reports.
+Search, search `-L`, and undo results always appear in the **Patchloom** output channel. Other CLI invocations, arguments, and I/O follow `patchloom.trace.server` (`off` by default; set `verbose` to dump every command). Run `Patchloom: Show Output` to open it.
 
 ### Compatibility diagnostics
 
@@ -230,7 +230,7 @@ Run `Patchloom: Configure MCP` and select the target editor config.
 Run `Patchloom: Show Status` to see persisted diagnostic details. If the managed binary is present but not usable, choose **Reinstall Patchloom** (or the status-bar action) to re-download from GitHub Releases.
 
 **Debugging CLI errors**
-Run `Patchloom: Show Output` to see full CLI invocations, arguments, stdout, and stderr in the output channel.
+Run `Patchloom: Show Output` to inspect the channel. Search and undo results are always written there; set `patchloom.trace.server` to `verbose` for other CLI invocations, arguments, stdout, and stderr.
 
 ---
 

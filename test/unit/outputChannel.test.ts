@@ -5,7 +5,9 @@ import {
   getPatchloomLog,
   logCliCommand,
   logCliResult,
-  setPatchloomLog
+  setPatchloomLog,
+  writeUserVisibleOutput,
+  type PatchloomLog
 } from "../../src/logging/outputChannel.js";
 
 test("createPatchloomLog lazily creates channel on first log call", () => {
@@ -238,4 +240,34 @@ test("logCliResult dumps streams when trace is verbose", () => {
   assert.ok(lines.some(l => l === "stdout-body"));
   assert.ok(lines.some(l => l === "stderr: stderr-body"));
   assert.ok(lines.some(l => l.includes("Exit code: 0")));
+});
+
+function fakeLog(): { log: PatchloomLog; messages: string[] } {
+  const messages: string[] = [];
+  return {
+    messages,
+    log: {
+      log(message: string) { messages.push(message); },
+      logCommand() {},
+      logResult() {},
+      show() {},
+      dispose() {}
+    }
+  };
+}
+
+test("writeUserVisibleOutput no-ops on empty string", () => {
+  const { log, messages } = fakeLog();
+  writeUserVisibleOutput(log, "");
+  assert.deepEqual(messages, []);
+});
+
+test("writeUserVisibleOutput logs non-empty text", () => {
+  const { log, messages } = fakeLog();
+  writeUserVisibleOutput(log, "file.ts:1:TODO");
+  assert.deepEqual(messages, ["file.ts:1:TODO"]);
+});
+
+test("writeUserVisibleOutput no-ops when log is undefined", () => {
+  writeUserVisibleOutput(undefined, "hits");
 });
