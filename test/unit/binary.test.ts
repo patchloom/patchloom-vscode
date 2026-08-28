@@ -1137,6 +1137,38 @@ test("resolvePatchloomStatusWithSharedInflight starts a new probe after the firs
   clearPatchloomStatusInflight();
 });
 
+test("clearPatchloomStatusInflight starts a new probe while one is pending", async () => {
+  clearPatchloomStatusInflight();
+  let calls = 0;
+  let releaseFirst: (() => void) | undefined;
+  const firstGate = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  const resolve = async () => {
+    calls += 1;
+    const n = calls;
+    if (n === 1) {
+      await firstGate;
+    }
+    return {
+      ready: true,
+      source: "path" as const,
+      message: `call-${n}`,
+      binaryPath: "/bin/patchloom"
+    };
+  };
+
+  const first = resolvePatchloomStatusWithSharedInflight(resolve);
+  clearPatchloomStatusInflight();
+  const second = resolvePatchloomStatusWithSharedInflight(resolve);
+  releaseFirst?.();
+  const [a, b] = await Promise.all([first, second]);
+  assert.equal(calls, 2);
+  assert.equal(a.message, "call-1");
+  assert.equal(b.message, "call-2");
+  clearPatchloomStatusInflight();
+});
+
 test("resolvePatchloomStatusWithSharedInflight retries after a failed probe", async () => {
   clearPatchloomStatusInflight();
   let calls = 0;

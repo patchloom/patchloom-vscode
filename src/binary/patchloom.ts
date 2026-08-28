@@ -58,8 +58,9 @@ let inflightStatus: Promise<PatchloomStatus> | undefined;
 /**
  * Share one in-flight status probe. Activate runs status bar, auto-update,
  * and MCP register together; each would otherwise exec `--version`.
- * No TTL cache: the next call after the probe finishes re-resolves so
- * settings, trust, and managed-install changes stay fresh.
+ * The first `resolve` wins for joiners. No TTL cache: after the probe
+ * finishes (or after `clearPatchloomStatusInflight`) the next call
+ * starts a new probe so settings, trust, and install stay fresh.
  */
 export async function resolvePatchloomStatusWithSharedInflight(
   resolve: () => Promise<PatchloomStatus>

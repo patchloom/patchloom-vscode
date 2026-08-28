@@ -38,13 +38,16 @@ export function activate(context: vscode.ExtensionContext): void {
     new vscode.Disposable(disposeStatusBar),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("patchloom")) {
+        clearPatchloomStatusInflight();
         void refreshStatusBar();
       }
     }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      clearPatchloomStatusInflight();
       void refreshStatusBar();
     }),
     vscode.workspace.onDidGrantWorkspaceTrust(() => {
+      clearPatchloomStatusInflight();
       void refreshStatusBar();
     })
   );
