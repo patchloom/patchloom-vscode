@@ -236,7 +236,13 @@
           "markdownDescription": "Automatically check for Patchloom CLI updates when the extension activates. Shows a notification when a newer version is available."
         }
       }
-    }
+    },
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "patchloom",
+        "label": "Patchloom"
+      }
+    ]
   },
   "scripts": {
     "compile": "tsc -p ./",
