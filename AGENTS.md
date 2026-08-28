@@ -45,6 +45,7 @@ src/
   mcp/register.ts        Native MCP server definition provider (VS Code 1.100+ API)
   status/details.ts      Status presentation: buildStatusDetails, preferredStatusAction
   status/statusBar.ts    Status bar item: create, refresh, dispose
+  status/refreshAfterInputChange.ts  Clear inflight status then refresh bar and MCP
   workspace/readiness.ts Workspace readiness: environment detection, folder selection
 test/
   unit/                  Unit tests (node:test, dependency-injected, no VS Code API)
@@ -55,6 +56,7 @@ test/
     managedLifecycle.test.ts   Managed install with real file I/O (22 tests)
     mcpConfig.test.ts    MCP config with real temp directories (12 tests)
     mcpRegister.test.ts  Native MCP definition helper for binary path (2 tests)
+    statusRefresh.test.ts Status and MCP refresh order after input change (1 test)
     outputChannel.test.ts Output channel logging wrapper (22 tests)
     patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (46 tests incl. e2e)
     propertyBased.test.ts  Property-based tests with fast-check (13 tests)
