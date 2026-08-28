@@ -802,7 +802,8 @@ async function defaultRemoveDir(dirPath: string): Promise<void> {
 
 async function defaultFetchJson(url: string): Promise<{ tag_name: string }> {
   const response = await fetch(url, {
-    headers: { "Accept": "application/vnd.github+json", "User-Agent": "patchloom-vscode" }
+    headers: { "Accept": "application/vnd.github+json", "User-Agent": "patchloom-vscode" },
+    signal: AbortSignal.timeout(10_000)
   });
   if (!response.ok) {
     throw new Error(`GitHub API request failed: ${response.status} ${response.statusText}`);

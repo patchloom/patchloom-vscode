@@ -54,7 +54,7 @@ test/
     binary.test.ts       Binary discovery, managed install, compatibility, workspace env (74 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
     initializeProject.test.ts  Status display, agents file classification, formatError (61 tests)
-    managedLifecycle.test.ts   Managed install with real file I/O (22 tests)
+    managedLifecycle.test.ts   Managed install with real file I/O (26 tests)
     mcpConfig.test.ts    MCP config with real temp directories (12 tests)
     managedInstall.test.ts  Managed Update compares latest vs managed binary (10 tests)
     mcpRegister.test.ts  Native MCP definition helper for binary path (2 tests)
@@ -64,7 +64,7 @@ test/
     propertyBased.test.ts  Property-based tests with fast-check (13 tests)
     quickActions.test.ts Quick action command building, path containment, patch merge (73 tests)
     verifyMcp.test.ts    MCP server verify and JSON-RPC response parsing (15 tests)
-    downloadIntegration.test.ts  HTTP download, redirect, streaming SHA-256 (9 tests)
+    downloadIntegration.test.ts  HTTP download, redirect, streaming SHA-256 (12 tests)
   suite/
     index.ts             VS Code extension integration tests
     runExtensionTests.ts  Test runner using @vscode/test-electron
