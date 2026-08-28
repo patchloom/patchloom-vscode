@@ -82,6 +82,12 @@ export async function run(): Promise<void> {
   assert.equal(statusBarSchema.type, "boolean", "patchloom.showStatusBar should be boolean type");
   assert.equal(statusBarSchema.default, true, "patchloom.showStatusBar default should be true");
 
+  const mcpProviders = contributes.mcpServerDefinitionProviders as Array<Record<string, unknown>>;
+  assert.ok(Array.isArray(mcpProviders) && mcpProviders.length === 1,
+    "should contribute exactly one mcpServerDefinitionProvider");
+  assert.equal(mcpProviders[0].id, "patchloom", "mcp provider id should be patchloom");
+  assert.equal(mcpProviders[0].label, "Patchloom", "mcp provider label should be Patchloom");
+
   // New settings contributed
   assert.ok(properties["patchloom.enable"], "should contribute patchloom.enable setting");
   assert.ok(properties["patchloom.trace.server"], "should contribute patchloom.trace.server setting");

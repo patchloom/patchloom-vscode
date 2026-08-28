@@ -11,10 +11,7 @@ test("mcpServerDefinitionsForBinary returns one stdio definition for a path", ()
   assert.equal(defs.length, 1);
   assert.deepEqual(defs[0], {
     label: "Patchloom MCP",
-    serverDefinition: {
-      type: "stdio",
-      command: "/opt/patchloom",
-      args: ["mcp-server"]
-    }
+    command: "/opt/patchloom",
+    args: ["mcp-server"]
   });
 });

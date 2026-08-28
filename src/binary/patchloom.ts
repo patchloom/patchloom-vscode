@@ -191,13 +191,25 @@ export interface PatchloomRemediationAction {
 
 /**
  * Choose the best one-click remediation for a missing or outdated CLI.
- * Prefers managed install/update (GitHub Releases) so users do not stick on
- * lagging community packages (winget, Chocolatey). Pure: unit-testable without VS Code.
+ * A broken patchloom.path or PATH binary still wins resolution, so
+ * Install/Reinstall would loop. Pure: unit-testable without VS Code.
  */
 export function preferredBinaryRemediationAction(
   status: PatchloomStatus
 ): PatchloomRemediationAction | undefined {
   if (!status.ready || !status.binaryPath) {
+    if (status.source === "setting") {
+      return {
+        title: "Open Settings",
+        command: "patchloom.openPatchloomSettings"
+      };
+    }
+    if (status.source === "path") {
+      return {
+        title: "Open Releases",
+        command: "patchloom.openPatchloomReleases"
+      };
+    }
     if (status.managedInstall?.exists) {
       return {
         title: "Reinstall Patchloom",
