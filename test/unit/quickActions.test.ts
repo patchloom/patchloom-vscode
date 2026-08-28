@@ -267,6 +267,12 @@ test("withApplyFlag appends apply once", () => {
   ]);
 });
 
+test("withApplyFlag still appends when user text is --apply", () => {
+  assert.deepEqual(withApplyFlag(["replace", "--apply", "--new", "x", "f.txt"]), [
+    "replace", "--apply", "--new", "x", "f.txt", "--apply"
+  ]);
+});
+
 test("withContainFlag prefixes global --contain once", () => {
   assert.deepEqual(withContainFlag(["replace", "old", "--new", "new", "f.txt"]), [
     "--contain",
@@ -282,12 +288,19 @@ test("withContainFlag prefixes global --contain once", () => {
     "--apply"
   ]);
   assert.deepEqual(withContainFlag(["doc", "set", "a.json", "port", "1", "--contain"]), [
+    "--contain",
     "doc",
     "set",
     "a.json",
     "port",
     "1",
     "--contain"
+  ]);
+});
+
+test("withContainFlag still prefixes when user text is --contain", () => {
+  assert.deepEqual(withContainFlag(["replace", "--contain", "--new", "x", "f.txt"]), [
+    "--contain", "replace", "--contain", "--new", "x", "f.txt"
   ]);
 });
 
