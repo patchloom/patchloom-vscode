@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import { parse, type ParseError } from "jsonc-parser";
 import { configuredBinaryPathFromSetting } from "../binary/patchloom.js";
 
 export type McpTargetKind = "vscode-workspace" | "cursor-workspace" | "windsurf-user";
@@ -46,11 +47,18 @@ export async function inspectMcpTargets(inputs: McpInspectionInputs): Promise<Mc
 
   for (const target of targets) {
     const content = await readFile(target.filePath);
-    const config = parseJsonObject(content);
+    let configured = false;
+    if (content !== undefined) {
+      try {
+        configured = hasPatchloomEntry(target.kind, parseJsonObject(content, target.filePath));
+      } catch {
+        configured = false;
+      }
+    }
     results.push({
       ...target,
       exists: content !== undefined,
-      configured: hasPatchloomEntry(target.kind, config)
+      configured
     });
   }
 
@@ -68,7 +76,7 @@ export async function configureMcpTargets(inputs: McpApplyInputs): Promise<McpTa
 
   for (const target of targets) {
     const content = await readFile(target.filePath);
-    const original = parseJsonObject(content);
+    const original = parseJsonObject(content, target.filePath);
     const updated = withPatchloomEntry(target.kind, original, patchloomCommand, mcpSurface);
     const serialized = `${JSON.stringify(updated, null, 2)}\n`;
     const previousSerialized = content === undefined ? undefined : `${JSON.stringify(original, null, 2)}\n`;
@@ -176,19 +184,21 @@ function objectValue(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function parseJsonObject(content: string | undefined): Record<string, unknown> {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseJsonObject(content: string | undefined, filePath: string): Record<string, unknown> {
   if (!content || !content.trim()) {
     return {};
   }
 
-  try {
-    const parsed = JSON.parse(content) as unknown;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? { ...(parsed as Record<string, unknown>) }
-      : {};
-  } catch {
-    return {};
+  const errors: ParseError[] = [];
+  const parsed: unknown = parse(content, errors, { allowTrailingComma: true });
+  if (errors.length > 0 || !isPlainObject(parsed)) {
+    throw new Error(`Cannot parse MCP config ${filePath}: invalid JSONC or not a JSON object`);
   }
+  return { ...parsed };
 }
 
 async function defaultReadFile(filePath: string): Promise<string | undefined> {

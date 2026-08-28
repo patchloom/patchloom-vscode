@@ -85,6 +85,47 @@ test("configureMcpTargets writes core surface env when requested", async () => {
   });
 });
 
+test("configureMcpTargets preserves sibling servers in JSONC mcp.json", async () => {
+  await withTempDir(async (workspace) => {
+    const vscodeDir = path.join(workspace, ".vscode");
+    await fs.mkdir(vscodeDir, { recursive: true });
+    const filePath = path.join(vscodeDir, "mcp.json");
+    await fs.writeFile(
+      filePath,
+      `{
+  // comment
+  "servers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"]
+    },
+  }
+}
+`,
+      "utf8"
+    );
+
+    await configureMcpTargets({
+      workspaceFolderPath: workspace,
+      homeDir: workspace,
+      includeKinds: ["vscode-workspace"],
+      patchloomPathSetting: "patchloom",
+      readFile: async (targetPath) => {
+        try { return await fs.readFile(targetPath, "utf8"); } catch { return undefined; }
+      },
+      writeFile: async (targetPath, content) => {
+        await fs.mkdir(path.dirname(targetPath), { recursive: true });
+        await fs.writeFile(targetPath, content, "utf8");
+      }
+    });
+
+    const written = await readJson(filePath);
+    const servers = written.servers as Record<string, unknown>;
+    assert.ok(servers.github, "existing github server should be preserved");
+    assert.ok(servers.patchloom, "patchloom server should be added");
+  });
+});
+
 test("configureMcpTargets preserves existing servers in the config file", async () => {
   await withTempDir(async (workspace) => {
     const vscodeDir = path.join(workspace, ".vscode");
@@ -195,29 +236,61 @@ test("configureMcpTargets is idempotent on second call", async () => {
   });
 });
 
-test("configureMcpTargets handles invalid JSON in existing file gracefully", async () => {
+test("configureMcpTargets refuses garbage JSON and leaves the file unchanged", async () => {
+  await withTempDir(async (workspace) => {
+    const vscodeDir = path.join(workspace, ".vscode");
+    await fs.mkdir(vscodeDir, { recursive: true });
+    const filePath = path.join(vscodeDir, "mcp.json");
+    const original = "not json {{{";
+    await fs.writeFile(filePath, original, "utf8");
+
+    let wrote = false;
+    await assert.rejects(
+      () => configureMcpTargets({
+        workspaceFolderPath: workspace,
+        homeDir: workspace,
+        includeKinds: ["vscode-workspace"],
+        patchloomPathSetting: "patchloom",
+        readFile: async (targetPath) => {
+          try { return await fs.readFile(targetPath, "utf8"); } catch { return undefined; }
+        },
+        writeFile: async (targetPath, content) => {
+          wrote = true;
+          await fs.mkdir(path.dirname(targetPath), { recursive: true });
+          await fs.writeFile(targetPath, content, "utf8");
+        }
+      }),
+      (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.match(err.message, /mcp\.json/);
+        return true;
+      }
+    );
+
+    assert.equal(wrote, false, "garbage config must not be overwritten");
+    const after = await fs.readFile(filePath, "utf8");
+    assert.equal(after, original);
+  });
+});
+
+test("inspectMcpTargets reports unconfigured when existing file is not valid JSONC", async () => {
   await withTempDir(async (workspace) => {
     const vscodeDir = path.join(workspace, ".vscode");
     await fs.mkdir(vscodeDir, { recursive: true });
     await fs.writeFile(path.join(vscodeDir, "mcp.json"), "not json {{{", "utf8");
 
-    const results = await configureMcpTargets({
+    const targets = await inspectMcpTargets({
       workspaceFolderPath: workspace,
       homeDir: workspace,
-      includeKinds: ["vscode-workspace"],
-      patchloomPathSetting: "patchloom",
-      readFile: async (filePath) => {
-        try { return await fs.readFile(filePath, "utf8"); } catch { return undefined; }
-      },
-      writeFile: async (filePath, content) => {
-        await fs.mkdir(path.dirname(filePath), { recursive: true });
-        await fs.writeFile(filePath, content, "utf8");
+      readFile: async (targetPath) => {
+        try { return await fs.readFile(targetPath, "utf8"); } catch { return undefined; }
       }
     });
 
-    assert.equal(results[0].changed, true);
-    const written = await readJson(path.join(vscodeDir, "mcp.json"));
-    assert.ok((written.servers as Record<string, unknown>).patchloom);
+    const vscodeTarget = targets.find((t) => t.kind === "vscode-workspace");
+    assert.ok(vscodeTarget);
+    assert.equal(vscodeTarget.exists, true);
+    assert.equal(vscodeTarget.configured, false);
   });
 });
 

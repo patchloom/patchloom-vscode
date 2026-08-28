@@ -3,8 +3,9 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import { configureMcpTargets, inspectMcpTargets } from "../mcp/config.js";
-import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 import { refreshStatusBar } from "../status/statusBar.js";
+import { formatError } from "../util.js";
+import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 
 export async function configureMcp(): Promise<void> {
   const binaryPath = await ensurePatchloomReadyOrNotify("Patchloom needs a working binary before MCP setup can continue.");
@@ -63,24 +64,30 @@ export async function configureMcp(): Promise<void> {
   }
 
   const selectedKinds = selections.map((selection) => selection.target.kind);
-  const results = await configureMcpTargets({
-    workspaceFolderPath,
-    includeKinds: selectedKinds,
-    includeUserTarget: environment.supportsUserMcpConfig,
-    patchloomPathSetting: binaryPath,
-    mcpSurface: surfacePick.surface,
-    readFile: async (filePath) => {
-      try {
-        return await fs.readFile(filePath, "utf8");
-      } catch {
-        return undefined;
+  let results;
+  try {
+    results = await configureMcpTargets({
+      workspaceFolderPath,
+      includeKinds: selectedKinds,
+      includeUserTarget: environment.supportsUserMcpConfig,
+      patchloomPathSetting: binaryPath,
+      mcpSurface: surfacePick.surface,
+      readFile: async (filePath) => {
+        try {
+          return await fs.readFile(filePath, "utf8");
+        } catch {
+          return undefined;
+        }
+      },
+      writeFile: async (filePath, content) => {
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        await fs.writeFile(filePath, content, "utf8");
       }
-    },
-    writeFile: async (filePath, content) => {
-      await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, content, "utf8");
-    }
-  });
+    });
+  } catch (error) {
+    await vscode.window.showErrorMessage(`Failed to configure MCP: ${formatError(error)}`);
+    return;
+  }
 
   const applied = results;
   const changed = applied.filter((result) => result.changed);
