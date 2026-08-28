@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { resolvePatchloomStatus, comparePatchloomVersions, PATCHLOOM_RELEASES_URL } from "../binary/patchloom.js";
+import { resolvePatchloomStatus, comparePatchloomVersions, PATCHLOOM_RELEASES_URL, clearPatchloomStatusInflight } from "../binary/patchloom.js";
 import {
   detectManagedInstallTarget,
   fetchLatestReleaseVersion,
@@ -67,6 +67,7 @@ export async function installPatchloom(): Promise<void> {
         });
 
         log?.log(`Managed install complete: Patchloom ${result.version} at ${result.binaryPath}`);
+        clearPatchloomStatusInflight();
         await refreshStatusBar();
         await refreshMcpServerBinary();
         await vscode.window.showInformationMessage(
@@ -143,6 +144,7 @@ export async function updatePatchloom(): Promise<void> {
         });
 
         log?.log(`Managed update complete: Patchloom ${result.version} at ${result.binaryPath}`);
+        clearPatchloomStatusInflight();
         await refreshStatusBar();
         await refreshMcpServerBinary();
         await vscode.window.showInformationMessage(
@@ -196,6 +198,7 @@ export async function reinstallPatchloom(): Promise<void> {
         });
 
         log?.log(`Managed reinstall complete: Patchloom ${result.version} at ${result.binaryPath}`);
+        clearPatchloomStatusInflight();
         await refreshStatusBar();
         await refreshMcpServerBinary();
         await vscode.window.showInformationMessage(

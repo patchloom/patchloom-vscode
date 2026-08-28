@@ -15,7 +15,10 @@ import {
   parsePatchloomVersion,
   ensurePatchloomReadyOrNotify,
   preferredBinaryRemediationAction,
-  resolvePatchloomStatusWithInputs
+  resolvePatchloomStatusWithInputs,
+  resolvePatchloomStatusWithSharedInflight,
+  clearPatchloomStatusInflight,
+  type PatchloomStatus
 } from "../../src/binary/patchloom.js";
 import {
   assertTrustedManagedInstallDownloadUrl,
@@ -1082,6 +1085,111 @@ test("resolvePatchloomStatusWithInputs reports restricted message when untrusted
   assert.equal(status.ready, false);
   assert.equal(status.source, "missing");
   assert.ok(status.message.includes("untrusted"));
+});
+
+test("resolvePatchloomStatusWithSharedInflight coalesces concurrent probes", async () => {
+  clearPatchloomStatusInflight();
+  let calls = 0;
+  const status: PatchloomStatus = {
+    ready: true,
+    source: "path",
+    message: "ok",
+    binaryPath: "/bin/patchloom"
+  };
+  const resolve = async () => {
+    calls += 1;
+    await new Promise((r) => setTimeout(r, 20));
+    return status;
+  };
+
+  const [a, b, c] = await Promise.all([
+    resolvePatchloomStatusWithSharedInflight(resolve),
+    resolvePatchloomStatusWithSharedInflight(resolve),
+    resolvePatchloomStatusWithSharedInflight(resolve)
+  ]);
+
+  assert.equal(calls, 1);
+  assert.equal(a, status);
+  assert.equal(b, status);
+  assert.equal(c, status);
+  clearPatchloomStatusInflight();
+});
+
+test("resolvePatchloomStatusWithSharedInflight starts a new probe after the first finishes", async () => {
+  clearPatchloomStatusInflight();
+  let calls = 0;
+  const resolve = async () => {
+    calls += 1;
+    return {
+      ready: true,
+      source: "path" as const,
+      message: `call-${calls}`,
+      binaryPath: "/bin/patchloom"
+    };
+  };
+
+  const first = await resolvePatchloomStatusWithSharedInflight(resolve);
+  const second = await resolvePatchloomStatusWithSharedInflight(resolve);
+
+  assert.equal(calls, 2);
+  assert.equal(first.message, "call-1");
+  assert.equal(second.message, "call-2");
+  clearPatchloomStatusInflight();
+});
+
+test("clearPatchloomStatusInflight starts a new probe while one is pending", async () => {
+  clearPatchloomStatusInflight();
+  let calls = 0;
+  let releaseFirst: (() => void) | undefined;
+  const firstGate = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  const resolve = async () => {
+    calls += 1;
+    const n = calls;
+    if (n === 1) {
+      await firstGate;
+    }
+    return {
+      ready: true,
+      source: "path" as const,
+      message: `call-${n}`,
+      binaryPath: "/bin/patchloom"
+    };
+  };
+
+  const first = resolvePatchloomStatusWithSharedInflight(resolve);
+  clearPatchloomStatusInflight();
+  const second = resolvePatchloomStatusWithSharedInflight(resolve);
+  releaseFirst?.();
+  const [a, b] = await Promise.all([first, second]);
+  assert.equal(calls, 2);
+  assert.equal(a.message, "call-1");
+  assert.equal(b.message, "call-2");
+  clearPatchloomStatusInflight();
+});
+
+test("resolvePatchloomStatusWithSharedInflight retries after a failed probe", async () => {
+  clearPatchloomStatusInflight();
+  let calls = 0;
+  const resolve = async () => {
+    calls += 1;
+    if (calls === 1) {
+      throw new Error("version failed");
+    }
+    return {
+      ready: true,
+      source: "path" as const,
+      message: "ok",
+      binaryPath: "/bin/patchloom"
+    };
+  };
+
+  await assert.rejects(() => resolvePatchloomStatusWithSharedInflight(resolve), /version failed/);
+  const recovered = await resolvePatchloomStatusWithSharedInflight(resolve);
+  assert.equal(calls, 2);
+  assert.equal(recovered.ready, true);
+  clearPatchloomStatusInflight();
 });
 
 test("resolvePatchloomStatusWithInputs allows setting and PATH in trusted workspaces", async () => {

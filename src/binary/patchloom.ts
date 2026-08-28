@@ -53,16 +53,46 @@ export interface PatchloomStatusInputs {
   readonly isTrusted?: boolean;
 }
 
+let inflightStatus: Promise<PatchloomStatus> | undefined;
+
+/**
+ * Share one in-flight status probe. Activate runs status bar, auto-update,
+ * and MCP register together; each would otherwise exec `--version`.
+ * The first `resolve` wins for joiners. No TTL cache: after the probe
+ * finishes (or after `clearPatchloomStatusInflight`) the next call
+ * starts a new probe so settings, trust, and install stay fresh.
+ */
+export async function resolvePatchloomStatusWithSharedInflight(
+  resolve: () => Promise<PatchloomStatus>
+): Promise<PatchloomStatus> {
+  if (inflightStatus !== undefined) {
+    return inflightStatus;
+  }
+  const pending = resolve().finally(() => {
+    if (inflightStatus === pending) {
+      inflightStatus = undefined;
+    }
+  });
+  inflightStatus = pending;
+  return pending;
+}
+
+export function clearPatchloomStatusInflight(): void {
+  inflightStatus = undefined;
+}
+
 export async function resolvePatchloomStatus(): Promise<PatchloomStatus> {
-  const vscode = await import("vscode");
-  const managedInstallRoot = getManagedInstallRoot();
-  return resolvePatchloomStatusWithInputs({
-    configuredPath: vscode.workspace.getConfiguration("patchloom").get<string>("path", ""),
-    pathValue: process.env.PATH,
-    platform: process.platform,
-    arch: process.arch,
-    managedInstallRoot,
-    isTrusted: vscode.workspace.isTrusted
+  return resolvePatchloomStatusWithSharedInflight(async () => {
+    const vscode = await import("vscode");
+    const managedInstallRoot = getManagedInstallRoot();
+    return resolvePatchloomStatusWithInputs({
+      configuredPath: vscode.workspace.getConfiguration("patchloom").get<string>("path", ""),
+      pathValue: process.env.PATH,
+      platform: process.platform,
+      arch: process.arch,
+      managedInstallRoot,
+      isTrusted: vscode.workspace.isTrusted
+    });
   });
 }
 

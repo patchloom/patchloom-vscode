@@ -8,6 +8,7 @@ import { setupWorkspace, openPatchloomReleases, openPatchloomSettings, openDocum
 import { showStatus } from "./commands/showStatus.js";
 import { verifyMcp } from "./commands/verifyMcp.js";
 import { checkForUpdates } from "./commands/autoUpdate.js";
+import { clearPatchloomStatusInflight } from "./binary/patchloom.js";
 import { setManagedInstallRoot } from "./install/managed.js";
 import { createPatchloomLog, getPatchloomLog, setPatchloomLog } from "./logging/outputChannel.js";
 import { registerMcpServerProviderWithBinary } from "./mcp/register.js";
@@ -37,13 +38,16 @@ export function activate(context: vscode.ExtensionContext): void {
     new vscode.Disposable(disposeStatusBar),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("patchloom")) {
+        clearPatchloomStatusInflight();
         void refreshStatusBar();
       }
     }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      clearPatchloomStatusInflight();
       void refreshStatusBar();
     }),
     vscode.workspace.onDidGrantWorkspaceTrust(() => {
+      clearPatchloomStatusInflight();
       void refreshStatusBar();
     })
   );
@@ -54,6 +58,7 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {
+  clearPatchloomStatusInflight();
   setManagedInstallRoot(undefined);
   const log = getPatchloomLog();
   log?.dispose();
