@@ -35,7 +35,7 @@ src/
     initializeProject.ts Initialize Project command: generate/diff AGENTS.md
     managedInstall.ts    Managed Install commands: install, update, reinstall Patchloom binary
     quickActions.ts       Quick Action command: replace, tidy, doc set, search, create, append, prepend, doc get, patch merge
-    batchApply.ts        Batch Apply command: atomic multi-operation plan via JSON
+    batchApply.ts        Batch Apply command: atomic multi-operation plan (line-oriented, not JSON)
     setupWorkspace.ts     Setup Workspace command: guided readiness walkthrough
     showStatus.ts         Show Status command: diagnostics display
     verifyMcp.ts         Verify MCP Server command: JSON-RPC initialize probe
@@ -85,7 +85,7 @@ scripts/
   actions/
     setup-node/            Composite: Node.js from .nvmrc + npm ci
   workflows/
-    ci.yml                 CI: unit tests, build, integration tests (self-hosted)
+    ci.yml                 CI: unit tests, build, integration tests (GitHub-hosted matrix)
     auto-approve.yml           Auto-approve PRs from SebTardif and dependabot[bot]
     dependabot-auto-merge.yml  Auto-merge minor/patch Dependabot PRs
     dco.yml                    DCO sign-off check on PRs

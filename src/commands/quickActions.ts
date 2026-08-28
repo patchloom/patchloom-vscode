@@ -1536,7 +1536,7 @@ export function retargetQuickAction(action: PlannedQuickAction, nextTargetPath: 
 }
 
 export function withApplyFlag(args: readonly string[]): string[] {
-  return args.includes("--apply") ? [...args] : [...args, "--apply"];
+  return args.at(-1) === "--apply" ? [...args] : [...args, "--apply"];
 }
 
 /**
@@ -1544,9 +1544,7 @@ export function withApplyFlag(args: readonly string[]): string[] {
  * Global flags must appear before the subcommand (`patchloom --contain replace ...`).
  */
 export function withContainFlag(args: readonly string[]): string[] {
-  return args[0] === "--contain" || args.includes("--contain")
-    ? [...args]
-    : ["--contain", ...args];
+  return args[0] === "--contain" ? [...args] : ["--contain", ...args];
 }
 
 async function previewAndMaybeApply(
