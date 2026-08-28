@@ -45,8 +45,7 @@ import {
   presentUndoSuccess,
   resolveWorkspaceRelativePath,
   retargetQuickAction,
-  withApplyFlag,
-  withContainFlag
+  serializePatchloomArgs
 } from "../../src/commands/quickActions.js";
 import type { PatchloomLog } from "../../src/logging/outputChannel.js";
 
@@ -248,60 +247,30 @@ test("retargetQuickAction swaps only the target path arguments", () => {
   ]);
 });
 
-test("withApplyFlag appends apply once", () => {
-  assert.deepEqual(withApplyFlag(["replace", "old", "--new", "new", "README.md"]), [
-    "replace",
-    "old",
-    "--new",
-    "new",
-    "README.md",
-    "--apply"
-  ]);
-  assert.deepEqual(withApplyFlag(["replace", "old", "--new", "new", "README.md", "--apply"]), [
-    "replace",
-    "old",
-    "--new",
-    "new",
-    "README.md",
-    "--apply"
-  ]);
+test("serializePatchloomArgs writes flags from booleans, not from scanning args", () => {
+  assert.deepEqual(
+    serializePatchloomArgs({ args: ["replace", "old", "--new", "new", "README.md"], apply: true }),
+    ["replace", "old", "--new", "new", "README.md", "--apply"]
+  );
+  assert.deepEqual(
+    serializePatchloomArgs({ args: ["replace", "old", "--new", "new", "f.txt"], contain: true }),
+    ["--contain", "replace", "old", "--new", "new", "f.txt"]
+  );
+  assert.deepEqual(
+    serializePatchloomArgs({ args: ["batch"], apply: true, contain: true }),
+    ["--contain", "batch", "--apply"]
+  );
 });
 
-test("withApplyFlag still appends when user text is --apply", () => {
-  assert.deepEqual(withApplyFlag(["replace", "--apply", "--new", "x", "f.txt"]), [
-    "replace", "--apply", "--new", "x", "f.txt", "--apply"
-  ]);
-});
-
-test("withContainFlag prefixes global --contain once", () => {
-  assert.deepEqual(withContainFlag(["replace", "old", "--new", "new", "f.txt"]), [
-    "--contain",
-    "replace",
-    "old",
-    "--new",
-    "new",
-    "f.txt"
-  ]);
-  assert.deepEqual(withContainFlag(["--contain", "batch", "--apply"]), [
-    "--contain",
-    "batch",
-    "--apply"
-  ]);
-  assert.deepEqual(withContainFlag(["doc", "set", "a.json", "port", "1", "--contain"]), [
-    "--contain",
-    "doc",
-    "set",
-    "a.json",
-    "port",
-    "1",
-    "--contain"
-  ]);
-});
-
-test("withContainFlag still prefixes when user text is --contain", () => {
-  assert.deepEqual(withContainFlag(["replace", "--contain", "--new", "x", "f.txt"]), [
-    "--contain", "replace", "--contain", "--new", "x", "f.txt"
-  ]);
+test("serializePatchloomArgs still adds flags when user text matches a flag name", () => {
+  assert.deepEqual(
+    serializePatchloomArgs({ args: ["replace", "--apply", "--new", "x", "f.txt"], apply: true }),
+    ["replace", "--apply", "--new", "x", "f.txt", "--apply"]
+  );
+  assert.deepEqual(
+    serializePatchloomArgs({ args: ["replace", "--contain", "--new", "x", "f.txt"], contain: true }),
+    ["--contain", "replace", "--contain", "--new", "x", "f.txt"]
+  );
 });
 
 test("buildPrependQuickAction builds a file prepend command", () => {
@@ -402,9 +371,9 @@ test("buildCreateQuickAction builds a create command with content and apply", ()
     "create",
     "/workspace/demo/src/newfile.ts",
     "--content",
-    "hello",
-    "--apply"
+    "hello"
   ]);
+  assert.equal(action.apply, true);
   assert.deepEqual(action.targetArgIndices, [1]);
 });
 
@@ -414,9 +383,9 @@ test("buildCreateQuickAction allows empty content", () => {
     "create",
     "/workspace/demo/empty.txt",
     "--content",
-    "",
-    "--apply"
+    ""
   ]);
+  assert.equal(action.apply, true);
 });
 
 test("buildSearchQuickAction preserves spaces in pattern as a single arg", () => {
@@ -497,9 +466,9 @@ test("buildCreateQuickAction with spaces in path", () => {
     "create",
     "/workspace/my project/src/new file.ts",
     "--content",
-    "x",
-    "--apply"
+    "x"
   ]);
+  assert.equal(action.apply, true);
 });
 
 test("buildDocGetQuickAction with deeply nested selector", () => {
@@ -515,9 +484,9 @@ test("buildCreateQuickAction with unicode filename", () => {
     "create",
     "/workspace/demo/docs/日本語.md",
     "--content",
-    "# title",
-    "--apply"
+    "# title"
   ]);
+  assert.equal(action.apply, true);
 });
 
 test("buildSearchQuickAction with unicode pattern", () => {
@@ -651,7 +620,8 @@ test("buildUndoQuickAction builds an undo command", () => {
   assert.equal(action.title, "Undo last patchloom change");
   assert.equal(action.targetPath, "/workspace/demo");
   assert.deepEqual(action.targetArgIndices, []);
-  assert.deepEqual(action.args, ["undo", "--apply"]);
+  assert.deepEqual(action.args, ["undo"]);
+  assert.equal(action.apply, true);
 });
 
 // --- #120: remaining Quick Actions ---
@@ -769,7 +739,8 @@ test("buildPatchApplyQuickAction builds a patch apply command", () => {
 
   assert.equal(action.title, "Apply patch changes.patch");
   assert.deepEqual(action.targetArgIndices, [2]);
-  assert.deepEqual(action.args, ["patch", "apply", "/workspace/demo/changes.patch", "--apply"]);
+  assert.deepEqual(action.args, ["patch", "apply", "/workspace/demo/changes.patch"]);
+  assert.equal(action.apply, true);
 });
 
 test("retargetQuickAction works with patch apply command", () => {
@@ -779,6 +750,7 @@ test("retargetQuickAction works with patch apply command", () => {
   assert.equal(retargeted.args[2], "/tmp/preview/fix.patch");
   assert.equal(retargeted.args[0], "patch");
   assert.equal(retargeted.args[1], "apply");
+  assert.equal(retargeted.apply, true);
 });
 
 // --- patch merge Quick Action (v0.2.0+) ---
@@ -788,7 +760,8 @@ test("buildPatchMergeQuickAction builds a patch merge command", () => {
 
   assert.equal(action.title, "Merge patch changes.patch");
   assert.deepEqual(action.targetArgIndices, [2]);
-  assert.deepEqual(action.args, ["patch", "merge", "/workspace/demo/changes.patch", "--apply"]);
+  assert.deepEqual(action.args, ["patch", "merge", "/workspace/demo/changes.patch"]);
+  assert.equal(action.apply, true);
 });
 
 test("buildPatchMergeQuickAction includes allow-conflicts flag when enabled", () => {
@@ -796,7 +769,8 @@ test("buildPatchMergeQuickAction includes allow-conflicts flag when enabled", ()
 
   assert.equal(action.title, "Merge patch stale.diff");
   assert.deepEqual(action.targetArgIndices, [2]);
-  assert.deepEqual(action.args, ["patch", "merge", "/workspace/demo/stale.diff", "--apply", "--allow-conflicts"]);
+  assert.deepEqual(action.args, ["patch", "merge", "/workspace/demo/stale.diff", "--allow-conflicts"]);
+  assert.equal(action.apply, true);
 });
 
 test("retargetQuickAction works with patch merge command", () => {
