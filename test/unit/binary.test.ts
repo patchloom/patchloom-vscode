@@ -1141,14 +1141,21 @@ test("clearPatchloomStatusInflight starts a new probe while one is pending", asy
   clearPatchloomStatusInflight();
   let calls = 0;
   let releaseFirst: (() => void) | undefined;
+  let releaseSecond: (() => void) | undefined;
   const firstGate = new Promise<void>((resolve) => {
     releaseFirst = resolve;
+  });
+  const secondGate = new Promise<void>((resolve) => {
+    releaseSecond = resolve;
   });
   const resolve = async () => {
     calls += 1;
     const n = calls;
     if (n === 1) {
       await firstGate;
+    }
+    if (n === 2) {
+      await secondGate;
     }
     return {
       ready: true,
@@ -1162,10 +1169,14 @@ test("clearPatchloomStatusInflight starts a new probe while one is pending", asy
   clearPatchloomStatusInflight();
   const second = resolvePatchloomStatusWithSharedInflight(resolve);
   releaseFirst?.();
-  const [a, b] = await Promise.all([first, second]);
+  const third = resolvePatchloomStatusWithSharedInflight(resolve);
+  assert.equal(calls, 2);
+  releaseSecond?.();
+  const [a, b, c] = await Promise.all([first, second, third]);
   assert.equal(calls, 2);
   assert.equal(a.message, "call-1");
   assert.equal(b.message, "call-2");
+  assert.equal(c.message, "call-2");
   clearPatchloomStatusInflight();
 });
 

@@ -11,7 +11,8 @@ import { checkForUpdates } from "./commands/autoUpdate.js";
 import { clearPatchloomStatusInflight } from "./binary/patchloom.js";
 import { setManagedInstallRoot } from "./install/managed.js";
 import { createPatchloomLog, getPatchloomLog, setPatchloomLog } from "./logging/outputChannel.js";
-import { registerMcpServerProviderWithBinary } from "./mcp/register.js";
+import { refreshMcpServerBinary, registerMcpServerProviderWithBinary } from "./mcp/register.js";
+import { refreshAfterPatchloomInputChange } from "./status/refreshAfterInputChange.js";
 import { disposeStatusBar, refreshStatusBar } from "./status/statusBar.js";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -38,17 +39,26 @@ export function activate(context: vscode.ExtensionContext): void {
     new vscode.Disposable(disposeStatusBar),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("patchloom")) {
-        clearPatchloomStatusInflight();
-        void refreshStatusBar();
+        void refreshAfterPatchloomInputChange(
+          clearPatchloomStatusInflight,
+          refreshStatusBar,
+          refreshMcpServerBinary
+        );
       }
     }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
-      clearPatchloomStatusInflight();
-      void refreshStatusBar();
+      void refreshAfterPatchloomInputChange(
+        clearPatchloomStatusInflight,
+        refreshStatusBar,
+        refreshMcpServerBinary
+      );
     }),
     vscode.workspace.onDidGrantWorkspaceTrust(() => {
-      clearPatchloomStatusInflight();
-      void refreshStatusBar();
+      void refreshAfterPatchloomInputChange(
+        clearPatchloomStatusInflight,
+        refreshStatusBar,
+        refreshMcpServerBinary
+      );
     })
   );
 
