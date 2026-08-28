@@ -18,9 +18,9 @@ Patchloom for VS Code is the official VS Code extension for [Patchloom](https://
 | `npm run test` | Compile + compile-tests + compile-uitests + unit tests |
 | `npm run test:coverage` | Unit tests with line coverage (80% threshold) |
 | `npm run package` | Package the `.vsix` using `@vscode/vsce` |
-| `npm run check` | Full CI gate: test + coverage + package |
+| `npm run check` | Local gate: unit tests + coverage + package (required before commit) |
 
-Always run `npm run check` before committing.
+Always run `npm run check` before committing. Merge CI also runs extension integration tests (`test:extension`) and ExTester UI tests (`test:ui`). `npm run test:all` covers compile + unit + extension tests but does not include UI tests.
 
 ## Project structure
 
@@ -126,7 +126,7 @@ All I/O-dependent functions accept an `inputs` object with injectable callbacks 
 - No `any` types without justification.
 - Pure helpers with injected I/O for testability.
 - Keep `extension.ts` thin. No business logic in the entrypoint.
-- `npm run check` is the full gate. Nothing merges unless it passes.
+- `npm run check` is the local gate (unit tests + coverage + package). Run it before every commit. Merge CI also requires extension integration and UI tests.
 - All relative imports must use `.js` extensions (`from "./foo.js"`, not `from "./foo"`). Required by `moduleResolution: "node16"`.
 - All commits require a `Signed-off-by` line (DCO). Use `git commit -s`.
 - When adding commands to `package.json`, update the expected count in `test/suite/index.ts`.
