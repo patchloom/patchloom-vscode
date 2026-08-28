@@ -9,13 +9,13 @@ for your editor. Choose the **full** tool inventory or the **core** pack
 
 ## Supported Editors
 
-| Editor | Config file |
-|--------|------------|
-| VS Code | `.vscode/mcp.json` |
-| Cursor | `.cursor/mcp.json` |
-| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
+| Editor | Config file | Key |
+|--------|-------------|-----|
+| VS Code | `.vscode/mcp.json` | `servers` |
+| Cursor | `.cursor/mcp.json` | `mcpServers` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
 
-The command detects which editors are available and configures them
-automatically.
+The command lists the editors it can configure. You pick one or more
+targets, then Full vs Core. It does not write every editor on its own.
 
 See the [MCP setup guide](https://patchloom.github.io/patchloom/getting-started/mcp-setup.html) for advanced configuration.
