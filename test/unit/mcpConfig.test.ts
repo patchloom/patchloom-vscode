@@ -157,6 +157,26 @@ test("configureMcpTargets preserves existing servers in the config file", async 
   });
 });
 
+test("configureMcpTargets writes Cursor config with mcpServers key", async () => {
+  await withTempDir(async (workspace) => {
+    await configureMcpTargets({
+      workspaceFolderPath: workspace,
+      homeDir: workspace,
+      includeKinds: ["cursor-workspace"],
+      patchloomPathSetting: "patchloom",
+      writeFile: async (filePath, content) => {
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        await fs.writeFile(filePath, content, "utf8");
+      }
+    });
+
+    const written = await readJson(path.join(workspace, ".cursor", "mcp.json"));
+    assert.equal(written.servers, undefined, "Cursor does not read the VS Code servers key");
+    const servers = written.mcpServers as Record<string, unknown>;
+    assert.ok(servers.patchloom);
+  });
+});
+
 test("configureMcpTargets creates both vscode and cursor configs", async () => {
   await withTempDir(async (workspace) => {
     const results = await configureMcpTargets({
@@ -176,7 +196,7 @@ test("configureMcpTargets creates both vscode and cursor configs", async () => {
     const vscodeConfig = await readJson(path.join(workspace, ".vscode", "mcp.json"));
     const cursorConfig = await readJson(path.join(workspace, ".cursor", "mcp.json"));
     assert.ok((vscodeConfig.servers as Record<string, unknown>).patchloom);
-    assert.ok((cursorConfig.servers as Record<string, unknown>).patchloom);
+    assert.ok((cursorConfig.mcpServers as Record<string, unknown>).patchloom);
   });
 });
 
