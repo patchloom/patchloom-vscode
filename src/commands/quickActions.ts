@@ -37,6 +37,7 @@ export function presentSearchOutcome(
     return "none";
   }
   if (result.exitCode !== 0) {
+    presentCliResultInOutput(log, result);
     return "error";
   }
   presentCliResultInOutput(log, result);

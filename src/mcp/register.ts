@@ -31,36 +31,6 @@ type LmWithMcpProvider = typeof VSCode.lm & {
   ) => VSCode.Disposable;
 };
 
-export async function registerMcpServerProvider(context: VSCode.ExtensionContext): Promise<void> {
-  // vscode.lm.registerMCPServerDefinitionProvider is available in VS Code 1.100+
-  const vscode = await import("vscode");
-  const lm = vscode.lm as LmWithMcpProvider;
-  if (typeof lm.registerMCPServerDefinitionProvider !== "function") {
-    return;
-  }
-
-  const disposable = lm.registerMCPServerDefinitionProvider("patchloom", {
-    provideMCPServerDefinitions() {
-      return [buildMcpServerDefinition()];
-    }
-  });
-  context.subscriptions.push(disposable);
-
-  const log = getPatchloomLog();
-  log?.log("Registered Patchloom MCP server via mcpServerDefinitionProviders API");
-}
-
-function buildMcpServerDefinition(): Record<string, unknown> {
-  return {
-    label: "Patchloom MCP",
-    serverDefinition: {
-      type: "stdio",
-      command: "patchloom",
-      args: ["mcp-server"]
-    }
-  };
-}
-
 /** Resolve CLI binary and update the path used by the native MCP provider. */
 export async function refreshMcpServerBinary(): Promise<void> {
   const status = await resolvePatchloomStatus();

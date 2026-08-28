@@ -29,6 +29,7 @@ src/
   extension.ts           Thin entrypoint: registers commands, status bar, config listeners
   util.ts                Shared utilities (formatError, formatCliOutput)
   binary/patchloom.ts    Binary discovery, version parsing, compatibility assessment
+  binary/managedUpdate.ts  Managed Update decision: latest vs managed binary, not PATH/setting
   commands/
     configureMcp.ts      Configure MCP command: multi-target MCP config injection
     initializeProject.ts Initialize Project command: generate/diff AGENTS.md
@@ -55,6 +56,7 @@ test/
     initializeProject.test.ts  Status display, agents file classification, formatError (61 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (22 tests)
     mcpConfig.test.ts    MCP config with real temp directories (12 tests)
+    managedInstall.test.ts  Managed Update compares latest vs managed binary (10 tests)
     mcpRegister.test.ts  Native MCP definition helper for binary path (2 tests)
     statusRefresh.test.ts Status and MCP refresh order after input change (1 test)
     outputChannel.test.ts Output channel logging wrapper (22 tests)

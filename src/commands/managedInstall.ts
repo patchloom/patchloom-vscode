@@ -1,5 +1,8 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import * as vscode from "vscode";
-import { resolvePatchloomStatus, comparePatchloomVersions, PATCHLOOM_RELEASES_URL, clearPatchloomStatusInflight } from "../binary/patchloom.js";
+import { resolvePatchloomStatus, PATCHLOOM_RELEASES_URL, clearPatchloomStatusInflight } from "../binary/patchloom.js";
+import { decideManagedUpdate, resolveManagedBinaryVersion } from "../binary/managedUpdate.js";
 import {
   detectManagedInstallTarget,
   fetchLatestReleaseVersion,
@@ -12,6 +15,8 @@ import { refreshMcpServerBinary } from "../mcp/register.js";
 import { refreshStatusBar } from "../status/statusBar.js";
 import { formatError } from "../util.js";
 
+const execFileAsync = promisify(execFile);
+
 const MANAGED_INSTALL_UNAVAILABLE =
   "Managed install is not available: extension storage path is not set.";
 
@@ -20,6 +25,17 @@ const PROGRESS_OPTIONS: vscode.ProgressOptions = {
   title: "Patchloom",
   cancellable: false,
 };
+
+async function readManagedBinaryVersionText(binaryPath: string): Promise<string | undefined> {
+  const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], {
+    timeout: 5_000,
+    windowsHide: true
+  });
+  return `${stdout}${stderr}`
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
+}
 
 function stageLabel(stage: ManagedInstallStage): string {
   switch (stage) {
@@ -107,19 +123,21 @@ export async function updatePatchloom(): Promise<void> {
         const latestVersion = await fetchLatestReleaseVersion();
 
         const status = await resolvePatchloomStatus();
-        if (status.detectedVersion && comparePatchloomVersions(latestVersion, status.detectedVersion) <= 0) {
+        const managedVersion = await resolveManagedBinaryVersion(status, readManagedBinaryVersionText);
+        const decision = decideManagedUpdate(latestVersion, managedVersion);
+        if (decision.kind === "current") {
           await vscode.window.showInformationMessage(
-            `Patchloom ${status.detectedVersion} is already up to date.`
+            `Managed Patchloom ${decision.version} is already up to date.`
           );
           return;
         }
 
-        const upgradeLabel = status.detectedVersion
-          ? `${status.detectedVersion} to ${latestVersion}`
-          : latestVersion;
+        const upgradeLabel = decision.from
+          ? `${decision.from} to ${decision.to}`
+          : decision.to;
 
         const choice = await vscode.window.showInformationMessage(
-          `Patchloom ${upgradeLabel} is available. Install now?`,
+          `Managed Patchloom ${upgradeLabel} is available. Install now?`,
           "Install",
           "View Release"
         );
