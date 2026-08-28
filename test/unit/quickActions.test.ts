@@ -722,7 +722,7 @@ test("presentSearchOutcome exit 3 writes nothing, returns none", () => {
   assert.deepEqual(messages, []);
 });
 
-test("presentSearchOutcome exit 2 writes nothing, returns error", () => {
+test("presentSearchOutcome exit 2 writes streams + show, returns error", () => {
   const { log, messages } = fakeLog();
   const kind = presentSearchOutcome(log, {
     exitCode: 2,
@@ -730,7 +730,7 @@ test("presentSearchOutcome exit 2 writes nothing, returns error", () => {
     stderr: "err"
   });
   assert.equal(kind, "error");
-  assert.deepEqual(messages, []);
+  assert.deepEqual(messages, ["out", "err", "SHOW"]);
 });
 
 test("presentPatchMergeOutcome exit 8 writes streams + show, returns conflicts", () => {
