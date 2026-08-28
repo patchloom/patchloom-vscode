@@ -738,6 +738,8 @@ test("generateAgentRules merges extraEnv into execFile env", async () => {
     extraEnv: { PATCHLOOM_LOG: "debug" },
     processEnv: { PATH: "/usr/bin", HOME: "/home/user" },
     execFile: async (_file, _args, options) => {
+      assert.equal(_file, "/fake/patchloom");
+      assert.deepEqual([..._args], buildAgentRulesArgs());
       seenEnv = options.env;
       return { stdout: "# rules\n", stderr: "" };
     }
@@ -762,7 +764,11 @@ test("generateAgentRules logs command and streams when trace is verbose", async 
   try {
     await generateAgentRules("/fake/patchloom", "/tmp", {}, {
       trace: "verbose",
-      execFile: async () => ({ stdout: "# rules\n", stderr: "note" })
+      execFile: async (_file, _args) => {
+        assert.equal(_file, "/fake/patchloom");
+        assert.deepEqual([..._args], buildAgentRulesArgs());
+        return { stdout: "# rules\n", stderr: "note" };
+      }
     });
     assert.equal(commands.length, 1);
     assert.equal(commands[0].binary, "/fake/patchloom");
@@ -787,7 +793,11 @@ test("generateAgentRules skips CLI logs when trace is off", async () => {
   });
   try {
     await generateAgentRules("/fake/patchloom", "/tmp", {}, {
-      execFile: async () => ({ stdout: "# rules\n", stderr: "" })
+      execFile: async (_file, _args) => {
+        assert.equal(_file, "/fake/patchloom");
+        assert.deepEqual([..._args], buildAgentRulesArgs());
+        return { stdout: "# rules\n", stderr: "" };
+      }
     });
     assert.equal(commands, 0);
     assert.equal(results, 0);
@@ -802,6 +812,8 @@ test("generateAgentRules extraEnv overwrites processEnv keys", async () => {
     extraEnv: { PATCHLOOM_LOG: "debug" },
     processEnv: { PATH: "/usr/bin", PATCHLOOM_LOG: "info" },
     execFile: async (_file, _args, options) => {
+      assert.equal(_file, "/fake/patchloom");
+      assert.deepEqual([..._args], buildAgentRulesArgs());
       seenEnv = options.env;
       return { stdout: "# rules\n", stderr: "" };
     }
@@ -867,7 +879,9 @@ test("generateAgentRules surfaces formatCliOutput envelope on CLI failure", asyn
     await assert.rejects(
       () => generateAgentRules("/fake/patchloom", "/tmp", {}, {
         trace: "verbose",
-        execFile: async () => {
+        execFile: async (_file, _args) => {
+          assert.equal(_file, "/fake/patchloom");
+          assert.deepEqual([..._args], buildAgentRulesArgs());
           throw execError;
         }
       }),

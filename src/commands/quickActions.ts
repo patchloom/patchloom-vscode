@@ -5,7 +5,14 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
-import { getPatchloomLog, getPatchloomRuntimeConfig, logCliCommand, logCliResult } from "../logging/outputChannel.js";
+import {
+  getPatchloomLog,
+  getPatchloomRuntimeConfig,
+  logCliCommand,
+  logCliResult,
+  presentCliResultInOutput,
+  type PatchloomLog
+} from "../logging/outputChannel.js";
 import { formatCliOutput, formatError, mergePatchloomEnv } from "../util.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 
@@ -20,6 +27,42 @@ export interface PlannedQuickAction {
   readonly targetPath: string;
   readonly targetArgIndices: readonly number[];
   readonly args: readonly string[];
+}
+
+export function presentSearchOutcome(
+  log: PatchloomLog | undefined,
+  result: { exitCode: number; stdout: string; stderr: string }
+): "hits" | "none" | "error" {
+  if (result.exitCode === 3) {
+    return "none";
+  }
+  if (result.exitCode !== 0) {
+    return "error";
+  }
+  presentCliResultInOutput(log, result);
+  return "hits";
+}
+
+export function presentPatchMergeOutcome(
+  log: PatchloomLog | undefined,
+  result: { exitCode: number; stdout: string; stderr: string }
+): "ok" | "conflicts" | "error" {
+  if (result.exitCode === 8) {
+    presentCliResultInOutput(log, result);
+    return "conflicts";
+  }
+  if (result.exitCode !== 0) {
+    return "error";
+  }
+  presentCliResultInOutput(log, result);
+  return "ok";
+}
+
+export function presentUndoSuccess(
+  log: PatchloomLog | undefined,
+  result: { stdout: string; stderr: string }
+): void {
+  presentCliResultInOutput(log, result);
 }
 
 interface WorkspaceFileTarget {
@@ -314,13 +357,13 @@ export async function runQuickAction(): Promise<void> {
         const action = buildSearchQuickAction(folder.uri.fsPath, pattern, glob || undefined);
         const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
         const log = getPatchloomLog();
+        const outcome = presentSearchOutcome(log, result);
 
-        if (result.exitCode === 3) {
+        if (outcome === "none") {
           await vscode.window.showInformationMessage(`No matches found for "${pattern}".`);
-        } else if (result.exitCode !== 0) {
+        } else if (outcome === "error") {
           await vscode.window.showErrorMessage(`Patchloom search failed: ${formatCliOutput(result)}`);
         } else {
-          log?.show();
           await vscode.window.showInformationMessage("Search results displayed in the Patchloom output channel.");
         }
       }
@@ -361,13 +404,13 @@ export async function runQuickAction(): Promise<void> {
         });
         const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
         const log = getPatchloomLog();
+        const outcome = presentSearchOutcome(log, result);
 
-        if (result.exitCode === 3) {
+        if (outcome === "none") {
           await vscode.window.showInformationMessage(`Every scanned file contains "${pattern}".`);
-        } else if (result.exitCode !== 0) {
+        } else if (outcome === "error") {
           await vscode.window.showErrorMessage(`Patchloom search failed: ${formatCliOutput(result)}`);
         } else {
-          log?.show();
           await vscode.window.showInformationMessage(
             "Files without matches are listed in the Patchloom output channel."
           );
@@ -999,15 +1042,14 @@ export async function runQuickAction(): Promise<void> {
         const contain = isPathInsideWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
         const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath, { contain });
         const log = getPatchloomLog();
+        const outcome = presentPatchMergeOutcome(log, result);
 
-        if (result.exitCode === 8) {
-          log?.show();
+        if (outcome === "conflicts") {
           await vscode.window.showWarningMessage("Patch merge completed with unresolved conflicts. Check the output for details.");
-        } else if (result.exitCode !== 0) {
+        } else if (outcome === "error") {
           log?.show();
           await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
         } else {
-          log?.show();
           await vscode.window.showInformationMessage("Patch merged successfully.");
         }
       }
@@ -1047,7 +1089,7 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const log = getPatchloomLog();
-        log?.show();
+        presentUndoSuccess(log, result);
         await vscode.window.showInformationMessage("Patchloom undo complete. Restored files shown in the output channel.");
       }
     }
