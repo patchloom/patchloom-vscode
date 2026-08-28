@@ -290,7 +290,7 @@ test("formatCliOutput appends suggested_op when present (CLI 0.27+)", () => {
   });
   assert.equal(
     formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
-    "invalid_input: selector uses wildcard/predicate, which is not valid for doc.set (single path only) (suggested_op: doc.update)"
+    "invalid_input: selector uses wildcard/predicate, which is not valid for doc.set (single path only) (try doc.update)"
   );
 });
 
@@ -887,7 +887,7 @@ test("generateAgentRules surfaces formatCliOutput envelope on CLI failure", asyn
       }),
       (err: Error) => {
         assert.match(err.message, /invalid_input/);
-        assert.match(err.message, /suggested_op: doc\.update/);
+        assert.match(err.message, /try doc\.update/);
         return true;
       }
     );

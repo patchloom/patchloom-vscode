@@ -29,13 +29,15 @@ npm test
 
 | Script | Purpose |
 |--------|---------|
-| `npm run check` | Full CI gate (run before every commit) |
+| `npm run check` | Local gate: unit tests + coverage + package (run before every commit) |
 | `npm run compile` | Compile extension source |
 | `npm run compile-tests` | Compile test source |
-| `npm test` | Compile + run all tests |
+| `npm test` | Compile + compile-tests + compile-uitests + unit tests |
 | `npm run test:unit` | Unit tests only |
 | `npm run test:coverage` | Unit tests with 80% line coverage threshold |
 | `npm run test:extension` | VS Code extension integration tests |
+| `npm run test:all` | Compile + unit tests + extension integration tests (does not include UI tests) |
+| `npm run test:ui` | ExTester UI tests (downloads VS Code if needed; not part of `test:all`) |
 | `npm run package` | Package the `.vsix` |
 
 ### Running in VS Code

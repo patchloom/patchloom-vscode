@@ -69,6 +69,10 @@ export function writeUserVisibleOutput(
   if (log === undefined || text === "") {
     return;
   }
+  if (log.writeUserOutput !== undefined) {
+    log.writeUserOutput(text);
+    return;
+  }
   log.log(text);
 }
 
@@ -92,6 +96,7 @@ export interface PatchloomLog {
   log(message: string): void;
   logCommand(binary: string, args: readonly string[], cwd: string): void;
   logResult(exitCode: number, stdout: string, stderr: string): void;
+  writeUserOutput?(text: string): void;
   show(): void;
   dispose(): void;
 }
@@ -140,6 +145,12 @@ export function createPatchloomLog(
         }
       }
       ch.appendLine(`[${new Date().toISOString()}] Exit code: ${exitCode}`);
+    },
+    writeUserOutput(text: string): void {
+      const ch = ensureChannel();
+      for (const line of text.split(/\r?\n/)) {
+        ch.appendLine(line);
+      }
     },
     show(): void {
       ensureChannel().show(true);

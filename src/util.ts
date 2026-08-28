@@ -109,7 +109,7 @@ function extractCliJsonError(stream: string): string | undefined {
     }
     // CLI 0.27+: fail-closed doc navigation may hint the multi-match sibling.
     if (typeof parsed.suggested_op === "string" && parsed.suggested_op.length > 0) {
-      message = `${message} (suggested_op: ${parsed.suggested_op})`;
+      message = `${message} (try ${parsed.suggested_op})`;
     }
     return message;
   } catch {

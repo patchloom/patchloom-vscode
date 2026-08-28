@@ -122,7 +122,7 @@ Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay insid
 
 ### Output channel
 
-Search, search `-L`, undo, and patch-merge success or conflict details always appear in the **Patchloom** output channel. Other CLI invocations, arguments, and I/O follow `patchloom.trace.server` (`off` by default; set `verbose` to dump every command). Run `Patchloom: Show Output` to open it.
+Search hits, search `-L`, undo restore details, patch-merge results (including failures), and batch-apply results always appear in the **Patchloom** output channel. Diagnostic command traces (invocations, arguments, and other CLI I/O) follow `patchloom.trace.server` (`off` by default; set `verbose` to dump every command). Run `Patchloom: Show Output` to open it.
 
 ### Compatibility diagnostics
 
@@ -156,7 +156,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | `patchloom.path` | `""` | Absolute path to the Patchloom binary. When empty, the extension searches `PATH` and then the managed install location. |
 | `patchloom.showStatusBar` | `true` | Show a status bar item reporting whether Patchloom is available. |
 | `patchloom.enable` | `true` | Enable the extension. When disabled, the status bar is hidden and background checks are skipped. |
-| `patchloom.trace.server` | `"off"` | Trace level for CLI output (`off`, `messages`, `verbose`). |
+| `patchloom.trace.server` | `"off"` | Diagnostic CLI trace level (`off`, `messages`, `verbose`). User-facing search, undo, patch-merge, and batch-apply streams always go to Output. |
 | `patchloom.env` | `{}` | Extra `PATCHLOOM_*` variables for the CLI (for example `{"PATCHLOOM_LOG": "debug"}`). Workspace values apply only in a trusted folder. |
 | `patchloom.managedInstall.autoUpdate` | `true` | Automatically check for CLI updates on activation. |
 
@@ -218,7 +218,7 @@ On CLI 0.20+, sole-path loads of binary or invalid UTF-8 files report `error_kin
 On CLI 0.22+, over-wide fuzzy matches can report `error_kind: fuzzy_span_suspicious`. Prefer an exact `old` string, structured `doc`/`md`/`ast` edits, or `apply-fragment` with a unique anchor.
 
 **Doc selector needs multi-match op**
-On CLI 0.27+, `doc set` / `doc ensure` / `doc delete` with a predicate or wildcard selector stay `error_kind: invalid_input` and may include `suggested_op` (`doc.update` or `doc.delete_where`). The extension surfaces that hint in the Output channel and notifications. Use the multi-match op (or a concrete index path such as `items.0.val`).
+On CLI 0.27+, `doc set` / `doc ensure` / `doc delete` with a predicate or wildcard selector stay `error_kind: invalid_input` and may include `suggested_op` (`doc.update` or `doc.delete_where`). The extension surfaces that hint in notifications; full CLI text for search, undo, patch-merge, and batch apply is in the Output channel. Use the multi-match op (or a concrete index path such as `items.0.val`).
 
 **Ambiguous markdown heading**
 On CLI 0.25+, section ops that match the same heading more than once report `error_kind: ambiguous`. Make the heading unique or use a level-qualified query (for example `## Rules`).
@@ -230,7 +230,7 @@ Run `Patchloom: Configure MCP` and select the target editor config.
 Run `Patchloom: Show Status` to see persisted diagnostic details. If the managed binary is present but not usable, choose **Reinstall Patchloom** (or the status-bar action) to re-download from GitHub Releases.
 
 **Debugging CLI errors**
-Run `Patchloom: Show Output` to inspect the channel. Search, undo, and patch-merge success or conflict details are always written there; set `patchloom.trace.server` to `verbose` for other CLI invocations, arguments, stdout, and stderr.
+Run `Patchloom: Show Output` to inspect the channel. Search, search `-L`, undo restore details, patch-merge results (including failures), and batch-apply streams are always written there; set `patchloom.trace.server` to `verbose` for other CLI invocations, arguments, stdout, and stderr.
 
 ---
 

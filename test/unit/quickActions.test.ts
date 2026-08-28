@@ -29,6 +29,7 @@ import {
   isMarkdownPath,
   isStructuredDocumentPath,
   isPathInsideWorkspace,
+  formatUndoFailureMessage,
   presentPatchMergeOutcome,
   presentSearchOutcome,
   presentUndoSuccess,
@@ -754,7 +755,7 @@ test("presentPatchMergeOutcome exit 0 writes streams + show, returns ok", () => 
   assert.deepEqual(messages, ["merged 2 hunks", "SHOW"]);
 });
 
-test("presentPatchMergeOutcome exit 1 writes nothing, returns error", () => {
+test("presentPatchMergeOutcome exit 1 writes streams + show, returns error", () => {
   const { log, messages } = fakeLog();
   const kind = presentPatchMergeOutcome(log, {
     exitCode: 1,
@@ -762,7 +763,7 @@ test("presentPatchMergeOutcome exit 1 writes nothing, returns error", () => {
     stderr: "failed"
   });
   assert.equal(kind, "error");
-  assert.deepEqual(messages, []);
+  assert.deepEqual(messages, ["out", "failed", "SHOW"]);
 });
 
 test("presentUndoSuccess writes streams + show", () => {
@@ -772,4 +773,26 @@ test("presentUndoSuccess writes streams + show", () => {
     stderr: "info"
   });
   assert.deepEqual(messages, ["restored a.ts", "info", "SHOW"]);
+});
+
+test("formatUndoFailureMessage uses no-backup copy when stderr mentions no backup", () => {
+  assert.equal(
+    formatUndoFailureMessage({
+      exitCode: 1,
+      stdout: "",
+      stderr: "error: no backup found for workspace"
+    }),
+    "No patchloom backup to undo."
+  );
+});
+
+test("formatUndoFailureMessage prefixes other failures with Patchloom undo failed", () => {
+  assert.equal(
+    formatUndoFailureMessage({
+      exitCode: 2,
+      stdout: "",
+      stderr: "permission denied"
+    }),
+    "Patchloom undo failed: permission denied"
+  );
 });

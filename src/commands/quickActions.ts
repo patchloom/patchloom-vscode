@@ -52,6 +52,7 @@ export function presentPatchMergeOutcome(
     return "conflicts";
   }
   if (result.exitCode !== 0) {
+    presentCliResultInOutput(log, result);
     return "error";
   }
   presentCliResultInOutput(log, result);
@@ -63,6 +64,17 @@ export function presentUndoSuccess(
   result: { stdout: string; stderr: string }
 ): void {
   presentCliResultInOutput(log, result);
+}
+
+export function formatUndoFailureMessage(result: {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}): string {
+  if (result.stderr.includes("no backup")) {
+    return "No patchloom backup to undo.";
+  }
+  return `Patchloom undo failed: ${formatCliOutput(result)}`;
 }
 
 interface WorkspaceFileTarget {
@@ -1047,7 +1059,6 @@ export async function runQuickAction(): Promise<void> {
         if (outcome === "conflicts") {
           await vscode.window.showWarningMessage("Patch merge completed with unresolved conflicts. Check the output for details.");
         } else if (outcome === "error") {
-          log?.show();
           await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
         } else {
           await vscode.window.showInformationMessage("Patch merged successfully.");
@@ -1081,10 +1092,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath);
 
         if (result.exitCode !== 0) {
-          const message = result.stderr.includes("no backup")
-            ? "No patchloom backup to undo."
-            : `Patchloom undo failed: ${formatCliOutput(result)}`;
-          await vscode.window.showWarningMessage(message);
+          await vscode.window.showWarningMessage(formatUndoFailureMessage(result));
           return;
         }
 

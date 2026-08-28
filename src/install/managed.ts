@@ -424,6 +424,49 @@ export function assertTrustedManagedInstallDownloadUrl(
   }
 }
 
+/** Hosts GitHub release downloads may redirect to after the first hop. */
+const TRUSTED_MANAGED_INSTALL_REDIRECT_HOSTS = new Set([
+  "github.com",
+  "objects.githubusercontent.com",
+  "release-assets.githubusercontent.com",
+  "github-releases.githubusercontent.com"
+]);
+
+/**
+ * Resolve a redirect Location against the current request URL.
+ * Handles absolute and relative Location values.
+ */
+export function resolveManagedInstallRedirectUrl(
+  currentUrl: string,
+  location: string
+): string {
+  return new URL(location, currentUrl).href;
+}
+
+/**
+ * Whether a redirect target is safe for managed-install downloads.
+ * Allows HTTPS only on known GitHub release asset hosts (not the first-hop
+ * /releases/download/ path allowlist, which real CDN redirects would fail).
+ */
+export function isTrustedManagedInstallRedirectUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:"
+      && TRUSTED_MANAGED_INSTALL_REDIRECT_HOSTS.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+export function assertTrustedManagedInstallRedirectUrl(url: string): void {
+  if (!isTrustedManagedInstallRedirectUrl(url)) {
+    throw new ManagedInstallVerificationError(
+      "untrusted-download-url",
+      `Managed install redirect target is not a trusted GitHub release host: ${url}`
+    );
+  }
+}
+
 export async function clearManagedInstallStaging(
   inputs: ManagedInstallStagingCleanupInputs
 ): Promise<void> {
@@ -773,9 +816,16 @@ export type HttpGetFn = (
   callback: (response: IncomingMessage) => void
 ) => ClientRequest;
 
+export interface CreateDownloaderOptions {
+  readonly validateRedirect?: (url: string) => void;
+}
+
 export function createDownloader(
-  get: HttpGetFn
+  get: HttpGetFn,
+  options?: CreateDownloaderOptions
 ): (url: string, destPath: string, redirectsRemaining?: number) => Promise<void> {
+  const validateRedirect = options?.validateRedirect;
+
   function download(url: string, destPath: string, redirectsRemaining = 5): Promise<void> {
     return new Promise((resolve, reject) => {
       const file = createWriteStream(destPath);
@@ -786,7 +836,17 @@ export function createDownloader(
             reject(new Error(`Download failed: too many redirects for ${url}`));
             return;
           }
-          download(response.headers.location, destPath, redirectsRemaining - 1).then(resolve, reject);
+          let nextUrl: string;
+          try {
+            nextUrl = resolveManagedInstallRedirectUrl(url, response.headers.location);
+            if (validateRedirect) {
+              validateRedirect(nextUrl);
+            }
+          } catch (error) {
+            reject(error);
+            return;
+          }
+          download(nextUrl, destPath, redirectsRemaining - 1).then(resolve, reject);
           return;
         }
         if (response.statusCode && response.statusCode >= 400) {
@@ -819,7 +879,8 @@ export function createDownloader(
 }
 
 const defaultDownloadToFile = createDownloader(
-  https.get.bind(https) as HttpGetFn
+  https.get.bind(https) as HttpGetFn,
+  { validateRedirect: assertTrustedManagedInstallRedirectUrl }
 );
 
 async function defaultExecCommand(cmd: string, args: string[], cwd: string): Promise<void> {

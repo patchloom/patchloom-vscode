@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   buildBatchApplyArgs,
   buildBatchTemplate,
+  isEmptyBatchPlan,
   parseBatchOperationCount
 } from "../../src/commands/batchApply.js";
 
@@ -51,6 +52,16 @@ test("parseBatchOperationCount ignores blank lines between operations", () => {
 
 test("parseBatchOperationCount counts a single operation", () => {
   assert.equal(parseBatchOperationCount('tidy.fix src/main.ts'), 1);
+});
+
+test("isEmptyBatchPlan is true for empty and whitespace-only plans", () => {
+  assert.equal(isEmptyBatchPlan(""), true);
+  assert.equal(isEmptyBatchPlan("   \n  \n"), true);
+});
+
+test("isEmptyBatchPlan is false when at least one operation is present", () => {
+  assert.equal(isEmptyBatchPlan('tidy.fix src/main.ts'), false);
+  assert.equal(isEmptyBatchPlan('\nreplace a.txt "x" "y"\n'), false);
 });
 
 // --- #34: snapshot-style template tests ---
