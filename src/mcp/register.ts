@@ -1,17 +1,33 @@
 import type * as VSCode from "vscode";
 import { resolvePatchloomStatus } from "../binary/patchloom.js";
-import { getPatchloomLog } from "../logging/outputChannel.js";
+import { getPatchloomLog, getPatchloomRuntimeConfig } from "../logging/outputChannel.js";
+import { isAllowedPatchloomEnvKey } from "../util.js";
 
 /** Plain descriptor used to construct vscode.McpStdioServerDefinition at register time. */
 export interface McpServerBinaryDescriptor {
   readonly label: string;
   readonly command: string;
   readonly args: readonly string[];
+  readonly env?: Record<string, string>;
+}
+
+function patchloomOnlyEnv(extra: Record<string, string> | undefined): Record<string, string> {
+  const env: Record<string, string> = {};
+  if (extra === undefined) {
+    return env;
+  }
+  for (const [key, value] of Object.entries(extra)) {
+    if (isAllowedPatchloomEnvKey(key)) {
+      env[key] = value;
+    }
+  }
+  return env;
 }
 
 /** Pure helper for native MCP definitions (no vscode). Empty when binary unknown. */
 export function mcpServerDefinitionsForBinary(
-  binaryPath: string | undefined
+  binaryPath: string | undefined,
+  env?: Record<string, string>
 ): readonly McpServerBinaryDescriptor[] {
   if (!binaryPath) {
     return [];
@@ -20,12 +36,18 @@ export function mcpServerDefinitionsForBinary(
     {
       label: "Patchloom MCP",
       command: binaryPath,
-      args: ["mcp-server"]
+      args: ["mcp-server"],
+      env: patchloomOnlyEnv(env)
     }
   ];
 }
 
-type McpStdioServerDefinitionCtor = new (...args: readonly unknown[]) => unknown;
+type McpStdioServerDefinitionCtor = new (
+  label: string,
+  command: string,
+  args: string[],
+  env: Record<string, string>
+) => unknown;
 
 interface VsCodeLmWithMcp {
   registerMcpServerDefinitionProvider?(
@@ -52,23 +74,16 @@ function mcpStdioCtor(vscode: VsCodeWithMcpApi): McpStdioServerDefinitionCtor | 
   return typeof ctor === "function" ? ctor : undefined;
 }
 
-function createMcpStdioServerDefinition(
+export function createMcpStdioServerDefinition(
   Ctor: McpStdioServerDefinitionCtor,
   descriptor: McpServerBinaryDescriptor
 ): unknown | undefined {
   const args = [...descriptor.args];
+  const env = descriptor.env ?? {};
   try {
-    return new Ctor({
-      label: descriptor.label,
-      command: descriptor.command,
-      args
-    });
+    return new Ctor(descriptor.label, descriptor.command, args, env);
   } catch {
-    try {
-      return new Ctor(descriptor.label, descriptor.command, args);
-    } catch {
-      return undefined;
-    }
+    return undefined;
   }
 }
 
@@ -102,8 +117,9 @@ export async function registerMcpServerProviderWithBinary(context: VSCode.Extens
     const disposable = vscode.lm.registerMcpServerDefinitionProvider("patchloom", {
       onDidChangeMcpServerDefinitions: emitter.event,
       provideMcpServerDefinitions: async () => {
+        const runtime = await getPatchloomRuntimeConfig();
         const definitions: unknown[] = [];
-        for (const descriptor of mcpServerDefinitionsForBinary(resolvedBinaryPath)) {
+        for (const descriptor of mcpServerDefinitionsForBinary(resolvedBinaryPath, runtime.extraEnv)) {
           const definition = createMcpStdioServerDefinition(Ctor, descriptor);
           if (definition !== undefined) {
             definitions.push(definition);
