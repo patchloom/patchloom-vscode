@@ -8,6 +8,7 @@ import {
   performManagedInstall
 } from "../install/managed.js";
 import { getPatchloomLog } from "../logging/outputChannel.js";
+import { refreshMcpServerBinary } from "../mcp/register.js";
 import { refreshStatusBar } from "../status/statusBar.js";
 import { formatError } from "../util.js";
 
@@ -67,6 +68,7 @@ export async function installPatchloom(): Promise<void> {
 
         log?.log(`Managed install complete: Patchloom ${result.version} at ${result.binaryPath}`);
         await refreshStatusBar();
+        await refreshMcpServerBinary();
         await vscode.window.showInformationMessage(
           `Patchloom ${result.version} installed successfully.`
         );
@@ -142,6 +144,7 @@ export async function updatePatchloom(): Promise<void> {
 
         log?.log(`Managed update complete: Patchloom ${result.version} at ${result.binaryPath}`);
         await refreshStatusBar();
+        await refreshMcpServerBinary();
         await vscode.window.showInformationMessage(
           `Patchloom updated to ${result.version}.`
         );
@@ -194,6 +197,7 @@ export async function reinstallPatchloom(): Promise<void> {
 
         log?.log(`Managed reinstall complete: Patchloom ${result.version} at ${result.binaryPath}`);
         await refreshStatusBar();
+        await refreshMcpServerBinary();
         await vscode.window.showInformationMessage(
           `Patchloom ${result.version} reinstalled successfully.`
         );
