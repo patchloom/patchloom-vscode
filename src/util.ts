@@ -91,7 +91,7 @@ const QUICK_ACTION_DELETE_WHERE_HINT =
  * Quick Action toast wrapper around formatCliOutput. Agents still parse the
  * CLI token from formatCliOutput; picker labels are for humans in the UI.
  * Preview does not pass --json, so also scan human stderr for suggested_op
- * tokens (doc.update, doc.delete_where, doc delete-where).
+ * tokens (doc.update, doc update, doc.delete_where, doc delete-where).
  */
 export function formatQuickActionCliOutput(result: {
   exitCode: number;
@@ -103,7 +103,7 @@ export function formatQuickActionCliOutput(result: {
     .replaceAll("(try doc.delete_where)", QUICK_ACTION_DELETE_WHERE_HINT);
 
   const raw = `${result.stderr}\n${result.stdout}`;
-  const mentionsUpdate = raw.includes("doc.update");
+  const mentionsUpdate = raw.includes("doc.update") || raw.includes("doc update");
   const mentionsDelete =
     raw.includes("doc.delete_where") || raw.includes("doc delete-where");
   const mentionsSuggestedOp = raw.includes("suggested_op");

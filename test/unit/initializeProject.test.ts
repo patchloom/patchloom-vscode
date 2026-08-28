@@ -341,6 +341,17 @@ test("formatQuickActionCliOutput maps human stderr doc.update to the picker labe
   );
 });
 
+test("formatQuickActionCliOutput maps human stderr doc update space form to the picker label", () => {
+  assert.equal(
+    formatQuickActionCliOutput({
+      exitCode: 1,
+      stdout: "",
+      stderr: "Use doc update for wildcard or predicate selectors"
+    }),
+    'Use doc update for wildcard or predicate selectors (try Quick Action "Update matching structured values" or CLI `doc update`)'
+  );
+});
+
 test("formatQuickActionCliOutput maps human stderr doc delete-where to the picker label", () => {
   assert.equal(
     formatQuickActionCliOutput({
@@ -969,13 +980,16 @@ test("generateAgentRules surfaces formatCliOutput envelope on CLI failure", asyn
         }
       }),
       (err: Error) => {
-        assert.match(err.message, /invalid_input/);
-        assert.match(err.message, /try doc\.update/);
+        assert.equal(
+          err.message,
+          "invalid_input: selector uses wildcard/predicate, which is not valid for doc.set (single path only) (try doc.update)"
+        );
         return true;
       }
     );
     assert.equal(logged.length, 1, "logResult should be called once on failure");
-    assert.match(`${logged[0].stdout}\n${logged[0].stderr}`, /invalid_input|suggested_op/);
+    assert.equal(logged[0].stdout, stdout);
+    assert.equal(logged[0].stderr, "Command failed: patchloom agent-rules");
   } finally {
     setPatchloomLog(undefined);
   }

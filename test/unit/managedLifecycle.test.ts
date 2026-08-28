@@ -320,12 +320,20 @@ test("fetchLatestReleaseVersion throws on API failure", async () => {
   );
 });
 
+function assertGitHubLatestReleaseFetch(url: string | URL | Request, init?: RequestInit): void {
+  assert.equal(String(url), "https://api.github.com/repos/patchloom/patchloom/releases/latest");
+  const headers = new Headers(init?.headers);
+  assert.equal(headers.get("Accept"), "application/vnd.github+json");
+  assert.equal(headers.get("User-Agent"), "patchloom-vscode");
+  assert.ok(init?.signal instanceof AbortSignal, "defaultFetchJson must pass an AbortSignal");
+}
+
 describe("defaultFetchJson via fetchLatestReleaseVersion", { concurrency: false }, () => {
   test("returns the version from a 200 GitHub latest-release payload", async () => {
     const originalFetch = globalThis.fetch;
     try {
-      globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
-        assert.ok(init?.signal instanceof AbortSignal, "defaultFetchJson must pass an AbortSignal");
+      globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+        assertGitHubLatestReleaseFetch(url, init);
         return new Response(JSON.stringify({ tag_name: "v0.31.0" }), {
           status: 200,
           headers: { "Content-Type": "application/json" }
@@ -341,8 +349,8 @@ describe("defaultFetchJson via fetchLatestReleaseVersion", { concurrency: false 
   test("rejects on HTTP 404", async () => {
     const originalFetch = globalThis.fetch;
     try {
-      globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
-        assert.ok(init?.signal instanceof AbortSignal, "defaultFetchJson must pass an AbortSignal");
+      globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+        assertGitHubLatestReleaseFetch(url, init);
         return new Response("Not Found", { status: 404, statusText: "Not Found" });
       }) as typeof fetch;
       await assert.rejects(
@@ -357,8 +365,8 @@ describe("defaultFetchJson via fetchLatestReleaseVersion", { concurrency: false 
   test("rejects on HTTP 500", async () => {
     const originalFetch = globalThis.fetch;
     try {
-      globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
-        assert.ok(init?.signal instanceof AbortSignal, "defaultFetchJson must pass an AbortSignal");
+      globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+        assertGitHubLatestReleaseFetch(url, init);
         return new Response("error", { status: 500, statusText: "Internal Server Error" });
       }) as typeof fetch;
       await assert.rejects(
@@ -373,8 +381,8 @@ describe("defaultFetchJson via fetchLatestReleaseVersion", { concurrency: false 
   test("surfaces an aborted hung fetch", async () => {
     const originalFetch = globalThis.fetch;
     try {
-      globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
-        assert.ok(init?.signal instanceof AbortSignal, "defaultFetchJson must pass an AbortSignal");
+      globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+        assertGitHubLatestReleaseFetch(url, init);
         const err = new Error("The operation was aborted");
         err.name = "AbortError";
         throw err;
@@ -415,7 +423,7 @@ test("extractManagedInstallArchive invokes tar for zip format on Windows", async
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].cmd, "tar");
-  assert.ok(calls[0].args.includes("xf"));
+  assert.deepEqual(calls[0].args, ["xf", "C:\\tmp\\archive.zip", "-C", "C:\\tmp\\staging"]);
 });
 
 // --- performManagedInstall tests ---

@@ -976,3 +976,33 @@ test("stageExternalPatchInWorkspace leaves an inside patch in place", async () =
     await fs.rm(workspaceRoot, { recursive: true, force: true });
   }
 });
+
+test("stageExternalPatchInWorkspace copies a workspace symlink to an outside patch", async (t) => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-stage-symlink-ws-"));
+  const outsideRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-stage-symlink-out-"));
+  try {
+    const outsidePatch = path.join(outsideRoot, "changes.patch");
+    await fs.writeFile(outsidePatch, "diff --git a/x b/x\n", "utf8");
+    const linkPath = path.join(workspaceRoot, "escape.patch");
+    try {
+      await fs.symlink(outsidePatch, linkPath);
+    } catch {
+      t.skip("fs.symlink is not available on this platform");
+      return;
+    }
+    const staged = await stageExternalPatchInWorkspace(workspaceRoot, linkPath);
+    try {
+      assert.notEqual(staged.patchPath, linkPath);
+      assert.equal(isPathInsideWorkspace(workspaceRoot, staged.patchPath), true);
+      assert.equal(isRealPathInsideWorkspace(workspaceRoot, staged.patchPath), true);
+      assert.equal(await fs.readFile(staged.patchPath, "utf8"), "diff --git a/x b/x\n");
+    } finally {
+      await staged.cleanup();
+    }
+    await assert.rejects(() => fs.access(staged.patchPath));
+    assert.equal(await fs.readFile(outsidePatch, "utf8"), "diff --git a/x b/x\n");
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+    await fs.rm(outsideRoot, { recursive: true, force: true });
+  }
+});
