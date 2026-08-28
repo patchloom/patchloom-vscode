@@ -55,7 +55,7 @@ test/
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
     initializeProject.test.ts  Status display, agents file classification, formatError (69 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (26 tests)
-    mcpConfig.test.ts    MCP config with real temp directories (15 tests)
+    mcpConfig.test.ts    MCP config with real temp directories (16 tests)
     managedInstall.test.ts  Managed Update compares latest vs managed binary (10 tests)
     mcpRegister.test.ts  Native MCP definition helper for binary path (6 tests)
     statusRefresh.test.ts Status and MCP refresh order after input change (1 test)

@@ -200,6 +200,31 @@ test("configureMcpTargets creates both vscode and cursor configs", async () => {
   });
 });
 
+test("inspectMcpTargets does not treat Cursor servers-only file as configured", async () => {
+  await withTempDir(async (workspace) => {
+    const cursorDir = path.join(workspace, ".cursor");
+    await fs.mkdir(cursorDir, { recursive: true });
+    await fs.writeFile(
+      path.join(cursorDir, "mcp.json"),
+      JSON.stringify({ servers: { patchloom: { command: "patchloom", args: ["mcp-server"] } } }),
+      "utf8"
+    );
+
+    const targets = await inspectMcpTargets({
+      workspaceFolderPath: workspace,
+      homeDir: workspace,
+      readFile: async (filePath) => {
+        try { return await fs.readFile(filePath, "utf8"); } catch { return undefined; }
+      }
+    });
+
+    const cursorTarget = targets.find((t) => t.kind === "cursor-workspace");
+    assert.ok(cursorTarget);
+    assert.equal(cursorTarget.exists, true);
+    assert.equal(cursorTarget.configured, false, "Cursor only loads mcpServers");
+  });
+});
+
 test("inspectMcpTargets reads configured status from real files", async () => {
   await withTempDir(async (workspace) => {
     const vscodeDir = path.join(workspace, ".vscode");

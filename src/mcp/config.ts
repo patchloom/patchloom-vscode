@@ -177,18 +177,8 @@ function withPatchloomEntry(
 }
 
 function hasPatchloomEntry(kind: McpTargetKind, config: Record<string, unknown>): boolean {
-  if (usesMcpServersKey(kind)) {
-    const modern = objectValue(config.mcpServers);
-    if (typeof modern.patchloom === "object" && modern.patchloom !== null) {
-      return true;
-    }
-    if (kind === "cursor-workspace") {
-      const legacy = objectValue(config.servers);
-      return typeof legacy.patchloom === "object" && legacy.patchloom !== null;
-    }
-    return false;
-  }
-  const root = objectValue(config.servers);
+  const key = usesMcpServersKey(kind) ? "mcpServers" : "servers";
+  const root = objectValue(config[key]);
   return typeof root.patchloom === "object" && root.patchloom !== null;
 }
 
