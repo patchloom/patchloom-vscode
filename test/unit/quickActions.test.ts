@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import test from "node:test";
 import {
   buildAppendQuickAction,
@@ -34,6 +37,8 @@ import {
   isMarkdownPath,
   isStructuredDocumentPath,
   isPathInsideWorkspace,
+  isRealPathInsideWorkspace,
+  stageExternalPatchInWorkspace,
   formatUndoFailureMessage,
   presentPatchMergeOutcome,
   presentSearchOutcome,
@@ -897,4 +902,72 @@ test("formatUndoFailureMessage prefixes other failures with Patchloom undo faile
     }),
     "Patchloom undo failed: permission denied"
   );
+});
+
+test("isRealPathInsideWorkspace follows symlinks and stays fail-closed", async (t) => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-realpath-ws-"));
+  const outsideRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-realpath-out-"));
+  try {
+    const insideFile = path.join(workspaceRoot, "inside.txt");
+    await fs.writeFile(insideFile, "inside", "utf8");
+    assert.equal(isRealPathInsideWorkspace(workspaceRoot, insideFile), true);
+
+    const dotted = path.join(workspaceRoot, "..changes.patch");
+    await fs.writeFile(dotted, "dotted", "utf8");
+    assert.equal(isRealPathInsideWorkspace(workspaceRoot, dotted), true);
+
+    assert.equal(
+      isRealPathInsideWorkspace(workspaceRoot, path.join(workspaceRoot, "missing.txt")),
+      false
+    );
+
+    const outsideFile = path.join(outsideRoot, "secret.txt");
+    await fs.writeFile(outsideFile, "secret", "utf8");
+    const linkPath = path.join(workspaceRoot, "escape.txt");
+    try {
+      await fs.symlink(outsideFile, linkPath);
+    } catch {
+      t.skip("fs.symlink is not available on this platform");
+      return;
+    }
+    assert.equal(isRealPathInsideWorkspace(workspaceRoot, linkPath), false);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+    await fs.rm(outsideRoot, { recursive: true, force: true });
+  }
+});
+
+test("stageExternalPatchInWorkspace copies an outside patch into the workspace", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-stage-ws-"));
+  const outsideRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-stage-out-"));
+  try {
+    const outsidePatch = path.join(outsideRoot, "changes.patch");
+    await fs.writeFile(outsidePatch, "diff --git a/x b/x\n", "utf8");
+    const staged = await stageExternalPatchInWorkspace(workspaceRoot, outsidePatch);
+    try {
+      assert.notEqual(staged.patchPath, outsidePatch);
+      assert.equal(isPathInsideWorkspace(workspaceRoot, staged.patchPath), true);
+      assert.equal(await fs.readFile(staged.patchPath, "utf8"), "diff --git a/x b/x\n");
+    } finally {
+      await staged.cleanup();
+    }
+    await assert.rejects(() => fs.access(staged.patchPath));
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+    await fs.rm(outsideRoot, { recursive: true, force: true });
+  }
+});
+
+test("stageExternalPatchInWorkspace leaves an inside patch in place", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-stage-inside-"));
+  try {
+    const insidePatch = path.join(workspaceRoot, "changes.patch");
+    await fs.writeFile(insidePatch, "inside", "utf8");
+    const staged = await stageExternalPatchInWorkspace(workspaceRoot, insidePatch);
+    assert.equal(staged.patchPath, insidePatch);
+    await staged.cleanup();
+    assert.equal(await fs.readFile(insidePatch, "utf8"), "inside");
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
 });

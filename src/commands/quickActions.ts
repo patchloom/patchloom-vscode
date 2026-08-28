@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { realpathSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -1057,17 +1058,20 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const action = buildPatchApplyQuickAction(patchUri[0].fsPath);
-        // External patch files are meta-inputs; --contain rejects them. Keep the
-        // write sandbox when the patch itself lives inside the workspace.
-        const contain = isPathInsideWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
-        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath, { contain });
-        const log = getPatchloomLog();
-        presentCliResultInOutput(log, result);
+        const staged = await stageExternalPatchInWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
+        try {
+          const planned = retargetQuickAction(action, staged.patchPath);
+          const result = await executePatchloom(binaryPath, planned.args, folder.uri.fsPath);
+          const log = getPatchloomLog();
+          presentCliResultInOutput(log, result);
 
-        if (result.exitCode !== 0) {
-          await vscode.window.showErrorMessage(`Patch apply failed: ${formatCliOutput(result)}`);
-        } else {
-          await vscode.window.showInformationMessage("Patch applied successfully.");
+          if (result.exitCode !== 0) {
+            await vscode.window.showErrorMessage(`Patch apply failed: ${formatCliOutput(result)}`);
+          } else {
+            await vscode.window.showInformationMessage("Patch applied successfully.");
+          }
+        } finally {
+          await staged.cleanup();
         }
       }
     },
@@ -1104,19 +1108,22 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const action = buildPatchMergeQuickAction(patchUri[0].fsPath, allowConflicts.allow);
-        // External patch files are meta-inputs; --contain rejects them. Keep the
-        // write sandbox when the patch itself lives inside the workspace.
-        const contain = isPathInsideWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
-        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath, { contain });
-        const log = getPatchloomLog();
-        const outcome = presentPatchMergeOutcome(log, result);
+        const staged = await stageExternalPatchInWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
+        try {
+          const planned = retargetQuickAction(action, staged.patchPath);
+          const result = await executePatchloom(binaryPath, planned.args, folder.uri.fsPath);
+          const log = getPatchloomLog();
+          const outcome = presentPatchMergeOutcome(log, result);
 
-        if (outcome === "conflicts") {
-          await vscode.window.showWarningMessage("Patch merge completed with unresolved conflicts. Check the output for details.");
-        } else if (outcome === "error") {
-          await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
-        } else {
-          await vscode.window.showInformationMessage("Patch merged successfully.");
+          if (outcome === "conflicts") {
+            await vscode.window.showWarningMessage("Patch merge completed with unresolved conflicts. Check the output for details.");
+          } else if (outcome === "error") {
+            await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
+          } else {
+            await vscode.window.showInformationMessage("Patch merged successfully.");
+          }
+        } finally {
+          await staged.cleanup();
         }
       }
     },
@@ -1548,6 +1555,12 @@ async function previewAndMaybeApply(
   action: PlannedQuickAction
 ): Promise<void> {
   const vscode = await import("vscode");
+  if (!isRealPathInsideWorkspace(target.workspaceFolder.uri.fsPath, target.absolutePath)) {
+    await vscode.window.showWarningMessage(
+      `Refusing to preview ${target.relativePath}: resolved path is outside the workspace folder.`
+    );
+    return;
+  }
   const originalDocument = await vscode.workspace.openTextDocument(target.uri);
   const originalContent = await fs.readFile(target.absolutePath, "utf8");
   let preview: VSCode.TextDocument | undefined;
@@ -1691,6 +1704,13 @@ async function pickWorkspaceFileTarget(placeHolder: string): Promise<WorkspaceFi
     return undefined;
   }
 
+  if (!isRealPathInsideWorkspace(folder.uri.fsPath, target.absolutePath)) {
+    await vscode.window.showWarningMessage(
+      `Refusing ${target.relativePath}: resolved path is outside the workspace folder.`
+    );
+    return undefined;
+  }
+
   return (await ensureWorkspaceFileReady(target)) ? target : undefined;
 }
 
@@ -1743,7 +1763,7 @@ export function resolveWorkspaceRelativePath(workspaceRoot: string, absolutePath
   return relativePath.split(path.sep).join("/");
 }
 
-export function isPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
+function isResolvedPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
   const resolvedRoot = path.resolve(workspaceRoot);
   const resolvedPath = path.resolve(absolutePath);
   const fold = process.platform === "win32" || process.platform === "darwin"
@@ -1752,6 +1772,53 @@ export function isPathInsideWorkspace(workspaceRoot: string, absolutePath: strin
   const root = fold(resolvedRoot);
   const target = fold(resolvedPath);
   return target === root || target.startsWith(`${root}${path.sep}`);
+}
+
+export function isPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
+  return isResolvedPathInsideWorkspace(workspaceRoot, absolutePath);
+}
+
+/** Fail-closed: false if realpath throws or the resolved path leaves the workspace. */
+export function isRealPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
+  let realRoot: string;
+  let realTarget: string;
+  try {
+    realRoot = realpathSync(workspaceRoot);
+    realTarget = realpathSync(absolutePath);
+  } catch {
+    return false;
+  }
+  return isResolvedPathInsideWorkspace(realRoot, realTarget);
+}
+
+export interface StagedExternalPatch {
+  readonly patchPath: string;
+  readonly cleanup: () => Promise<void>;
+}
+
+/** Copy an outside patch into a workspace temp dir so `--contain` can stay on. */
+export async function stageExternalPatchInWorkspace(
+  workspaceRoot: string,
+  patchPath: string
+): Promise<StagedExternalPatch> {
+  if (isPathInsideWorkspace(workspaceRoot, patchPath)) {
+    return { patchPath, cleanup: async () => {} };
+  }
+
+  const tempDir = await fs.mkdtemp(path.join(workspaceRoot, ".patchloom-"));
+  const stagedPath = path.join(tempDir, path.basename(patchPath));
+  try {
+    await fs.copyFile(patchPath, stagedPath);
+  } catch (error) {
+    await fs.rm(tempDir, { recursive: true, force: true });
+    throw error;
+  }
+  return {
+    patchPath: stagedPath,
+    cleanup: async () => {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  };
 }
 
 function toWorkspaceFileTarget(folder: VSCode.WorkspaceFolder, absolutePath: string): WorkspaceFileTarget {
