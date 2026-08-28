@@ -34,6 +34,11 @@ export function parseBatchOperationCount(plan: string): number {
   return plan.split("\n").filter((line) => line.trim().length > 0).length;
 }
 
+/** True when the plan has no non-empty operation lines. */
+export function isEmptyBatchPlan(plan: string): boolean {
+  return parseBatchOperationCount(plan) === 0;
+}
+
 /** CLI argv for Batch Apply. Global --contain first (CLI 0.10+ path guard). */
 export function buildBatchApplyArgs(): string[] {
   return ["--contain", "batch", "--apply"];
@@ -70,6 +75,13 @@ export async function batchApply(): Promise<void> {
   }
 
   const plan = doc.getText();
+  if (isEmptyBatchPlan(plan)) {
+    await vscode.window.showWarningMessage(
+      "Batch plan is empty. Add at least one operation."
+    );
+    return;
+  }
+
   const log = getPatchloomLog();
   const runtime = await getPatchloomRuntimeConfig();
   const env = mergePatchloomEnv(process.env, runtime.extraEnv);
