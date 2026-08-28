@@ -337,6 +337,49 @@ export async function runQuickAction(): Promise<void> {
       }
     },
     {
+      label: "Update matching structured values",
+      description: "Update all JSON, YAML, or TOML nodes matching a wildcard or predicate",
+      detail: "Builds `patchloom doc update <file> <selector> <value>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc update");
+        if (!target) {
+          return;
+        }
+
+        if (!isStructuredDocumentPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc update.`
+          );
+          return;
+        }
+
+        const selector = await vscode.window.showInputBox({
+          prompt: "Selector path (wildcards and predicates such as items[*].enabled)",
+          placeHolder: "items[*].enabled or items[name=foo].v",
+          validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
+        });
+        if (selector === undefined) {
+          return;
+        }
+
+        const value = await vscode.window.showInputBox({
+          prompt: "Value",
+          placeHolder: "true, 42, hello, or {\"key\":\"value\"}",
+          value: "",
+          validateInput: (input) => input.length > 0 ? undefined : "Value is required."
+        });
+        if (value === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(
+          binaryPath,
+          target,
+          buildDocUpdateQuickAction(target.absolutePath, selector, value)
+        );
+      }
+    },
+    {
       label: "Search text across files",
       description: "Find pattern matches in workspace files",
       detail: "Builds `patchloom search <pattern> [--glob <glob>] <workspace>`",
@@ -594,6 +637,50 @@ export async function runQuickAction(): Promise<void> {
         }
 
         await previewAndMaybeApply(binaryPath, target, buildDocDeleteQuickAction(target.absolutePath, selector));
+      }
+    },
+    {
+      label: "Delete matching array items",
+      description: "Remove array items matching a predicate with diff preview",
+      detail: "Builds `patchloom doc delete-where --predicate <predicate> <file> <selector>`",
+      run: async () => {
+        const target = await pickWorkspaceFileTarget(
+          "Select a JSON, YAML, or TOML file for Patchloom doc delete-where"
+        );
+        if (!target) {
+          return;
+        }
+
+        if (!isStructuredDocumentPath(target.absolutePath)) {
+          await vscode.window.showWarningMessage(
+            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc delete-where.`
+          );
+          return;
+        }
+
+        const selector = await vscode.window.showInputBox({
+          prompt: "Array selector path",
+          placeHolder: "items",
+          validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
+        });
+        if (selector === undefined) {
+          return;
+        }
+
+        const predicate = await vscode.window.showInputBox({
+          prompt: "Predicate (key=value)",
+          placeHolder: "name=react or .=stale",
+          validateInput: (value) => value.length > 0 ? undefined : "Predicate is required."
+        });
+        if (predicate === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(
+          binaryPath,
+          target,
+          buildDocDeleteWhereQuickAction(target.absolutePath, selector, predicate)
+        );
       }
     },
     {
@@ -1200,6 +1287,15 @@ export function buildDocSetQuickAction(targetPath: string, selector: string, val
   };
 }
 
+export function buildDocUpdateQuickAction(targetPath: string, selector: string, value: string): PlannedQuickAction {
+  return {
+    title: `Update ${selector} in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["doc", "update", targetPath, selector, value]
+  };
+}
+
 export function buildSearchQuickAction(
   workspacePath: string,
   pattern: string,
@@ -1269,6 +1365,19 @@ export function buildDocDeleteQuickAction(targetPath: string, selector: string):
     targetPath,
     targetArgIndices: [2],
     args: ["doc", "delete", targetPath, selector]
+  };
+}
+
+export function buildDocDeleteWhereQuickAction(
+  targetPath: string,
+  selector: string,
+  predicate: string
+): PlannedQuickAction {
+  return {
+    title: `Delete where ${predicate} from ${selector} in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [4],
+    args: ["doc", "delete-where", "--predicate", predicate, targetPath, selector]
   };
 }
 

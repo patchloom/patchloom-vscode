@@ -93,6 +93,7 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Apply fragment at anchor** | Morph-style freeform fragment at a unique anchor (`--after` / `--before` / `--old`, CLI 0.22+) |
 | **Tidy file** | Whitespace and newline cleanup with diff preview |
 | **Set structured value** | Update a JSON, YAML, or TOML key with diff preview |
+| **Update matching structured values** | Update all JSON, YAML, or TOML nodes matching a wildcard or predicate (`doc update`, CLI 0.27+) |
 | **Search text** | Find pattern matches across workspace files (results in output channel) |
 | **Search files without match** | List files that do not contain the pattern (`search -L`, CLI 0.29+) |
 | **Create file** | Scaffold a new file with optional content and open it in the editor |
@@ -100,6 +101,7 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Prepend to file** | Prepend content to the start of an existing file (CLI 0.9+) |
 | **Read structured value** | Read a JSON/YAML/TOML key and copy to clipboard |
 | **Delete structured value** | Remove a key from JSON, YAML, or TOML with diff preview |
+| **Delete matching array items** | Remove array items matching a predicate (`doc delete-where`, CLI 0.27+) |
 | **Merge into structured file** | Merge a partial JSON object into a config file (optional multi-doc selector, CLI 0.16+) |
 | **Append to array** | Append a value to a JSON, YAML, or TOML array |
 | **Prepend to array** | Prepend a value to a JSON, YAML, or TOML array |
@@ -118,7 +120,7 @@ Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay insid
 
 ### Batch operations
 
-`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, multi-match `doc.update`, multi-doc `doc.merge`, file append, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
+`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, multi-match `doc.update`, `doc.delete_where`, multi-doc `doc.merge`, file append, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
 
 ### Output channel
 

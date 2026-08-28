@@ -12,13 +12,15 @@ import {
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
 // Batch replace is PATH OLD NEW (not CLI `replace OLD --new NEW path`). See CLI 0.18+ batch --help.
-// doc.update is the multi-match sibling of doc.set (CLI 0.27+ suggested_op hints this).
+// doc.update / doc.delete_where are the multi-match siblings of doc.set / doc.delete
+// (CLI 0.27+ suggested_op hints this).
 export const BATCH_TEMPLATE = [
   "replace src/example.ts \"old text\" \"new text\"",
   "replace src/example.ts \"typo_here\" \"fixed\" --fuzzy --min-fuzzy-score 0.80",
   "replace src/example.ts \"anchor_line\" --insert-after=\"new sibling line\"",
   "doc.set package.json version \"2.0.0\"",
   "doc.update data.json \"items[*].enabled\" true",
+  "doc.delete_where data.json items name=stale",
   "doc.merge multi-doc.yaml 0 \"{\\\"debug\\\": true}\"",
   "file.append src/example.ts \"new appended line\"",
   "md.insert_after_section README.md \"## Config\" \"## FAQ\"",

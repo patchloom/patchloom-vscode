@@ -7,20 +7,21 @@ import {
   parseBatchOperationCount
 } from "../../src/commands/batchApply.js";
 
-test("buildBatchTemplate returns line-oriented format with nine operations", () => {
+test("buildBatchTemplate returns line-oriented format with ten operations", () => {
   const template = buildBatchTemplate();
   const lines = template.split("\n").filter((line) => line.trim().length > 0);
 
-  assert.equal(lines.length, 9);
+  assert.equal(lines.length, 10);
   assert.ok(lines[0].startsWith("replace "), "first line should be a replace operation");
   assert.ok(lines[1].startsWith("replace ") && lines[1].includes("--fuzzy"), "second line should be fuzzy replace");
   assert.ok(lines[2].startsWith("replace ") && lines[2].includes("--insert-after"), "third line should be insert-after");
   assert.ok(lines[3].startsWith("doc.set "), "fourth line should be a doc.set operation");
   assert.ok(lines[4].startsWith("doc.update "), "fifth line should be multi-match doc.update");
-  assert.ok(lines[5].startsWith("doc.merge "), "sixth line should be multi-doc doc.merge");
-  assert.ok(lines[6].startsWith("file.append "), "seventh line should be a file.append operation");
-  assert.ok(lines[7].startsWith("md.insert_after_section "), "eighth line should be md.insert_after_section");
-  assert.ok(lines[8].startsWith("tidy.fix "), "ninth line should be a tidy.fix operation");
+  assert.ok(lines[5].startsWith("doc.delete_where "), "sixth line should be multi-match doc.delete_where");
+  assert.ok(lines[6].startsWith("doc.merge "), "seventh line should be multi-doc doc.merge");
+  assert.ok(lines[7].startsWith("file.append "), "eighth line should be a file.append operation");
+  assert.ok(lines[8].startsWith("md.insert_after_section "), "ninth line should be md.insert_after_section");
+  assert.ok(lines[9].startsWith("tidy.fix "), "tenth line should be a tidy.fix operation");
 });
 
 test("buildBatchTemplate ends with a newline", () => {
@@ -141,6 +142,17 @@ test("buildBatchTemplate includes doc.update multi-match example (CLI 0.27+ sugg
     "doc.update should have path, selector, and value"
   );
   assert.match(updateLine, /\[\*\]|\[.+=.+\]/, "selector should use wildcard or predicate form");
+});
+
+test("buildBatchTemplate includes doc.delete_where multi-match example (CLI 0.27+ suggested_op sibling)", () => {
+  const lines = buildBatchTemplate().split("\n");
+  const deleteWhereLine = lines.find((l) => l.startsWith("doc.delete_where "));
+  assert.ok(deleteWhereLine, "template should contain a doc.delete_where line");
+  assert.match(
+    deleteWhereLine,
+    /doc\.delete_where \S+ \S+ \S+/,
+    "doc.delete_where should have path, selector, and predicate"
+  );
 });
 
 test("buildBatchApplyArgs prefixes global --contain before batch --apply", () => {

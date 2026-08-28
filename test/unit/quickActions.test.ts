@@ -9,12 +9,14 @@ import {
   buildPrependQuickAction,
   buildDocAppendQuickAction,
   buildDocDeleteQuickAction,
+  buildDocDeleteWhereQuickAction,
   buildDocEnsureQuickAction,
   buildDocGetQuickAction,
   buildDocMergeQuickAction,
   buildDocMoveQuickAction,
   buildDocPrependQuickAction,
   buildDocSetQuickAction,
+  buildDocUpdateQuickAction,
   buildMdInsertAfterHeadingQuickAction,
   buildMdInsertAfterSectionQuickAction,
   buildMdInsertBeforeHeadingQuickAction,
@@ -160,6 +162,20 @@ test("buildDocSetQuickAction builds a doc set command", () => {
   assert.equal(action.title, "Set scripts.test in package.json");
   assert.deepEqual(action.targetArgIndices, [2]);
   assert.deepEqual(action.args, ["doc", "set", "/workspace/demo/package.json", "scripts.test", "vitest"]);
+});
+
+test("buildDocUpdateQuickAction builds a doc update command", () => {
+  const action = buildDocUpdateQuickAction("/workspace/demo/data.json", "items[*].enabled", "false");
+
+  assert.equal(action.title, "Update items[*].enabled in data.json");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, [
+    "doc",
+    "update",
+    "/workspace/demo/data.json",
+    "items[*].enabled",
+    "false"
+  ]);
 });
 
 test("retargetQuickAction swaps only the target path arguments", () => {
@@ -447,6 +463,21 @@ test("buildDocDeleteQuickAction builds a doc delete command", () => {
   assert.equal(action.title, "Delete deprecated.key from config.yaml");
   assert.deepEqual(action.targetArgIndices, [2]);
   assert.deepEqual(action.args, ["doc", "delete", "/workspace/demo/config.yaml", "deprecated.key"]);
+});
+
+test("buildDocDeleteWhereQuickAction builds a doc delete-where command", () => {
+  const action = buildDocDeleteWhereQuickAction("/workspace/demo/data.json", "items", "name=stale");
+
+  assert.equal(action.title, "Delete where name=stale from items in data.json");
+  assert.deepEqual(action.targetArgIndices, [4]);
+  assert.deepEqual(action.args, [
+    "doc",
+    "delete-where",
+    "--predicate",
+    "name=stale",
+    "/workspace/demo/data.json",
+    "items"
+  ]);
 });
 
 test("buildDocMergeQuickAction builds a doc merge command", () => {
