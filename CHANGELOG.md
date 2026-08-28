@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.4.0...patchloom-v0.5.0) (2026-08-28)
+
+
+### Features
+
+* align extension with patchloom CLI 0.31.0 ([#234](https://github.com/patchloom/patchloom-vscode/issues/234)) ([41dc970](https://github.com/patchloom/patchloom-vscode/commit/41dc97013c50b8e5a902cd47f19f78c5c8e6006f))
+
+
+### Bug Fixes
+
+* harden CLI env and align MPI follow-ups with CLI 0.31 ([#236](https://github.com/patchloom/patchloom-vscode/issues/236)) ([33c0b85](https://github.com/patchloom/patchloom-vscode/commit/33c0b852e46ee61781f52e5938944e3ea06ead59))
+* refresh native MCP when settings or trust change ([#241](https://github.com/patchloom/patchloom-vscode/issues/241)) ([5d8e65d](https://github.com/patchloom/patchloom-vscode/commit/5d8e65deb0857c7ad498e1bf1d1cdea9e340a0b9))
+* share one --version probe on activation ([#240](https://github.com/patchloom/patchloom-vscode/issues/240)) ([91a3b0b](https://github.com/patchloom/patchloom-vscode/commit/91a3b0b8f9a44d341b6a336d601da68ee3aa86f8))
+* show search, undo, and patch-merge results without trace ([#237](https://github.com/patchloom/patchloom-vscode/issues/237)) ([aa993d8](https://github.com/patchloom/patchloom-vscode/commit/aa993d8d041859953b1998900adb4c9c434a17c7))
+* write CLI failures to Output and register MCP after install ([#238](https://github.com/patchloom/patchloom-vscode/issues/238)) ([1f6f06f](https://github.com/patchloom/patchloom-vscode/commit/1f6f06f2d52041cc6a3150504f3e5922b2c37a14))
+
 ## [0.4.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.3.0...patchloom-v0.4.0) (2026-08-10)
 
 
