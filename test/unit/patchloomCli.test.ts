@@ -329,22 +329,16 @@ describe("patchloom CLI integration", async () => {
 
   test("agent-rules output classified as up_to_date after write", async () => {
     await withTempDir(async (dir) => {
-      // Generate agent rules
-      const { stdout: rules } = await execFileAsync(binaryPath, ["agent-rules"], {
-        cwd: dir,
-        timeout: 10000
-      });
-
-      // Write it exactly as generated
+      const first = await generateAgentRules(binaryPath, dir);
       const agentsPath = path.join(dir, "AGENTS.md");
-      const content = rules.endsWith("\n") ? rules : `${rules}\n`;
-      await fs.writeFile(agentsPath, content, "utf8");
+      await fs.writeFile(agentsPath, first, "utf8");
 
-      // Extension's classifier should see it as up_to_date
-      const existing = await fs.readFile(agentsPath, "utf8");
-      const state = classifyAgentsFile(existing, content);
+      // Initialize Project generates again, then classifies disk vs that output.
+      const second = await generateAgentRules(binaryPath, dir);
+      const diskContent = await fs.readFile(agentsPath, "utf8");
+      const state = classifyAgentsFile(diskContent, second);
       assert.equal(state, "up_to_date",
-        "freshly written agent-rules output should be classified as up_to_date");
+        "second agent-rules generate should match the written AGENTS.md");
     });
   });
 

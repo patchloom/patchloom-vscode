@@ -14,6 +14,7 @@ import {
   StatusBar,
   InputBox,
   EditorView,
+  SettingsEditor,
 } from "vscode-extension-tester";
 
 // ---------------------------------------------------------------------------
@@ -66,6 +67,16 @@ async function findNotification(
   return undefined;
 }
 
+/** Dismiss every currently visible notification matching the pattern. */
+async function dismissNotifications(
+  workbench: Workbench,
+  pattern: RegExp,
+): Promise<void> {
+  while (await findNotification(workbench, pattern)) {
+    // keep dismissing leftovers
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -84,6 +95,9 @@ describe("Patchloom Extension UI", function () {
     // status bar item exists before the suite runs.
     await workbench.executeCommand("Patchloom: Show Status");
     await poll(findPatchloomStatus, 30_000);
+    // Drain leftover Show Status toasts so later tests do not match them.
+    await poll(() => findNotification(workbench, /[Pp]atchloom/), 10_000).catch(() => undefined);
+    await dismissNotifications(workbench, /[Pp]atchloom/);
   });
 
   describe("Status bar", function () {
@@ -91,20 +105,15 @@ describe("Patchloom Extension UI", function () {
       const text = await poll(findPatchloomStatus);
       assert.ok(text.includes("Patchloom"), "status bar should contain a Patchloom item");
     });
-
-    it("should have non-empty status text", async function () {
-      const text = await poll(findPatchloomStatus);
-      assert.ok(text.length > 0, "Patchloom status text should not be empty");
-    });
   });
 
   describe("Show Status command", function () {
     it("should display a notification when invoked", async function () {
       await workbench.executeCommand("Patchloom: Show Status");
       const msg = await poll(
-        () => findNotification(workbench, /[Pp]atchloom/),
+        () => findNotification(workbench, /ready|missing|version|AGENTS|status|not found/i),
       );
-      assert.ok(msg, "Show Status should display a notification mentioning Patchloom");
+      assert.ok(msg, "Show Status should display a status notification");
     });
   });
 
@@ -115,18 +124,21 @@ describe("Patchloom Extension UI", function () {
         const titles = await new EditorView().getOpenEditorTitles();
         return titles.some((t) => t.toLowerCase().includes("settings")) || undefined;
       });
+      const setting = await new SettingsEditor().findSetting("Show Status Bar", "Patchloom");
+      assert.ok(setting, "should find a Patchloom setting after Open Settings");
       await new EditorView().closeAllEditors();
     });
   });
 
   describe("Configure MCP command", function () {
     it("should show a notification or quick pick when invoked", async function () {
+      await dismissNotifications(workbench, /[Pp]atchloom/);
       await workbench.executeCommand("Patchloom: Configure MCP");
 
-      // The command shows either a warning notification (binary not found)
-      // or a quick pick for target selection (binary found).
+      // The command shows either a warning (missing binary / MCP targets)
+      // or a multi-select quick pick. Do not treat leftover Show Status as success.
       const result = await poll<{ kind: string }>(async () => {
-        const msg = await findNotification(workbench, /[Pp]atchloom|MCP/);
+        const msg = await findNotification(workbench, /MCP|configure|target|binary/i);
         if (msg) return { kind: "notification" };
         try {
           const input = new InputBox();
@@ -149,7 +161,7 @@ describe("Patchloom Extension UI", function () {
       await workbench.executeCommand("Patchloom: Quick Action");
 
       const result = await poll<{ kind: string; labels?: string[] }>(async () => {
-        const msg = await findNotification(workbench, /[Pp]atchloom/);
+        const msg = await findNotification(workbench, /upgrade|install|ready|not found/i);
         if (msg) return { kind: "notification" };
         try {
           const input = new InputBox();
