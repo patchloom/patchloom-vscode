@@ -918,6 +918,11 @@ test("isRealPathInsideWorkspace follows symlinks and stays fail-closed", async (
 
     assert.equal(
       isRealPathInsideWorkspace(workspaceRoot, path.join(workspaceRoot, "missing.txt")),
+      true,
+      "missing in-workspace path should reach file-not-found, not the escape warning"
+    );
+    assert.equal(
+      isRealPathInsideWorkspace(workspaceRoot, path.join(outsideRoot, "missing-outside.txt")),
       false
     );
 

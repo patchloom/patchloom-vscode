@@ -1778,17 +1778,24 @@ export function isPathInsideWorkspace(workspaceRoot: string, absolutePath: strin
   return isResolvedPathInsideWorkspace(workspaceRoot, absolutePath);
 }
 
-/** Fail-closed: false if realpath throws or the resolved path leaves the workspace. */
+/**
+ * True when the real path stays inside the workspace.
+ * Missing or dangling targets fall back to the lexical path so a typed
+ * in-workspace miss can reach ensureWorkspaceFileReady instead of looking
+ * like an escape. Existing files that realpath outside stay rejected.
+ */
 export function isRealPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
   let realRoot: string;
-  let realTarget: string;
   try {
     realRoot = realpathSync(workspaceRoot);
-    realTarget = realpathSync(absolutePath);
   } catch {
     return false;
   }
-  return isResolvedPathInsideWorkspace(realRoot, realTarget);
+  try {
+    return isResolvedPathInsideWorkspace(realRoot, realpathSync(absolutePath));
+  } catch {
+    return isResolvedPathInsideWorkspace(workspaceRoot, absolutePath);
+  }
 }
 
 export interface StagedExternalPatch {
