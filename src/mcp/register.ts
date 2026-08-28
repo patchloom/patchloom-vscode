@@ -61,6 +61,8 @@ interface VsCodeLmWithMcp {
 
 interface VsCodeWithMcpApi {
   EventEmitter: typeof VSCode.EventEmitter;
+  Uri: { file(path: string): VSCode.Uri };
+  workspace: { workspaceFolders?: readonly VSCode.WorkspaceFolder[] };
   lm: VsCodeLmWithMcp;
   McpStdioServerDefinition?: McpStdioServerDefinitionCtor;
 }
@@ -76,12 +78,17 @@ function mcpStdioCtor(vscode: VsCodeWithMcpApi): McpStdioServerDefinitionCtor | 
 
 export function createMcpStdioServerDefinition(
   Ctor: McpStdioServerDefinitionCtor,
-  descriptor: McpServerBinaryDescriptor
+  descriptor: McpServerBinaryDescriptor,
+  cwd?: unknown
 ): unknown | undefined {
   const args = [...descriptor.args];
   const env = descriptor.env ?? {};
   try {
-    return new Ctor(descriptor.label, descriptor.command, args, env);
+    const definition = new Ctor(descriptor.label, descriptor.command, args, env);
+    if (cwd !== undefined && definition && typeof definition === "object") {
+      (definition as { cwd?: unknown }).cwd = cwd;
+    }
+    return definition;
   } catch {
     return undefined;
   }
@@ -118,9 +125,10 @@ export async function registerMcpServerProviderWithBinary(context: VSCode.Extens
       onDidChangeMcpServerDefinitions: emitter.event,
       provideMcpServerDefinitions: async () => {
         const runtime = await getPatchloomRuntimeConfig();
+        const workspaceCwd = vscode.workspace.workspaceFolders?.[0]?.uri;
         const definitions: unknown[] = [];
         for (const descriptor of mcpServerDefinitionsForBinary(resolvedBinaryPath, runtime.extraEnv)) {
-          const definition = createMcpStdioServerDefinition(Ctor, descriptor);
+          const definition = createMcpStdioServerDefinition(Ctor, descriptor, workspaceCwd);
           if (definition !== undefined) {
             definitions.push(definition);
           }

@@ -57,7 +57,7 @@ test/
     managedLifecycle.test.ts   Managed install with real file I/O (26 tests)
     mcpConfig.test.ts    MCP config with real temp directories (14 tests)
     managedInstall.test.ts  Managed Update compares latest vs managed binary (10 tests)
-    mcpRegister.test.ts  Native MCP definition helper for binary path (2 tests)
+    mcpRegister.test.ts  Native MCP definition helper for binary path (6 tests)
     statusRefresh.test.ts Status and MCP refresh order after input change (1 test)
     outputChannel.test.ts Output channel logging wrapper (22 tests)
     patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (49 tests incl. e2e)
