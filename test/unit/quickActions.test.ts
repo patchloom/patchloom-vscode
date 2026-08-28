@@ -46,7 +46,8 @@ import {
   resolveWorkspaceRelativePath,
   retargetQuickAction,
   serializePatchloomArgs,
-  withEndOfOptions
+  withEndOfOptions,
+  withOption
 } from "../../src/commands/quickActions.js";
 import type { PatchloomLog } from "../../src/logging/outputChannel.js";
 
@@ -68,17 +69,17 @@ test("buildReplaceQuickAction builds a replace command for one file", () => {
   const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
 
   assert.equal(action.title, "Replace text in README.md");
-  assert.deepEqual(action.targetArgIndices, [5]);
-  assert.deepEqual(action.args, ["replace", "--new", "new", "--", "old", "/workspace/demo/README.md"]);
+  assert.deepEqual(action.targetArgIndices, [4]);
+  assert.deepEqual(action.args, ["replace", "--new=new", "--", "old", "/workspace/demo/README.md"]);
 });
 
 test("buildInsertAfterMatchQuickAction builds replace --insert-after (CLI 0.16+)", () => {
   const action = buildInsertAfterMatchQuickAction("/workspace/demo/app.ts", "const x = 1;", "const y = 2;");
 
   assert.equal(action.title, "Insert after match in app.ts");
-  assert.deepEqual(action.targetArgIndices, [5]);
+  assert.deepEqual(action.targetArgIndices, [4]);
   assert.deepEqual(action.args, [
-    "replace", "--insert-after", "const y = 2;", "--", "const x = 1;", "/workspace/demo/app.ts"
+    "replace", "--insert-after=const y = 2;", "--", "const x = 1;", "/workspace/demo/app.ts"
   ]);
 });
 
@@ -86,9 +87,9 @@ test("buildInsertBeforeMatchQuickAction builds replace --insert-before (CLI 0.16
   const action = buildInsertBeforeMatchQuickAction("/workspace/demo/app.ts", "return true;", "// checked");
 
   assert.equal(action.title, "Insert before match in app.ts");
-  assert.deepEqual(action.targetArgIndices, [5]);
+  assert.deepEqual(action.targetArgIndices, [4]);
   assert.deepEqual(action.args, [
-    "replace", "--insert-before", "// checked", "--", "return true;", "/workspace/demo/app.ts"
+    "replace", "--insert-before=// checked", "--", "return true;", "/workspace/demo/app.ts"
   ]);
 });
 
@@ -101,13 +102,11 @@ test("buildApplyFragmentQuickAction builds apply-fragment --after (CLI 0.22+)", 
   );
 
   assert.equal(action.title, "Apply fragment in lib.rs");
-  assert.deepEqual(action.targetArgIndices, [6]);
+  assert.deepEqual(action.targetArgIndices, [4]);
   assert.deepEqual(action.args, [
     "apply-fragment",
-    "--after",
-    "fn foo() {",
-    "--fragment",
-    "  let x = 1;",
+    "--after=fn foo() {",
+    "--fragment=  let x = 1;",
     "--",
     "/workspace/demo/lib.rs"
   ]);
@@ -116,12 +115,12 @@ test("buildApplyFragmentQuickAction builds apply-fragment --after (CLI 0.22+)", 
 test("buildApplyFragmentQuickAction supports --before and --old placements", () => {
   const before = buildApplyFragmentQuickAction("/ws/a.ts", "before", "return true;", "// note");
   assert.deepEqual(before.args, [
-    "apply-fragment", "--before", "return true;", "--fragment", "// note", "--", "/ws/a.ts"
+    "apply-fragment", "--before=return true;", "--fragment=// note", "--", "/ws/a.ts"
   ]);
 
   const replaceSpan = buildApplyFragmentQuickAction("/ws/a.ts", "old", "old_span", "new_span");
   assert.deepEqual(replaceSpan.args, [
-    "apply-fragment", "--old", "old_span", "--fragment", "new_span", "--", "/ws/a.ts"
+    "apply-fragment", "--old=old_span", "--fragment=new_span", "--", "/ws/a.ts"
   ]);
 });
 
@@ -131,7 +130,7 @@ test("retargetQuickAction preserves apply-fragment path index", () => {
 
   assert.equal(retargeted.targetPath, "/workspace/demo/b.ts");
   assert.deepEqual(retargeted.args, [
-    "apply-fragment", "--after", "anchor", "--fragment", "frag", "--", "/workspace/demo/b.ts"
+    "apply-fragment", "--after=anchor", "--fragment=frag", "--", "/workspace/demo/b.ts"
   ]);
 });
 
@@ -141,7 +140,7 @@ test("retargetQuickAction preserves insert-after args", () => {
 
   assert.equal(retargeted.targetPath, "/workspace/demo/b.ts");
   assert.deepEqual(retargeted.args, [
-    "replace", "--insert-after", "bar", "--", "foo", "/workspace/demo/b.ts"
+    "replace", "--insert-after=bar", "--", "foo", "/workspace/demo/b.ts"
   ]);
 });
 
@@ -244,8 +243,7 @@ test("retargetQuickAction swaps only the target path arguments", () => {
 
   assert.deepEqual(retargeted.args, [
     "replace",
-    "--new",
-    "new",
+    "--new=new",
     "--",
     "/workspace/demo/README.md",
     "/tmp/preview/README.md"
@@ -269,22 +267,37 @@ test("serializePatchloomArgs writes flags from booleans, not from scanning args"
 
 test("buildReplaceQuickAction keeps --apply as OLD after end-of-options", () => {
   const action = buildReplaceQuickAction("/workspace/demo/flags.md", "--apply", "X");
-  assert.deepEqual(action.args, ["replace", "--new", "X", "--", "--apply", "/workspace/demo/flags.md"]);
+  assert.deepEqual(action.args, ["replace", "--new=X", "--", "--apply", "/workspace/demo/flags.md"]);
   assert.deepEqual(
     serializePatchloomArgs({ args: action.args, apply: true, contain: true }),
-    ["--contain", "replace", "--new", "X", "--apply", "--", "--apply", "/workspace/demo/flags.md"]
+    ["--contain", "replace", "--new=X", "--apply", "--", "--apply", "/workspace/demo/flags.md"]
   );
 });
 
 test("serializePatchloomArgs puts --apply before -- so dash operands stay operands", () => {
   assert.deepEqual(
     serializePatchloomArgs({
-      args: withEndOfOptions(["replace", "--new", "X"], ["--apply", "f.txt"]),
+      args: withEndOfOptions(["replace", withOption("--new", "X")], ["--apply", "f.txt"]),
       apply: true,
       contain: true
     }),
-    ["--contain", "replace", "--new", "X", "--apply", "--", "--apply", "f.txt"]
+    ["--contain", "replace", "--new=X", "--apply", "--", "--apply", "f.txt"]
   );
+});
+
+test("builders pass dash-looking option values as --flag=value", () => {
+  const created = buildCreateQuickAction("/workspace/demo/f.txt", "--");
+  assert.deepEqual(created.args, ["create", "--content=--", "--", "/workspace/demo/f.txt"]);
+  assert.deepEqual(
+    serializePatchloomArgs({ args: created.args, apply: true, contain: true }),
+    ["--contain", "create", "--content=--", "--apply", "--", "/workspace/demo/f.txt"]
+  );
+
+  const replaced = buildReplaceQuickAction("/workspace/demo/f.txt", "hello", "-n");
+  assert.deepEqual(replaced.args, ["replace", "--new=-n", "--", "hello", "/workspace/demo/f.txt"]);
+
+  const applyNamed = buildReplaceQuickAction("/workspace/demo/f.txt", "hello", "--apply");
+  assert.deepEqual(applyNamed.args, ["replace", "--new=--apply", "--", "hello", "/workspace/demo/f.txt"]);
 });
 
 test("buildPrependQuickAction builds a file prepend command", () => {
@@ -292,12 +305,11 @@ test("buildPrependQuickAction builds a file prepend command", () => {
   assert.equal(action.title, "Prepend to main.ts");
   assert.deepEqual(action.args, [
     "prepend",
-    "--content",
-    "// copyright\n",
+    "--content=// copyright\n",
     "--",
     "/workspace/demo/src/main.ts"
   ]);
-  assert.deepEqual(action.targetArgIndices, [4]);
+  assert.deepEqual(action.targetArgIndices, [3]);
 });
 
 test("isStructuredDocumentPath recognizes supported structured formats", () => {
@@ -353,8 +365,8 @@ test("buildSearchQuickAction includes glob when provided", () => {
   const action = buildSearchQuickAction("/workspace/demo", "TODO", "*.ts");
 
   assert.equal(action.title, 'Search for "TODO"');
-  assert.deepEqual(action.args, ["search", "--glob", "*.ts", "--", "TODO", "/workspace/demo"]);
-  assert.deepEqual(action.targetArgIndices, [5]);
+  assert.deepEqual(action.args, ["search", "--glob=*.ts", "--", "TODO", "/workspace/demo"]);
+  assert.deepEqual(action.targetArgIndices, [4]);
 });
 
 test("buildSearchQuickAction includes --files-without-match (CLI 0.29+)", () => {
@@ -374,9 +386,9 @@ test("buildSearchQuickAction combines --files-without-match with glob", () => {
 
   assert.equal(action.title, 'Search files without "TODO"');
   assert.deepEqual(action.args, [
-    "search", "--files-without-match", "--glob", "*.ts", "--", "TODO", "/workspace/demo"
+    "search", "--files-without-match", "--glob=*.ts", "--", "TODO", "/workspace/demo"
   ]);
-  assert.deepEqual(action.targetArgIndices, [6]);
+  assert.deepEqual(action.targetArgIndices, [5]);
 });
 
 test("buildCreateQuickAction builds a create command with content and apply", () => {
@@ -385,21 +397,19 @@ test("buildCreateQuickAction builds a create command with content and apply", ()
   assert.equal(action.title, "Create newfile.ts");
   assert.deepEqual(action.args, [
     "create",
-    "--content",
-    "hello",
+    "--content=hello",
     "--",
     "/workspace/demo/src/newfile.ts"
   ]);
   assert.equal(action.apply, true);
-  assert.deepEqual(action.targetArgIndices, [4]);
+  assert.deepEqual(action.targetArgIndices, [3]);
 });
 
 test("buildCreateQuickAction allows empty content", () => {
   const action = buildCreateQuickAction("/workspace/demo/empty.txt");
   assert.deepEqual(action.args, [
     "create",
-    "--content",
-    "",
+    "--content=",
     "--",
     "/workspace/demo/empty.txt"
   ]);
@@ -482,8 +492,7 @@ test("buildCreateQuickAction with spaces in path", () => {
   assert.equal(action.title, "Create new file.ts");
   assert.deepEqual(action.args, [
     "create",
-    "--content",
-    "x",
+    "--content=x",
     "--",
     "/workspace/my project/src/new file.ts"
   ]);
@@ -501,8 +510,7 @@ test("buildCreateQuickAction with unicode filename", () => {
   assert.equal(action.title, "Create 日本語.md");
   assert.deepEqual(action.args, [
     "create",
-    "--content",
-    "# title",
+    "--content=# title",
     "--",
     "/workspace/demo/docs/日本語.md"
   ]);
@@ -528,12 +536,11 @@ test("buildDocDeleteWhereQuickAction builds a doc delete-where command", () => {
   const action = buildDocDeleteWhereQuickAction("/workspace/demo/data.json", "items", "name=stale");
 
   assert.equal(action.title, "Delete where name=stale from items in data.json");
-  assert.deepEqual(action.targetArgIndices, [5]);
+  assert.deepEqual(action.targetArgIndices, [4]);
   assert.deepEqual(action.args, [
     "doc",
     "delete-where",
-    "--predicate",
-    "name=stale",
+    "--predicate=name=stale",
     "--",
     "/workspace/demo/data.json",
     "items"
@@ -544,8 +551,8 @@ test("buildDocMergeQuickAction builds a doc merge command", () => {
   const action = buildDocMergeQuickAction("/workspace/demo/package.json", '{"debug": true}');
 
   assert.equal(action.title, "Merge into package.json");
-  assert.deepEqual(action.targetArgIndices, [5]);
-  assert.deepEqual(action.args, ["doc", "merge", "--value", '{"debug": true}', "--", "/workspace/demo/package.json"]);
+  assert.deepEqual(action.targetArgIndices, [4]);
+  assert.deepEqual(action.args, ["doc", "merge", "--value={\"debug\": true}", "--", "/workspace/demo/package.json"]);
 });
 
 test("buildDocMergeQuickAction includes --selector for multi-doc merge (CLI 0.16+)", () => {
@@ -556,11 +563,11 @@ test("buildDocMergeQuickAction includes --selector for multi-doc merge (CLI 0.16
   );
 
   assert.equal(action.title, "Merge into 0 in multi.yaml");
-  assert.deepEqual(action.targetArgIndices, [7]);
+  assert.deepEqual(action.targetArgIndices, [5]);
   assert.deepEqual(action.args, [
     "doc", "merge",
-    "--selector", "0",
-    "--value", '{"debug": true}',
+    "--selector=0",
+    "--value={\"debug\": true}",
     "--", "/workspace/demo/multi.yaml"
   ]);
 });
@@ -571,7 +578,7 @@ test("buildDocMergeQuickAction omits --selector when selector is blank", () => {
   assert.equal(action.title, "Merge into config.toml");
   assert.deepEqual(action.args, [
     "doc", "merge",
-    "--value", '{"x": 1}',
+    "--value={\"x\": 1}",
     "--", "/workspace/demo/config.toml"
   ]);
   assert.ok(!action.args.includes("--selector"));
@@ -584,8 +591,8 @@ test("retargetQuickAction preserves doc merge selector flags", () => {
   assert.equal(retargeted.targetPath, "/workspace/demo/b.yaml");
   assert.deepEqual(retargeted.args, [
     "doc", "merge",
-    "--selector", "[0]",
-    "--value", '{"k": true}',
+    "--selector=[0]",
+    "--value={\"k\": true}",
     "--", "/workspace/demo/b.yaml"
   ]);
 });
@@ -604,11 +611,11 @@ test("buildMdTableAppendQuickAction builds a md table-append command", () => {
   const action = buildMdTableAppendQuickAction("/workspace/demo/README.md", "## API", "| /users | List users |");
 
   assert.equal(action.title, 'Append table row under "## API" in README.md');
-  assert.deepEqual(action.targetArgIndices, [7]);
+  assert.deepEqual(action.targetArgIndices, [5]);
   assert.deepEqual(action.args, [
     "md", "table-append",
-    "--heading", "## API",
-    "--row", "| /users | List users |",
+    "--heading=## API",
+    "--row=| /users | List users |",
     "--", "/workspace/demo/README.md"
   ]);
 });
@@ -617,11 +624,11 @@ test("buildMdUpsertBulletQuickAction builds a md upsert-bullet command", () => {
   const action = buildMdUpsertBulletQuickAction("/workspace/demo/AGENTS.md", "## Rules", "Run make check");
 
   assert.equal(action.title, 'Upsert bullet under "## Rules" in AGENTS.md');
-  assert.deepEqual(action.targetArgIndices, [7]);
+  assert.deepEqual(action.targetArgIndices, [5]);
   assert.deepEqual(action.args, [
     "md", "upsert-bullet",
-    "--heading", "## Rules",
-    "--bullet", "Run make check",
+    "--heading=## Rules",
+    "--bullet=Run make check",
     "--", "/workspace/demo/AGENTS.md"
   ]);
 });
@@ -630,11 +637,11 @@ test("buildMdReplaceSectionQuickAction builds a md replace-section command", () 
   const action = buildMdReplaceSectionQuickAction("/workspace/demo/CHANGELOG.md", "## Unreleased", "- New feature");
 
   assert.equal(action.title, 'Replace "## Unreleased" in CHANGELOG.md');
-  assert.deepEqual(action.targetArgIndices, [7]);
+  assert.deepEqual(action.targetArgIndices, [5]);
   assert.deepEqual(action.args, [
     "md", "replace-section",
-    "--heading", "## Unreleased",
-    "--content", "- New feature",
+    "--heading=## Unreleased",
+    "--content=- New feature",
     "--", "/workspace/demo/CHANGELOG.md"
   ]);
 });
@@ -681,11 +688,11 @@ test("buildMdInsertAfterHeadingQuickAction builds a md insert-after-heading comm
   const action = buildMdInsertAfterHeadingQuickAction("/workspace/demo/README.md", "## Installation", "Run npm install");
 
   assert.equal(action.title, 'Insert after "## Installation" in README.md');
-  assert.deepEqual(action.targetArgIndices, [7]);
+  assert.deepEqual(action.targetArgIndices, [5]);
   assert.deepEqual(action.args, [
     "md", "insert-after-heading",
-    "--heading", "## Installation",
-    "--content", "Run npm install",
+    "--heading=## Installation",
+    "--content=Run npm install",
     "--", "/workspace/demo/README.md"
   ]);
 });
@@ -698,11 +705,11 @@ test("buildMdInsertAfterSectionQuickAction builds a md insert-after-section comm
   );
 
   assert.equal(action.title, 'Insert after section "## Config" in README.md');
-  assert.deepEqual(action.targetArgIndices, [7]);
+  assert.deepEqual(action.targetArgIndices, [5]);
   assert.deepEqual(action.args, [
     "md", "insert-after-section",
-    "--heading", "## Config",
-    "--content", "## FAQ\n\nCommon questions.",
+    "--heading=## Config",
+    "--content=## FAQ\n\nCommon questions.",
     "--", "/workspace/demo/README.md"
   ]);
 });
@@ -711,11 +718,11 @@ test("buildMdInsertBeforeHeadingQuickAction builds a md insert-before-heading co
   const action = buildMdInsertBeforeHeadingQuickAction("/workspace/demo/CHANGELOG.md", "## v1.0.0", "## v1.1.0\n\n- New feature");
 
   assert.equal(action.title, 'Insert before "## v1.0.0" in CHANGELOG.md');
-  assert.deepEqual(action.targetArgIndices, [7]);
+  assert.deepEqual(action.targetArgIndices, [5]);
   assert.deepEqual(action.args, [
     "md", "insert-before-heading",
-    "--heading", "## v1.0.0",
-    "--content", "## v1.1.0\n\n- New feature",
+    "--heading=## v1.0.0",
+    "--content=## v1.1.0\n\n- New feature",
     "--", "/workspace/demo/CHANGELOG.md"
   ]);
 });
@@ -818,8 +825,8 @@ test("buildAppendQuickAction builds an append command", () => {
   const action = buildAppendQuickAction("/workspace/demo/log.txt", "new log entry");
 
   assert.equal(action.title, "Append to log.txt");
-  assert.deepEqual(action.targetArgIndices, [4]);
-  assert.deepEqual(action.args, ["append", "--content", "new log entry", "--", "/workspace/demo/log.txt"]);
+  assert.deepEqual(action.targetArgIndices, [3]);
+  assert.deepEqual(action.args, ["append", "--content=new log entry", "--", "/workspace/demo/log.txt"]);
 });
 
 // --- result presenters (search / patch-merge / undo) ---
