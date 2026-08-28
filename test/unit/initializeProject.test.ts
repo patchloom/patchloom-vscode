@@ -969,13 +969,16 @@ test("generateAgentRules surfaces formatCliOutput envelope on CLI failure", asyn
         }
       }),
       (err: Error) => {
-        assert.match(err.message, /invalid_input/);
-        assert.match(err.message, /try doc\.update/);
+        assert.equal(
+          err.message,
+          "invalid_input: selector uses wildcard/predicate, which is not valid for doc.set (single path only) (try doc.update)"
+        );
         return true;
       }
     );
     assert.equal(logged.length, 1, "logResult should be called once on failure");
-    assert.match(`${logged[0].stdout}\n${logged[0].stderr}`, /invalid_input|suggested_op/);
+    assert.equal(logged[0].stdout, stdout);
+    assert.equal(logged[0].stderr, "Command failed: patchloom agent-rules");
   } finally {
     setPatchloomLog(undefined);
   }
