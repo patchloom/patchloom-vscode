@@ -62,7 +62,7 @@ test/
     outputChannel.test.ts Output channel logging wrapper (22 tests)
     patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (46 tests incl. e2e)
     propertyBased.test.ts  Property-based tests with fast-check (13 tests)
-    quickActions.test.ts Quick action command building, path containment, patch merge (75 tests)
+    quickActions.test.ts Quick action command building, path containment, patch merge (82 tests)
     verifyMcp.test.ts    MCP server verify and JSON-RPC response parsing (15 tests)
     downloadIntegration.test.ts  HTTP download, redirect, streaming SHA-256 (12 tests)
   suite/

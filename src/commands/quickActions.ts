@@ -302,15 +302,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Update JSON, YAML, or TOML with diff preview",
       detail: "Builds `patchloom doc set <file> <selector> <value>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc set");
+        const target = await pickStructuredDocumentTarget("doc set");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc set.`
-          );
           return;
         }
 
@@ -341,15 +334,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Update all JSON, YAML, or TOML nodes matching a wildcard or predicate",
       detail: "Builds `patchloom doc update <file> <selector> <value>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc update");
+        const target = await pickStructuredDocumentTarget("doc update");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc update.`
-          );
           return;
         }
 
@@ -576,15 +562,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Read a value from JSON, YAML, or TOML",
       detail: "Builds `patchloom doc get <file> <selector>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc get");
+        const target = await pickStructuredDocumentTarget("doc get");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc get.`
-          );
           return;
         }
 
@@ -615,15 +594,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Remove a key from JSON, YAML, or TOML with diff preview",
       detail: "Builds `patchloom doc delete <file> <selector>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc delete");
+        const target = await pickStructuredDocumentTarget("doc delete");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc delete.`
-          );
           return;
         }
 
@@ -644,17 +616,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Remove array items matching a predicate with diff preview",
       detail: "Builds `patchloom doc delete-where --predicate <predicate> <file> <selector>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget(
-          "Select a JSON, YAML, or TOML file for Patchloom doc delete-where"
-        );
+        const target = await pickStructuredDocumentTarget("doc delete-where");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc delete-where.`
-          );
           return;
         }
 
@@ -688,15 +651,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Merge a partial JSON object into a config file",
       detail: "Builds `patchloom doc merge <file> [--selector <path>] --value <json>` (selector for multi-doc YAML, CLI 0.16+)",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc merge");
+        const target = await pickStructuredDocumentTarget("doc merge");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc merge.`
-          );
           return;
         }
 
@@ -729,15 +685,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Append a value to a JSON, YAML, or TOML array",
       detail: "Builds `patchloom doc append <file> <selector> <value>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc append");
+        const target = await pickStructuredDocumentTarget("doc append");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc append.`
-          );
           return;
         }
 
@@ -767,15 +716,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Prepend a value to a JSON, YAML, or TOML array",
       detail: "Builds `patchloom doc prepend <file> <selector> <value>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc prepend");
+        const target = await pickStructuredDocumentTarget("doc prepend");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc prepend.`
-          );
           return;
         }
 
@@ -805,15 +747,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Idempotent set: only write if the key is missing",
       detail: "Builds `patchloom doc ensure <file> <selector> <value>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc ensure");
+        const target = await pickStructuredDocumentTarget("doc ensure");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc ensure.`
-          );
           return;
         }
 
@@ -843,15 +778,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Move or rename a selector path in JSON, YAML, or TOML",
       detail: "Builds `patchloom doc move <file> <from> <to>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc move");
+        const target = await pickStructuredDocumentTarget("doc move");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc move.`
-          );
           return;
         }
 
@@ -1525,6 +1453,14 @@ export function isStructuredDocumentPath(filePath: string): boolean {
   return STRUCTURED_FILE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }
 
+export function isAllowedPreviewMiss(action: PlannedQuickAction, exitCode: number): boolean {
+  if (exitCode !== 3) {
+    return false;
+  }
+  // PlannedQuickAction.args are pre-contain. executePatchloom prepends --contain later.
+  return !(action.args[0] === "doc" && action.args[1] === "update");
+}
+
 export function retargetQuickAction(action: PlannedQuickAction, nextTargetPath: string): PlannedQuickAction {
   return {
     ...action,
@@ -1587,6 +1523,7 @@ async function previewAndMaybeApply(
 
   const result = await executePatchloom(binaryPath, withApplyFlag(action.args), target.workspaceFolder.uri.fsPath);
   if (result.exitCode !== 0) {
+    presentCliResultInOutput(getPatchloomLog(), result);
     await vscode.window.showErrorMessage(
       `Patchloom failed while applying changes to ${target.relativePath}: ${formatCliOutput(result)}`
     );
@@ -1614,7 +1551,8 @@ async function buildPreviewDocument(
     await fs.writeFile(tempPath, originalContent, "utf8");
     const previewAction = retargetQuickAction(action, tempPath);
     const result = await executePatchloom(binaryPath, withApplyFlag(previewAction.args), tempDir);
-    if (result.exitCode !== 0 && result.exitCode !== 3) {
+    if (result.exitCode !== 0 && !isAllowedPreviewMiss(action, result.exitCode)) {
+      presentCliResultInOutput(getPatchloomLog(), result);
       throw new Error(formatCliOutput(result));
     }
 
@@ -1630,6 +1568,23 @@ async function buildPreviewDocument(
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }
+}
+
+async function pickStructuredDocumentTarget(opLabel: string): Promise<WorkspaceFileTarget | undefined> {
+  const target = await pickWorkspaceFileTarget(
+    `Select a JSON, YAML, or TOML file for Patchloom ${opLabel}`
+  );
+  if (!target) {
+    return undefined;
+  }
+  if (!isStructuredDocumentPath(target.absolutePath)) {
+    const vscode = await import("vscode");
+    await vscode.window.showWarningMessage(
+      `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom ${opLabel}.`
+    );
+    return undefined;
+  }
+  return target;
 }
 
 async function pickWorkspaceFileTarget(placeHolder: string): Promise<WorkspaceFileTarget | undefined> {

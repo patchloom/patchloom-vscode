@@ -28,6 +28,7 @@ import {
   buildSearchQuickAction,
   buildTidyQuickAction,
   buildUndoQuickAction,
+  isAllowedPreviewMiss,
   isMarkdownPath,
   isStructuredDocumentPath,
   isPathInsideWorkspace,
@@ -176,6 +177,41 @@ test("buildDocUpdateQuickAction builds a doc update command", () => {
     "items[*].enabled",
     "false"
   ]);
+});
+
+test("isAllowedPreviewMiss rejects doc update exit 3", () => {
+  const action = buildDocUpdateQuickAction("/workspace/demo/data.json", "items[*].enabled", "false");
+  assert.equal(isAllowedPreviewMiss(action, 3), false);
+});
+
+test("isAllowedPreviewMiss allows replace exit 3", () => {
+  const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
+  assert.equal(isAllowedPreviewMiss(action, 3), true);
+});
+
+test("isAllowedPreviewMiss allows doc delete-where exit 3", () => {
+  const action = buildDocDeleteWhereQuickAction("/workspace/demo/data.json", "items", "name=stale");
+  assert.equal(isAllowedPreviewMiss(action, 3), true);
+});
+
+test("isAllowedPreviewMiss allows doc set exit 3", () => {
+  const action = buildDocSetQuickAction("/workspace/demo/package.json", "scripts.test", "vitest");
+  assert.equal(isAllowedPreviewMiss(action, 3), true);
+});
+
+test("isAllowedPreviewMiss rejects exit 0", () => {
+  const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
+  assert.equal(isAllowedPreviewMiss(action, 0), false);
+});
+
+test("isAllowedPreviewMiss rejects exit 1", () => {
+  const action = buildDocUpdateQuickAction("/workspace/demo/data.json", "items[*].enabled", "false");
+  assert.equal(isAllowedPreviewMiss(action, 1), false);
+});
+
+test("isAllowedPreviewMiss rejects exit 8", () => {
+  const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
+  assert.equal(isAllowedPreviewMiss(action, 8), false);
 });
 
 test("retargetQuickAction swaps only the target path arguments", () => {
