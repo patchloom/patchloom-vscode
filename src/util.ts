@@ -82,24 +82,39 @@ export function formatCliOutput(result: { exitCode: number; stdout: string; stde
   return output || `exit code ${result.exitCode}`;
 }
 
+const QUICK_ACTION_UPDATE_HINT =
+  '(try Quick Action "Update matching structured values" or CLI `doc update`)';
+const QUICK_ACTION_DELETE_WHERE_HINT =
+  '(try Quick Action "Delete matching array items" or CLI `doc delete-where`)';
+
 /**
  * Quick Action toast wrapper around formatCliOutput. Agents still parse the
  * CLI token from formatCliOutput; picker labels are for humans in the UI.
+ * Preview does not pass --json, so also scan human stderr for suggested_op
+ * tokens (doc.update, doc.delete_where, doc delete-where).
  */
 export function formatQuickActionCliOutput(result: {
   exitCode: number;
   stdout: string;
   stderr: string;
 }): string {
-  return formatCliOutput(result)
-    .replaceAll(
-      "(try doc.update)",
-      '(try Quick Action "Update matching structured values" or CLI doc.update)'
-    )
-    .replaceAll(
-      "(try doc.delete_where)",
-      '(try Quick Action "Delete matching array items" or CLI doc.delete_where)'
-    );
+  let formatted = formatCliOutput(result)
+    .replaceAll("(try doc.update)", QUICK_ACTION_UPDATE_HINT)
+    .replaceAll("(try doc.delete_where)", QUICK_ACTION_DELETE_WHERE_HINT);
+
+  const raw = `${result.stderr}\n${result.stdout}`;
+  const mentionsUpdate = raw.includes("doc.update");
+  const mentionsDelete =
+    raw.includes("doc.delete_where") || raw.includes("doc delete-where");
+  const mentionsSuggestedOp = raw.includes("suggested_op");
+
+  if (!formatted.includes(QUICK_ACTION_UPDATE_HINT) && (mentionsUpdate || (mentionsSuggestedOp && !mentionsDelete))) {
+    formatted = `${formatted} ${QUICK_ACTION_UPDATE_HINT}`;
+  }
+  if (!formatted.includes(QUICK_ACTION_DELETE_WHERE_HINT) && mentionsDelete) {
+    formatted = `${formatted} ${QUICK_ACTION_DELETE_WHERE_HINT}`;
+  }
+  return formatted;
 }
 
 function extractCliJsonError(stream: string): string | undefined {

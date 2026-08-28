@@ -23,6 +23,7 @@ import {
   buildMdReplaceSectionQuickAction,
   buildMdTableAppendQuickAction,
   buildMdUpsertBulletQuickAction,
+  buildPatchApplyQuickAction,
   buildPatchMergeQuickAction,
   buildReplaceQuickAction,
   buildSearchQuickAction,
@@ -741,6 +742,25 @@ test("retargetQuickAction works with md commands", () => {
   assert.equal(retargeted.args[2], "/tmp/preview/README.md");
   assert.equal(retargeted.args[0], "md");
   assert.equal(retargeted.args[1], "table-append");
+});
+
+// --- patch apply Quick Action (CLI 0.30+) ---
+
+test("buildPatchApplyQuickAction builds a patch apply command", () => {
+  const action = buildPatchApplyQuickAction("/workspace/demo/changes.patch");
+
+  assert.equal(action.title, "Apply patch changes.patch");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, ["patch", "apply", "/workspace/demo/changes.patch", "--apply"]);
+});
+
+test("retargetQuickAction works with patch apply command", () => {
+  const action = buildPatchApplyQuickAction("/workspace/demo/fix.patch");
+  const retargeted = retargetQuickAction(action, "/tmp/preview/fix.patch");
+
+  assert.equal(retargeted.args[2], "/tmp/preview/fix.patch");
+  assert.equal(retargeted.args[0], "patch");
+  assert.equal(retargeted.args[1], "apply");
 });
 
 // --- patch merge Quick Action (v0.2.0+) ---

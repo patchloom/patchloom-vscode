@@ -1033,6 +1033,45 @@ export async function runQuickAction(): Promise<void> {
       }
     },
     {
+      label: "Apply patch (unified / Begin Patch / SEARCH-REPLACE)",
+      description: "Apply a unified diff, Codex Begin Patch, or Aider SEARCH/REPLACE",
+      detail: "Builds `patchloom patch apply <file> --apply`",
+      run: async () => {
+        const folder = await activeWorkspaceFolder({
+          promptIfMany: true,
+          placeHolder: "Select workspace folder for Patchloom patch apply"
+        });
+        if (!folder) {
+          await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom patch apply.");
+          return;
+        }
+
+        const patchUri = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          defaultUri: folder.uri,
+          filters: { "Patch files": ["patch", "diff"], "All files": ["*"] },
+          openLabel: "Select Patch"
+        });
+        if (!patchUri || patchUri.length === 0) {
+          return;
+        }
+
+        const action = buildPatchApplyQuickAction(patchUri[0].fsPath);
+        // External patch files are meta-inputs; --contain rejects them. Keep the
+        // write sandbox when the patch itself lives inside the workspace.
+        const contain = isPathInsideWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
+        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath, { contain });
+        const log = getPatchloomLog();
+        presentCliResultInOutput(log, result);
+
+        if (result.exitCode !== 0) {
+          await vscode.window.showErrorMessage(`Patch apply failed: ${formatCliOutput(result)}`);
+        } else {
+          await vscode.window.showInformationMessage("Patch applied successfully.");
+        }
+      }
+    },
+    {
       label: "Merge patch (three-way)",
       description: "Apply a stale patch using three-way merge",
       detail: "Builds `patchloom patch merge <file> --apply [--allow-conflicts]`",
@@ -1420,6 +1459,15 @@ export function buildMdInsertBeforeHeadingQuickAction(targetPath: string, headin
     targetPath,
     targetArgIndices: [2],
     args: ["md", "insert-before-heading", targetPath, "--heading", heading, "--content", content]
+  };
+}
+
+export function buildPatchApplyQuickAction(patchPath: string): PlannedQuickAction {
+  return {
+    title: `Apply patch ${path.basename(patchPath)}`,
+    targetPath: patchPath,
+    targetArgIndices: [2],
+    args: ["patch", "apply", patchPath, "--apply"]
   };
 }
 

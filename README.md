@@ -113,10 +113,11 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Append table row** | Append a row to a markdown table under a heading |
 | **Upsert bullet** | Add a bullet under a heading if it is not already present |
 | **Replace markdown section** | Replace content under a markdown heading |
+| **Apply patch (unified / Begin Patch / SEARCH-REPLACE)** | Apply a unified diff, Codex Begin Patch, or Aider SEARCH/REPLACE (`patch apply`, CLI 0.30+) |
 | **Merge patch (three-way)** | Apply a stale patch using three-way merge (v0.2.0+) |
 | **Undo last change** | Restore files from the latest Patchloom backup session |
 
-Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay inside the workspace root (CLI 0.10+). Containment is relative to the effective working directory (the workspace folder). Patch merge skips containment when the patch file may live outside the workspace.
+Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay inside the workspace root (CLI 0.10+). Containment is relative to the effective working directory (the workspace folder). Patch apply and patch merge skip containment when the patch file may live outside the workspace.
 
 ### Batch operations
 
@@ -205,7 +206,7 @@ On CLI 0.29+, `search -L` / `--files-without-match` lists files that do not cont
 On CLI 0.31+, `doc set` on a mapping that is only `service_a: *shared` writes a merge key plus local fields (`<<: *shared` and your new keys) instead of inlining the whole object. Sequence items (`- *shared`) still expand or stay not-applied.
 
 **Patch apply formats**
-On CLI 0.30+, `patch apply` (and MCP `apply_patch`) accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE. Update and SEARCH matches must be unique unless you pass `--replace-all` (SEARCH/REPLACE only). The Quick Action **Merge patch (three-way)** is still `patch merge` for stale unified diffs.
+On CLI 0.30+, `patch apply` (and MCP `apply_patch`) accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE. Update and SEARCH matches must be unique unless you pass `--replace-all` (SEARCH/REPLACE only). The Quick Action **Apply patch (unified / Begin Patch / SEARCH-REPLACE)** builds `patch apply`. **Merge patch (three-way)** is still `patch merge` for stale unified diffs.
 
 **Batch replace shape**
 Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). Do not paste CLI form `replace OLD --new NEW path` into a batch plan; CLI 0.18+ returns a clear parse error with the PATH OLD NEW hint.
@@ -223,7 +224,7 @@ On CLI 0.20+, sole-path loads of binary or invalid UTF-8 files report `error_kin
 On CLI 0.22+, over-wide fuzzy matches can report `error_kind: fuzzy_span_suspicious`. Prefer an exact `old` string, structured `doc`/`md`/`ast` edits, or `apply-fragment` with a unique anchor.
 
 **Doc selector needs multi-match op**
-On CLI 0.27+, `doc set` / `doc ensure` / `doc delete` with a predicate or wildcard selector stay `error_kind: invalid_input` and may include `suggested_op` (`doc.update` or `doc.delete_where`). The extension surfaces that hint in notifications; full CLI text for search, undo, patch-merge, and batch apply is in the Output channel. Use the multi-match op (or a concrete index path such as `items.0.val`). The matching Quick Actions are **Update matching structured values** and **Delete matching array items**.
+On CLI 0.27+, `doc set` / `doc ensure` / `doc delete` with a predicate or wildcard selector stay `error_kind: invalid_input` and may include `suggested_op`. Standalone CLI is `doc update` / `doc delete-where`; batch plans use `doc.update` / `doc.delete_where`. The extension surfaces that hint in notifications; full CLI text for search, undo, patch-merge, and batch apply is in the Output channel. Use the multi-match op (or a concrete index path such as `items.0.val`). The matching Quick Actions are **Update matching structured values** and **Delete matching array items**.
 
 **Ambiguous markdown heading**
 On CLI 0.25+, section ops that match the same heading more than once report `error_kind: ambiguous`. Make the heading unique or use a level-qualified query (for example `## Rules`).

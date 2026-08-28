@@ -26,6 +26,7 @@ import { classifyAgentsFile, generateAgentRules } from "../../src/commands/initi
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import {
   buildCreateQuickAction,
+  buildPatchApplyQuickAction,
   buildDocDeleteWhereQuickAction,
   buildDocGetQuickAction,
   buildDocMergeQuickAction,
@@ -669,6 +670,41 @@ describe("patchloom CLI integration", async () => {
         assert.match(formatted, /invalid_input/);
         assert.match(formatted, /must be numeric/);
       }
+    });
+  });
+
+  test("patch apply via Quick Action args (CLI 0.30+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.30.0") < 0) {
+      t.skip(`requires patchloom >= 0.30.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "code.rs");
+      await fs.writeFile(file, "fn old() {}\n", "utf8");
+      const patchFile = path.join(dir, "change.patch");
+      await fs.writeFile(
+        patchFile,
+        [
+          "*** Begin Patch",
+          "*** Update File: code.rs",
+          "@@",
+          "-fn old() {}",
+          "+fn new() {}",
+          "*** End Patch",
+          ""
+        ].join("\n"),
+        "utf8"
+      );
+
+      const action = buildPatchApplyQuickAction(patchFile);
+      await execFileAsync(binaryPath, action.args, { cwd: dir, timeout: 5000 });
+
+      const content = await fs.readFile(file, "utf8");
+      assert.match(content, /fn new\(\) \{\}/);
+      assert.doesNotMatch(content, /fn old\(\) \{\}/);
     });
   });
 
