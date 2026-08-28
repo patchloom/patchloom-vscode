@@ -72,6 +72,16 @@ export function writeUserVisibleOutput(
   log.log(text);
 }
 
+/** Write CLI streams then show the channel (trace-independent user-facing results). */
+export function presentCliResultInOutput(
+  log: PatchloomLog | undefined,
+  result: { stdout?: string; stderr?: string }
+): void {
+  writeUserVisibleOutput(log, result.stdout ?? "");
+  writeUserVisibleOutput(log, result.stderr ?? "");
+  log?.show();
+}
+
 export interface OutputChannelLike {
   appendLine(value: string): void;
   show(preserveFocus?: boolean): void;

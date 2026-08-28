@@ -29,11 +29,29 @@ import {
   isMarkdownPath,
   isStructuredDocumentPath,
   isPathInsideWorkspace,
+  presentPatchMergeOutcome,
+  presentSearchOutcome,
+  presentUndoSuccess,
   resolveWorkspaceRelativePath,
   retargetQuickAction,
   withApplyFlag,
   withContainFlag
 } from "../../src/commands/quickActions.js";
+import type { PatchloomLog } from "../../src/logging/outputChannel.js";
+
+function fakeLog(): { log: PatchloomLog; messages: string[] } {
+  const messages: string[] = [];
+  return {
+    messages,
+    log: {
+      log(message: string) { messages.push(message); },
+      logCommand() {},
+      logResult() {},
+      show() { messages.push("SHOW"); },
+      dispose() {}
+    }
+  };
+}
 
 test("buildReplaceQuickAction builds a replace command for one file", () => {
   const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
@@ -677,4 +695,81 @@ test("buildAppendQuickAction builds an append command", () => {
   assert.equal(action.title, "Append to log.txt");
   assert.deepEqual(action.targetArgIndices, [1]);
   assert.deepEqual(action.args, ["append", "/workspace/demo/log.txt", "--content", "new log entry"]);
+});
+
+// --- result presenters (search / patch-merge / undo) ---
+
+test("presentSearchOutcome exit 0 writes streams + show, returns hits", () => {
+  const { log, messages } = fakeLog();
+  const kind = presentSearchOutcome(log, {
+    exitCode: 0,
+    stdout: "file.ts:1:hit",
+    stderr: "note"
+  });
+  assert.equal(kind, "hits");
+  assert.deepEqual(messages, ["file.ts:1:hit", "note", "SHOW"]);
+});
+
+test("presentSearchOutcome exit 3 writes nothing, returns none", () => {
+  const { log, messages } = fakeLog();
+  const kind = presentSearchOutcome(log, {
+    exitCode: 3,
+    stdout: "should-not-write",
+    stderr: "also-not"
+  });
+  assert.equal(kind, "none");
+  assert.deepEqual(messages, []);
+});
+
+test("presentSearchOutcome exit 2 writes nothing, returns error", () => {
+  const { log, messages } = fakeLog();
+  const kind = presentSearchOutcome(log, {
+    exitCode: 2,
+    stdout: "out",
+    stderr: "err"
+  });
+  assert.equal(kind, "error");
+  assert.deepEqual(messages, []);
+});
+
+test("presentPatchMergeOutcome exit 8 writes streams + show, returns conflicts", () => {
+  const { log, messages } = fakeLog();
+  const kind = presentPatchMergeOutcome(log, {
+    exitCode: 8,
+    stdout: "<<<<<<< HEAD",
+    stderr: "unresolved conflicts"
+  });
+  assert.equal(kind, "conflicts");
+  assert.deepEqual(messages, ["<<<<<<< HEAD", "unresolved conflicts", "SHOW"]);
+});
+
+test("presentPatchMergeOutcome exit 0 writes streams + show, returns ok", () => {
+  const { log, messages } = fakeLog();
+  const kind = presentPatchMergeOutcome(log, {
+    exitCode: 0,
+    stdout: "merged 2 hunks",
+    stderr: ""
+  });
+  assert.equal(kind, "ok");
+  assert.deepEqual(messages, ["merged 2 hunks", "SHOW"]);
+});
+
+test("presentPatchMergeOutcome exit 1 writes nothing, returns error", () => {
+  const { log, messages } = fakeLog();
+  const kind = presentPatchMergeOutcome(log, {
+    exitCode: 1,
+    stdout: "out",
+    stderr: "failed"
+  });
+  assert.equal(kind, "error");
+  assert.deepEqual(messages, []);
+});
+
+test("presentUndoSuccess writes streams + show", () => {
+  const { log, messages } = fakeLog();
+  presentUndoSuccess(log, {
+    stdout: "restored a.ts",
+    stderr: "info"
+  });
+  assert.deepEqual(messages, ["restored a.ts", "info", "SHOW"]);
 });

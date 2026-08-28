@@ -5,6 +5,7 @@ import {
   getPatchloomLog,
   logCliCommand,
   logCliResult,
+  presentCliResultInOutput,
   setPatchloomLog,
   writeUserVisibleOutput,
   type PatchloomLog
@@ -242,18 +243,21 @@ test("logCliResult dumps streams when trace is verbose", () => {
   assert.ok(lines.some(l => l.includes("Exit code: 0")));
 });
 
-function fakeLog(): { log: PatchloomLog; messages: string[] } {
+function fakeLog(): { log: PatchloomLog; messages: string[]; shown: boolean } {
   const messages: string[] = [];
-  return {
+  let shown = false;
+  const state = {
     messages,
+    get shown() { return shown; },
     log: {
       log(message: string) { messages.push(message); },
       logCommand() {},
       logResult() {},
-      show() {},
+      show() { shown = true; messages.push("SHOW"); },
       dispose() {}
     }
   };
+  return state;
 }
 
 test("writeUserVisibleOutput no-ops on empty string", () => {
@@ -270,4 +274,20 @@ test("writeUserVisibleOutput logs non-empty text", () => {
 
 test("writeUserVisibleOutput no-ops when log is undefined", () => {
   writeUserVisibleOutput(undefined, "hits");
+});
+
+test("presentCliResultInOutput writes stdout then stderr and calls show", () => {
+  const { log, messages } = fakeLog();
+  presentCliResultInOutput(log, { stdout: "out-line", stderr: "err-line" });
+  assert.deepEqual(messages, ["out-line", "err-line", "SHOW"]);
+});
+
+test("presentCliResultInOutput skips empty streams", () => {
+  const { log, messages } = fakeLog();
+  presentCliResultInOutput(log, { stdout: "", stderr: "" });
+  assert.deepEqual(messages, ["SHOW"]);
+});
+
+test("presentCliResultInOutput no-ops when log is undefined", () => {
+  presentCliResultInOutput(undefined, { stdout: "out", stderr: "err" });
 });
