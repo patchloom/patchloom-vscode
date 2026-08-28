@@ -1808,7 +1808,9 @@ export async function stageExternalPatchInWorkspace(
   workspaceRoot: string,
   patchPath: string
 ): Promise<StagedExternalPatch> {
-  if (isPathInsideWorkspace(workspaceRoot, patchPath)) {
+  // Keep only patches whose real path is inside the workspace. A workspace
+  // symlink to an outside .patch must be copied so --contain stays on.
+  if (isRealPathInsideWorkspace(workspaceRoot, patchPath)) {
     return { patchPath, cleanup: async () => {} };
   }
 

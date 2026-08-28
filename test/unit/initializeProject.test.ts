@@ -341,6 +341,17 @@ test("formatQuickActionCliOutput maps human stderr doc.update to the picker labe
   );
 });
 
+test("formatQuickActionCliOutput maps human stderr doc update space form to the picker label", () => {
+  assert.equal(
+    formatQuickActionCliOutput({
+      exitCode: 1,
+      stdout: "",
+      stderr: "Use doc update for wildcard or predicate selectors"
+    }),
+    'Use doc update for wildcard or predicate selectors (try Quick Action "Update matching structured values" or CLI `doc update`)'
+  );
+});
+
 test("formatQuickActionCliOutput maps human stderr doc delete-where to the picker label", () => {
   assert.equal(
     formatQuickActionCliOutput({
