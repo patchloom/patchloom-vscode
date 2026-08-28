@@ -1,15 +1,19 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import * as fs from "node:fs/promises";
 import * as http from "node:http";
+import type { ClientRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 import test, { after, before, describe } from "node:test";
 import {
+  assertTrustedManagedInstallRedirectUrl,
   calculateSha256Hex,
   createDownloader,
   downloadToFile,
   type HttpGetFn,
+  ManagedInstallVerificationError,
   performManagedInstall,
   streamingSha256
 } from "../../src/install/managed.js";
@@ -34,6 +38,9 @@ before(async () => {
       res.end();
     } else if (req.url?.startsWith("/redirect-loop")) {
       res.writeHead(302, { Location: `${baseUrl}/redirect-loop` });
+      res.end();
+    } else if (req.url === "/redirect-untrusted") {
+      res.writeHead(302, { Location: "https://evil.example/payload" });
       res.end();
     } else {
       res.writeHead(404);
@@ -102,6 +109,54 @@ describe("downloadToFile with createDownloader over HTTP", () => {
       await assert.rejects(
         () => downloadToFile({ url: `${baseUrl}/error-500`, destPath: dest, download: testDownload }),
         /500/
+      );
+    });
+  });
+
+  test("rejects on HTTP 404 for a missing path", async () => {
+    await withTempDir(async (dir) => {
+      const dest = path.join(dir, "missing.bin");
+      await assert.rejects(
+        () => downloadToFile({ url: `${baseUrl}/missing`, destPath: dest, download: testDownload }),
+        /404/
+      );
+    });
+  });
+
+  test("rejects on request timeout without waiting", async () => {
+    await withTempDir(async (dir) => {
+      const dest = path.join(dir, "timeout.bin");
+      const fakeGet: HttpGetFn = () => {
+        const request = new EventEmitter() as EventEmitter & { destroy: () => void };
+        request.destroy = () => undefined;
+        queueMicrotask(() => {
+          request.emit("timeout");
+        });
+        return request as unknown as ClientRequest;
+      };
+      const download = createDownloader(fakeGet);
+      await assert.rejects(() => download("http://example.test/slow", dest), /timed out/);
+    });
+  });
+
+  test("rejects untrusted redirect Location when validateRedirect is set", async () => {
+    await withTempDir(async (dir) => {
+      const dest = path.join(dir, "untrusted.bin");
+      const guardedDownload = createDownloader(http.get.bind(http) as HttpGetFn, {
+        validateRedirect: assertTrustedManagedInstallRedirectUrl
+      });
+      await assert.rejects(
+        () => downloadToFile({
+          url: `${baseUrl}/redirect-untrusted`,
+          destPath: dest,
+          download: guardedDownload
+        }),
+        (error: unknown) => {
+          assert.ok(error instanceof ManagedInstallVerificationError);
+          assert.equal(error.reason, "untrusted-download-url");
+          assert.match(error.message, /trusted GitHub release host/);
+          return true;
+        }
       );
     });
   });

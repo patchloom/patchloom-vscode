@@ -134,7 +134,11 @@ jobs:
 
   integration-test:
     needs: [changes, unit-test, build]
-    if: always() && (needs.changes.result == 'skipped' || needs.changes.outputs.code == 'true')
+    if: >
+      always()
+      && (needs.changes.result == 'skipped' || needs.changes.outputs.code == 'true')
+      && (needs.unit-test.result == 'success' || needs.unit-test.result == 'skipped')
+      && (needs.build.result == 'success' || needs.build.result == 'skipped')
     strategy:
       fail-fast: false
       matrix:

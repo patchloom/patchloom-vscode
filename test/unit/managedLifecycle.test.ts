@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import test from "node:test";
+import test, { describe } from "node:test";
 import {
   clearManagedInstallFailure,
   clearManagedInstallFailureRecord,
@@ -318,6 +318,72 @@ test("fetchLatestReleaseVersion throws on API failure", async () => {
     }),
     /HTTP 503/
   );
+});
+
+describe("defaultFetchJson via fetchLatestReleaseVersion", { concurrency: false }, () => {
+  test("returns the version from a 200 GitHub latest-release payload", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+        assert.ok(init?.signal instanceof AbortSignal, "defaultFetchJson must pass an AbortSignal");
+        return new Response(JSON.stringify({ tag_name: "v0.31.0" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }) as typeof fetch;
+      const version = await fetchLatestReleaseVersion();
+      assert.equal(version, "0.31.0");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("rejects on HTTP 404", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+        assert.ok(init?.signal instanceof AbortSignal, "defaultFetchJson must pass an AbortSignal");
+        return new Response("Not Found", { status: 404, statusText: "Not Found" });
+      }) as typeof fetch;
+      await assert.rejects(
+        () => fetchLatestReleaseVersion(),
+        /GitHub API request failed: 404/
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("rejects on HTTP 500", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+        assert.ok(init?.signal instanceof AbortSignal, "defaultFetchJson must pass an AbortSignal");
+        return new Response("error", { status: 500, statusText: "Internal Server Error" });
+      }) as typeof fetch;
+      await assert.rejects(
+        () => fetchLatestReleaseVersion(),
+        /GitHub API request failed: 500/
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("surfaces an aborted hung fetch", async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+        assert.ok(init?.signal instanceof AbortSignal, "defaultFetchJson must pass an AbortSignal");
+        const err = new Error("The operation was aborted");
+        err.name = "AbortError";
+        throw err;
+      }) as typeof fetch;
+      await assert.rejects(() => fetchLatestReleaseVersion(), /aborted/);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
 
 // --- extractManagedInstallArchive tests ---

@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import test from "node:test";
 import {
   buildAppendQuickAction,
@@ -9,26 +12,33 @@ import {
   buildPrependQuickAction,
   buildDocAppendQuickAction,
   buildDocDeleteQuickAction,
+  buildDocDeleteWhereQuickAction,
   buildDocEnsureQuickAction,
   buildDocGetQuickAction,
   buildDocMergeQuickAction,
   buildDocMoveQuickAction,
   buildDocPrependQuickAction,
   buildDocSetQuickAction,
+  buildDocUpdateQuickAction,
   buildMdInsertAfterHeadingQuickAction,
   buildMdInsertAfterSectionQuickAction,
   buildMdInsertBeforeHeadingQuickAction,
   buildMdReplaceSectionQuickAction,
   buildMdTableAppendQuickAction,
   buildMdUpsertBulletQuickAction,
+  buildPatchApplyQuickAction,
   buildPatchMergeQuickAction,
   buildReplaceQuickAction,
   buildSearchQuickAction,
   buildTidyQuickAction,
   buildUndoQuickAction,
+  isAllowedPreviewMiss,
+  previewMissMessage,
   isMarkdownPath,
   isStructuredDocumentPath,
   isPathInsideWorkspace,
+  isRealPathInsideWorkspace,
+  stageExternalPatchInWorkspace,
   formatUndoFailureMessage,
   presentPatchMergeOutcome,
   presentSearchOutcome,
@@ -160,6 +170,69 @@ test("buildDocSetQuickAction builds a doc set command", () => {
   assert.equal(action.title, "Set scripts.test in package.json");
   assert.deepEqual(action.targetArgIndices, [2]);
   assert.deepEqual(action.args, ["doc", "set", "/workspace/demo/package.json", "scripts.test", "vitest"]);
+});
+
+test("buildDocUpdateQuickAction builds a doc update command", () => {
+  const action = buildDocUpdateQuickAction("/workspace/demo/data.json", "items[*].enabled", "false");
+
+  assert.equal(action.title, "Update items[*].enabled in data.json");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, [
+    "doc",
+    "update",
+    "/workspace/demo/data.json",
+    "items[*].enabled",
+    "false"
+  ]);
+});
+
+test("isAllowedPreviewMiss rejects doc update exit 3", () => {
+  const action = buildDocUpdateQuickAction("/workspace/demo/data.json", "items[*].enabled", "false");
+  assert.equal(isAllowedPreviewMiss(action, 3), false);
+});
+
+test("isAllowedPreviewMiss allows replace exit 3", () => {
+  const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
+  assert.equal(isAllowedPreviewMiss(action, 3), true);
+});
+
+test("isAllowedPreviewMiss rejects doc delete-where exit 3", () => {
+  const action = buildDocDeleteWhereQuickAction("/workspace/demo/data.json", "items", "name=stale");
+  assert.equal(isAllowedPreviewMiss(action, 3), false);
+});
+
+test("isAllowedPreviewMiss allows doc set exit 3", () => {
+  const action = buildDocSetQuickAction("/workspace/demo/package.json", "scripts.test", "vitest");
+  assert.equal(isAllowedPreviewMiss(action, 3), true);
+});
+
+test("isAllowedPreviewMiss rejects exit 0", () => {
+  const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
+  assert.equal(isAllowedPreviewMiss(action, 0), false);
+});
+
+test("isAllowedPreviewMiss rejects exit 1", () => {
+  const action = buildDocUpdateQuickAction("/workspace/demo/data.json", "items[*].enabled", "false");
+  assert.equal(isAllowedPreviewMiss(action, 1), false);
+});
+
+test("isAllowedPreviewMiss rejects exit 8", () => {
+  const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
+  assert.equal(isAllowedPreviewMiss(action, 8), false);
+});
+
+test("previewMissMessage explains delete-where predicate vs array path", () => {
+  const action = buildDocDeleteWhereQuickAction("/workspace/demo/data.json", "items", "name=stale");
+  const message = previewMissMessage(action, "data.json");
+  assert.match(message, /No items matched that predicate/);
+  assert.match(message, /array path/);
+  assert.match(message, /key=value/);
+  assert.doesNotMatch(message, /No changes to preview/);
+});
+
+test("previewMissMessage keeps replace-style no-changes copy", () => {
+  const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
+  assert.equal(previewMissMessage(action, "README.md"), "No changes to preview for README.md.");
 });
 
 test("retargetQuickAction swaps only the target path arguments", () => {
@@ -449,6 +522,21 @@ test("buildDocDeleteQuickAction builds a doc delete command", () => {
   assert.deepEqual(action.args, ["doc", "delete", "/workspace/demo/config.yaml", "deprecated.key"]);
 });
 
+test("buildDocDeleteWhereQuickAction builds a doc delete-where command", () => {
+  const action = buildDocDeleteWhereQuickAction("/workspace/demo/data.json", "items", "name=stale");
+
+  assert.equal(action.title, "Delete where name=stale from items in data.json");
+  assert.deepEqual(action.targetArgIndices, [4]);
+  assert.deepEqual(action.args, [
+    "doc",
+    "delete-where",
+    "--predicate",
+    "name=stale",
+    "/workspace/demo/data.json",
+    "items"
+  ]);
+});
+
 test("buildDocMergeQuickAction builds a doc merge command", () => {
   const action = buildDocMergeQuickAction("/workspace/demo/package.json", '{"debug": true}');
 
@@ -661,6 +749,25 @@ test("retargetQuickAction works with md commands", () => {
   assert.equal(retargeted.args[1], "table-append");
 });
 
+// --- patch apply Quick Action (CLI 0.30+) ---
+
+test("buildPatchApplyQuickAction builds a patch apply command", () => {
+  const action = buildPatchApplyQuickAction("/workspace/demo/changes.patch");
+
+  assert.equal(action.title, "Apply patch changes.patch");
+  assert.deepEqual(action.targetArgIndices, [2]);
+  assert.deepEqual(action.args, ["patch", "apply", "/workspace/demo/changes.patch", "--apply"]);
+});
+
+test("retargetQuickAction works with patch apply command", () => {
+  const action = buildPatchApplyQuickAction("/workspace/demo/fix.patch");
+  const retargeted = retargetQuickAction(action, "/tmp/preview/fix.patch");
+
+  assert.equal(retargeted.args[2], "/tmp/preview/fix.patch");
+  assert.equal(retargeted.args[0], "patch");
+  assert.equal(retargeted.args[1], "apply");
+});
+
 // --- patch merge Quick Action (v0.2.0+) ---
 
 test("buildPatchMergeQuickAction builds a patch merge command", () => {
@@ -795,4 +902,77 @@ test("formatUndoFailureMessage prefixes other failures with Patchloom undo faile
     }),
     "Patchloom undo failed: permission denied"
   );
+});
+
+test("isRealPathInsideWorkspace follows symlinks and stays fail-closed", async (t) => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-realpath-ws-"));
+  const outsideRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-realpath-out-"));
+  try {
+    const insideFile = path.join(workspaceRoot, "inside.txt");
+    await fs.writeFile(insideFile, "inside", "utf8");
+    assert.equal(isRealPathInsideWorkspace(workspaceRoot, insideFile), true);
+
+    const dotted = path.join(workspaceRoot, "..changes.patch");
+    await fs.writeFile(dotted, "dotted", "utf8");
+    assert.equal(isRealPathInsideWorkspace(workspaceRoot, dotted), true);
+
+    assert.equal(
+      isRealPathInsideWorkspace(workspaceRoot, path.join(workspaceRoot, "missing.txt")),
+      true,
+      "missing in-workspace path should reach file-not-found, not the escape warning"
+    );
+    assert.equal(
+      isRealPathInsideWorkspace(workspaceRoot, path.join(outsideRoot, "missing-outside.txt")),
+      false
+    );
+
+    const outsideFile = path.join(outsideRoot, "secret.txt");
+    await fs.writeFile(outsideFile, "secret", "utf8");
+    const linkPath = path.join(workspaceRoot, "escape.txt");
+    try {
+      await fs.symlink(outsideFile, linkPath);
+    } catch {
+      t.skip("fs.symlink is not available on this platform");
+      return;
+    }
+    assert.equal(isRealPathInsideWorkspace(workspaceRoot, linkPath), false);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+    await fs.rm(outsideRoot, { recursive: true, force: true });
+  }
+});
+
+test("stageExternalPatchInWorkspace copies an outside patch into the workspace", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-stage-ws-"));
+  const outsideRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-stage-out-"));
+  try {
+    const outsidePatch = path.join(outsideRoot, "changes.patch");
+    await fs.writeFile(outsidePatch, "diff --git a/x b/x\n", "utf8");
+    const staged = await stageExternalPatchInWorkspace(workspaceRoot, outsidePatch);
+    try {
+      assert.notEqual(staged.patchPath, outsidePatch);
+      assert.equal(isPathInsideWorkspace(workspaceRoot, staged.patchPath), true);
+      assert.equal(await fs.readFile(staged.patchPath, "utf8"), "diff --git a/x b/x\n");
+    } finally {
+      await staged.cleanup();
+    }
+    await assert.rejects(() => fs.access(staged.patchPath));
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+    await fs.rm(outsideRoot, { recursive: true, force: true });
+  }
+});
+
+test("stageExternalPatchInWorkspace leaves an inside patch in place", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-stage-inside-"));
+  try {
+    const insidePatch = path.join(workspaceRoot, "changes.patch");
+    await fs.writeFile(insidePatch, "inside", "utf8");
+    const staged = await stageExternalPatchInWorkspace(workspaceRoot, insidePatch);
+    assert.equal(staged.patchPath, insidePatch);
+    await staged.cleanup();
+    assert.equal(await fs.readFile(insidePatch, "utf8"), "inside");
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
 });

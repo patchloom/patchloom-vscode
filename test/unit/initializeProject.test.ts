@@ -14,6 +14,7 @@ import { setPatchloomLog } from "../../src/logging/outputChannel.js";
 import {
   formatCliOutput,
   formatError,
+  formatQuickActionCliOutput,
   isAllowedPatchloomEnvKey,
   mergePatchloomEnv,
   resolvePatchloomEnvFromInspect,
@@ -291,6 +292,88 @@ test("formatCliOutput appends suggested_op when present (CLI 0.27+)", () => {
   assert.equal(
     formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
     "invalid_input: selector uses wildcard/predicate, which is not valid for doc.set (single path only) (try doc.update)"
+  );
+});
+
+test("formatQuickActionCliOutput maps doc.update suggested_op to the picker label", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error:
+      "selector uses wildcard/predicate, which is not valid for doc.set (single path only)",
+    error_kind: "invalid_input",
+    suggested_op: "doc.update",
+    applied: false
+  });
+  assert.equal(
+    formatQuickActionCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    'invalid_input: selector uses wildcard/predicate, which is not valid for doc.set (single path only) (try Quick Action "Update matching structured values" or CLI `doc update`)'
+  );
+});
+
+test("formatQuickActionCliOutput maps doc.delete_where suggested_op to the picker label", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error:
+      "selector uses wildcard/predicate, which is not valid for doc.delete (single path only)",
+    error_kind: "invalid_input",
+    suggested_op: "doc.delete_where",
+    applied: false
+  });
+  assert.equal(
+    formatQuickActionCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    'invalid_input: selector uses wildcard/predicate, which is not valid for doc.delete (single path only) (try Quick Action "Delete matching array items" or CLI `doc delete-where`)'
+  );
+});
+
+test("formatQuickActionCliOutput leaves formatCliOutput unchanged when no suggested_op", () => {
+  const result = { exitCode: 1, stdout: "", stderr: "boom" };
+  assert.equal(formatQuickActionCliOutput(result), formatCliOutput(result));
+});
+
+test("formatQuickActionCliOutput maps human stderr doc.update to the picker label", () => {
+  assert.equal(
+    formatQuickActionCliOutput({
+      exitCode: 1,
+      stdout: "",
+      stderr: "Use doc.update for wildcard or predicate selectors"
+    }),
+    'Use doc.update for wildcard or predicate selectors (try Quick Action "Update matching structured values" or CLI `doc update`)'
+  );
+});
+
+test("formatQuickActionCliOutput maps human stderr doc delete-where to the picker label", () => {
+  assert.equal(
+    formatQuickActionCliOutput({
+      exitCode: 1,
+      stdout: "",
+      stderr: "Use doc delete-where with an array path and key=value predicate"
+    }),
+    'Use doc delete-where with an array path and key=value predicate (try Quick Action "Delete matching array items" or CLI `doc delete-where`)'
+  );
+});
+
+test("formatQuickActionCliOutput maps human stderr doc.delete_where to the picker label", () => {
+  assert.equal(
+    formatQuickActionCliOutput({
+      exitCode: 1,
+      stdout: "",
+      stderr: "retry with doc.delete_where"
+    }),
+    'retry with doc.delete_where (try Quick Action "Delete matching array items" or CLI `doc delete-where`)'
+  );
+});
+
+test("formatCliOutput keeps dotted suggested_op token for agents", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "wildcard selector is not valid for doc.set",
+    error_kind: "invalid_input",
+    suggested_op: "doc.update",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    "invalid_input: wildcard selector is not valid for doc.set (try doc.update)"
   );
 });
 

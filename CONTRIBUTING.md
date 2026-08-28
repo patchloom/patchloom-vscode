@@ -21,7 +21,7 @@ npm test
 1. Fork the repo and create a feature branch from `main`.
 2. Make your changes.
 3. Run `npm run check` before committing. This is the local gate:
-   compile, unit tests, and packaging.
+   compile, unit tests, coverage, and packaging.
 4. Commit with a [DCO sign-off](#dco-sign-off).
 5. Open a pull request against `main`.
 
@@ -32,7 +32,7 @@ npm test
 | `npm run check` | Local gate: unit tests + coverage + package (run before every commit) |
 | `npm run compile` | Compile extension source |
 | `npm run compile-tests` | Compile test source |
-| `npm test` | Compile + compile-tests + compile-uitests + unit tests |
+| `npm test` | Compile + compile-tests + unit tests |
 | `npm run test:unit` | Unit tests only |
 | `npm run test:coverage` | Unit tests with 80% line coverage threshold |
 | `npm run test:extension` | VS Code extension integration tests |

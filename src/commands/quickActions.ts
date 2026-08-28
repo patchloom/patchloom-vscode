@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { realpathSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -13,7 +14,7 @@ import {
   presentCliResultInOutput,
   type PatchloomLog
 } from "../logging/outputChannel.js";
-import { formatCliOutput, formatError, mergePatchloomEnv } from "../util.js";
+import { formatCliOutput, formatError, formatQuickActionCliOutput, mergePatchloomEnv } from "../util.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 
 const execFileAsync = promisify(execFile);
@@ -302,15 +303,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Update JSON, YAML, or TOML with diff preview",
       detail: "Builds `patchloom doc set <file> <selector> <value>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc set");
+        const target = await pickStructuredDocumentTarget("doc set");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc set.`
-          );
           return;
         }
 
@@ -334,6 +328,42 @@ export async function runQuickAction(): Promise<void> {
         }
 
         await previewAndMaybeApply(binaryPath, target, buildDocSetQuickAction(target.absolutePath, selector, value));
+      }
+    },
+    {
+      label: "Update matching structured values",
+      description: "Update all JSON, YAML, or TOML nodes matching a wildcard or predicate",
+      detail: "Builds `patchloom doc update <file> <selector> <value>`",
+      run: async () => {
+        const target = await pickStructuredDocumentTarget("doc update");
+        if (!target) {
+          return;
+        }
+
+        const selector = await vscode.window.showInputBox({
+          prompt: "Selector path (wildcards and predicates such as items[*].enabled)",
+          placeHolder: "items[*].enabled or items[name=foo].v",
+          validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
+        });
+        if (selector === undefined) {
+          return;
+        }
+
+        const value = await vscode.window.showInputBox({
+          prompt: "Value",
+          placeHolder: "true, 42, hello, or {\"key\":\"value\"}",
+          value: "",
+          validateInput: (input) => input.length > 0 ? undefined : "Value is required."
+        });
+        if (value === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(
+          binaryPath,
+          target,
+          buildDocUpdateQuickAction(target.absolutePath, selector, value)
+        );
       }
     },
     {
@@ -533,15 +563,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Read a value from JSON, YAML, or TOML",
       detail: "Builds `patchloom doc get <file> <selector>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc get");
+        const target = await pickStructuredDocumentTarget("doc get");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc get.`
-          );
           return;
         }
 
@@ -572,15 +595,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Remove a key from JSON, YAML, or TOML with diff preview",
       detail: "Builds `patchloom doc delete <file> <selector>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc delete");
+        const target = await pickStructuredDocumentTarget("doc delete");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc delete.`
-          );
           return;
         }
 
@@ -597,19 +613,47 @@ export async function runQuickAction(): Promise<void> {
       }
     },
     {
-      label: "Merge into structured file",
-      description: "Merge a partial JSON object into a config file",
-      detail: "Builds `patchloom doc merge <file> [--selector <path>] --value <json>` (selector for multi-doc YAML, CLI 0.16+)",
+      label: "Delete matching array items",
+      description: "Remove array items matching a predicate with diff preview",
+      detail: "Builds `patchloom doc delete-where --predicate <predicate> <file> <selector>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc merge");
+        const target = await pickStructuredDocumentTarget("doc delete-where");
         if (!target) {
           return;
         }
 
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc merge.`
-          );
+        const selector = await vscode.window.showInputBox({
+          prompt: "Array path only (for example items). Do not use items[name=stale]; put the match in the predicate.",
+          placeHolder: "items",
+          validateInput: (value) => value.length > 0 ? undefined : "Array path is required."
+        });
+        if (selector === undefined) {
+          return;
+        }
+
+        const predicate = await vscode.window.showInputBox({
+          prompt: "Per-item predicate as key=value (for example name=stale)",
+          placeHolder: "name=stale",
+          validateInput: (value) => value.length > 0 ? undefined : "Predicate is required."
+        });
+        if (predicate === undefined) {
+          return;
+        }
+
+        await previewAndMaybeApply(
+          binaryPath,
+          target,
+          buildDocDeleteWhereQuickAction(target.absolutePath, selector, predicate)
+        );
+      }
+    },
+    {
+      label: "Merge into structured file",
+      description: "Merge a partial JSON object into a config file",
+      detail: "Builds `patchloom doc merge <file> [--selector <path>] --value <json>` (selector for multi-doc YAML, CLI 0.16+)",
+      run: async () => {
+        const target = await pickStructuredDocumentTarget("doc merge");
+        if (!target) {
           return;
         }
 
@@ -642,15 +686,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Append a value to a JSON, YAML, or TOML array",
       detail: "Builds `patchloom doc append <file> <selector> <value>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc append");
+        const target = await pickStructuredDocumentTarget("doc append");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc append.`
-          );
           return;
         }
 
@@ -680,15 +717,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Prepend a value to a JSON, YAML, or TOML array",
       detail: "Builds `patchloom doc prepend <file> <selector> <value>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc prepend");
+        const target = await pickStructuredDocumentTarget("doc prepend");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc prepend.`
-          );
           return;
         }
 
@@ -718,15 +748,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Idempotent set: only write if the key is missing",
       detail: "Builds `patchloom doc ensure <file> <selector> <value>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc ensure");
+        const target = await pickStructuredDocumentTarget("doc ensure");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc ensure.`
-          );
           return;
         }
 
@@ -756,15 +779,8 @@ export async function runQuickAction(): Promise<void> {
       description: "Move or rename a selector path in JSON, YAML, or TOML",
       detail: "Builds `patchloom doc move <file> <from> <to>`",
       run: async () => {
-        const target = await pickWorkspaceFileTarget("Select a JSON, YAML, or TOML file for Patchloom doc move");
+        const target = await pickStructuredDocumentTarget("doc move");
         if (!target) {
-          return;
-        }
-
-        if (!isStructuredDocumentPath(target.absolutePath)) {
-          await vscode.window.showWarningMessage(
-            `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom doc move.`
-          );
           return;
         }
 
@@ -1018,6 +1034,48 @@ export async function runQuickAction(): Promise<void> {
       }
     },
     {
+      label: "Apply patch (unified / Begin Patch / SEARCH-REPLACE)",
+      description: "Apply a unified diff, Codex Begin Patch, or Aider SEARCH/REPLACE",
+      detail: "Builds `patchloom patch apply <file> --apply`",
+      run: async () => {
+        const folder = await activeWorkspaceFolder({
+          promptIfMany: true,
+          placeHolder: "Select workspace folder for Patchloom patch apply"
+        });
+        if (!folder) {
+          await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom patch apply.");
+          return;
+        }
+
+        const patchUri = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          defaultUri: folder.uri,
+          filters: { "Patch files": ["patch", "diff"], "All files": ["*"] },
+          openLabel: "Select Patch"
+        });
+        if (!patchUri || patchUri.length === 0) {
+          return;
+        }
+
+        const action = buildPatchApplyQuickAction(patchUri[0].fsPath);
+        const staged = await stageExternalPatchInWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
+        try {
+          const planned = retargetQuickAction(action, staged.patchPath);
+          const result = await executePatchloom(binaryPath, planned.args, folder.uri.fsPath);
+          const log = getPatchloomLog();
+          presentCliResultInOutput(log, result);
+
+          if (result.exitCode !== 0) {
+            await vscode.window.showErrorMessage(`Patch apply failed: ${formatCliOutput(result)}`);
+          } else {
+            await vscode.window.showInformationMessage("Patch applied successfully.");
+          }
+        } finally {
+          await staged.cleanup();
+        }
+      }
+    },
+    {
       label: "Merge patch (three-way)",
       description: "Apply a stale patch using three-way merge",
       detail: "Builds `patchloom patch merge <file> --apply [--allow-conflicts]`",
@@ -1050,19 +1108,22 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const action = buildPatchMergeQuickAction(patchUri[0].fsPath, allowConflicts.allow);
-        // External patch files are meta-inputs; --contain rejects them. Keep the
-        // write sandbox when the patch itself lives inside the workspace.
-        const contain = isPathInsideWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
-        const result = await executePatchloom(binaryPath, action.args, folder.uri.fsPath, { contain });
-        const log = getPatchloomLog();
-        const outcome = presentPatchMergeOutcome(log, result);
+        const staged = await stageExternalPatchInWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
+        try {
+          const planned = retargetQuickAction(action, staged.patchPath);
+          const result = await executePatchloom(binaryPath, planned.args, folder.uri.fsPath);
+          const log = getPatchloomLog();
+          const outcome = presentPatchMergeOutcome(log, result);
 
-        if (outcome === "conflicts") {
-          await vscode.window.showWarningMessage("Patch merge completed with unresolved conflicts. Check the output for details.");
-        } else if (outcome === "error") {
-          await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
-        } else {
-          await vscode.window.showInformationMessage("Patch merged successfully.");
+          if (outcome === "conflicts") {
+            await vscode.window.showWarningMessage("Patch merge completed with unresolved conflicts. Check the output for details.");
+          } else if (outcome === "error") {
+            await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
+          } else {
+            await vscode.window.showInformationMessage("Patch merged successfully.");
+          }
+        } finally {
+          await staged.cleanup();
         }
       }
     },
@@ -1200,6 +1261,15 @@ export function buildDocSetQuickAction(targetPath: string, selector: string, val
   };
 }
 
+export function buildDocUpdateQuickAction(targetPath: string, selector: string, value: string): PlannedQuickAction {
+  return {
+    title: `Update ${selector} in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [2],
+    args: ["doc", "update", targetPath, selector, value]
+  };
+}
+
 export function buildSearchQuickAction(
   workspacePath: string,
   pattern: string,
@@ -1269,6 +1339,19 @@ export function buildDocDeleteQuickAction(targetPath: string, selector: string):
     targetPath,
     targetArgIndices: [2],
     args: ["doc", "delete", targetPath, selector]
+  };
+}
+
+export function buildDocDeleteWhereQuickAction(
+  targetPath: string,
+  selector: string,
+  predicate: string
+): PlannedQuickAction {
+  return {
+    title: `Delete where ${predicate} from ${selector} in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [4],
+    args: ["doc", "delete-where", "--predicate", predicate, targetPath, selector]
   };
 }
 
@@ -1386,6 +1469,15 @@ export function buildMdInsertBeforeHeadingQuickAction(targetPath: string, headin
   };
 }
 
+export function buildPatchApplyQuickAction(patchPath: string): PlannedQuickAction {
+  return {
+    title: `Apply patch ${path.basename(patchPath)}`,
+    targetPath: patchPath,
+    targetArgIndices: [2],
+    args: ["patch", "apply", patchPath, "--apply"]
+  };
+}
+
 export function buildPatchMergeQuickAction(patchPath: string, allowConflicts: boolean): PlannedQuickAction {
   const args: string[] = ["patch", "merge", patchPath, "--apply"];
   if (allowConflicts) {
@@ -1416,6 +1508,25 @@ export function isStructuredDocumentPath(filePath: string): boolean {
   return STRUCTURED_FILE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }
 
+export function isAllowedPreviewMiss(action: PlannedQuickAction, exitCode: number): boolean {
+  if (exitCode !== 3) {
+    return false;
+  }
+  // PlannedQuickAction.args are pre-contain. executePatchloom prepends --contain later.
+  // doc update and delete-where: exit 3 is a path miss (key not found), not a soft no-op.
+  return !(
+    action.args[0] === "doc" &&
+    (action.args[1] === "update" || action.args[1] === "delete-where")
+  );
+}
+
+export function previewMissMessage(action: PlannedQuickAction, relativePath: string): string {
+  if (action.args[0] === "doc" && action.args[1] === "delete-where") {
+    return `No items matched that predicate in ${relativePath}. Check the array path (for example items) versus the key=value predicate (for example name=stale).`;
+  }
+  return `No changes to preview for ${relativePath}.`;
+}
+
 export function retargetQuickAction(action: PlannedQuickAction, nextTargetPath: string): PlannedQuickAction {
   return {
     ...action,
@@ -1444,6 +1555,12 @@ async function previewAndMaybeApply(
   action: PlannedQuickAction
 ): Promise<void> {
   const vscode = await import("vscode");
+  if (!isRealPathInsideWorkspace(target.workspaceFolder.uri.fsPath, target.absolutePath)) {
+    await vscode.window.showWarningMessage(
+      `Refusing to preview ${target.relativePath}: resolved path is outside the workspace folder.`
+    );
+    return;
+  }
   const originalDocument = await vscode.workspace.openTextDocument(target.uri);
   const originalContent = await fs.readFile(target.absolutePath, "utf8");
   let preview: VSCode.TextDocument | undefined;
@@ -1457,7 +1574,7 @@ async function previewAndMaybeApply(
     return;
   }
   if (!preview) {
-    await vscode.window.showInformationMessage(`No changes to preview for ${target.relativePath}.`);
+    await vscode.window.showInformationMessage(previewMissMessage(action, target.relativePath));
     return;
   }
 
@@ -1478,8 +1595,9 @@ async function previewAndMaybeApply(
 
   const result = await executePatchloom(binaryPath, withApplyFlag(action.args), target.workspaceFolder.uri.fsPath);
   if (result.exitCode !== 0) {
+    presentCliResultInOutput(getPatchloomLog(), result);
     await vscode.window.showErrorMessage(
-      `Patchloom failed while applying changes to ${target.relativePath}: ${formatCliOutput(result)}`
+      `Patchloom failed while applying changes to ${target.relativePath}: ${formatQuickActionCliOutput(result)}`
     );
     return;
   }
@@ -1505,8 +1623,9 @@ async function buildPreviewDocument(
     await fs.writeFile(tempPath, originalContent, "utf8");
     const previewAction = retargetQuickAction(action, tempPath);
     const result = await executePatchloom(binaryPath, withApplyFlag(previewAction.args), tempDir);
-    if (result.exitCode !== 0 && result.exitCode !== 3) {
-      throw new Error(formatCliOutput(result));
+    if (result.exitCode !== 0 && !isAllowedPreviewMiss(action, result.exitCode)) {
+      presentCliResultInOutput(getPatchloomLog(), result);
+      throw new Error(formatQuickActionCliOutput(result));
     }
 
     const previewContent = await fs.readFile(tempPath, "utf8");
@@ -1521,6 +1640,23 @@ async function buildPreviewDocument(
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }
+}
+
+async function pickStructuredDocumentTarget(opLabel: string): Promise<WorkspaceFileTarget | undefined> {
+  const target = await pickWorkspaceFileTarget(
+    `Select a JSON, YAML, or TOML file for Patchloom ${opLabel}`
+  );
+  if (!target) {
+    return undefined;
+  }
+  if (!isStructuredDocumentPath(target.absolutePath)) {
+    const vscode = await import("vscode");
+    await vscode.window.showWarningMessage(
+      `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom ${opLabel}.`
+    );
+    return undefined;
+  }
+  return target;
 }
 
 async function pickWorkspaceFileTarget(placeHolder: string): Promise<WorkspaceFileTarget | undefined> {
@@ -1565,6 +1701,13 @@ async function pickWorkspaceFileTarget(placeHolder: string): Promise<WorkspaceFi
 
   const target = selection.target ?? await inputWorkspaceFileTarget(folder);
   if (!target) {
+    return undefined;
+  }
+
+  if (!isRealPathInsideWorkspace(folder.uri.fsPath, target.absolutePath)) {
+    await vscode.window.showWarningMessage(
+      `Refusing ${target.relativePath}: resolved path is outside the workspace folder.`
+    );
     return undefined;
   }
 
@@ -1620,7 +1763,7 @@ export function resolveWorkspaceRelativePath(workspaceRoot: string, absolutePath
   return relativePath.split(path.sep).join("/");
 }
 
-export function isPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
+function isResolvedPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
   const resolvedRoot = path.resolve(workspaceRoot);
   const resolvedPath = path.resolve(absolutePath);
   const fold = process.platform === "win32" || process.platform === "darwin"
@@ -1629,6 +1772,60 @@ export function isPathInsideWorkspace(workspaceRoot: string, absolutePath: strin
   const root = fold(resolvedRoot);
   const target = fold(resolvedPath);
   return target === root || target.startsWith(`${root}${path.sep}`);
+}
+
+export function isPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
+  return isResolvedPathInsideWorkspace(workspaceRoot, absolutePath);
+}
+
+/**
+ * True when the real path stays inside the workspace.
+ * Missing or dangling targets fall back to the lexical path so a typed
+ * in-workspace miss can reach ensureWorkspaceFileReady instead of looking
+ * like an escape. Existing files that realpath outside stay rejected.
+ */
+export function isRealPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
+  let realRoot: string;
+  try {
+    realRoot = realpathSync(workspaceRoot);
+  } catch {
+    return false;
+  }
+  try {
+    return isResolvedPathInsideWorkspace(realRoot, realpathSync(absolutePath));
+  } catch {
+    return isResolvedPathInsideWorkspace(workspaceRoot, absolutePath);
+  }
+}
+
+export interface StagedExternalPatch {
+  readonly patchPath: string;
+  readonly cleanup: () => Promise<void>;
+}
+
+/** Copy an outside patch into a workspace temp dir so `--contain` can stay on. */
+export async function stageExternalPatchInWorkspace(
+  workspaceRoot: string,
+  patchPath: string
+): Promise<StagedExternalPatch> {
+  if (isPathInsideWorkspace(workspaceRoot, patchPath)) {
+    return { patchPath, cleanup: async () => {} };
+  }
+
+  const tempDir = await fs.mkdtemp(path.join(workspaceRoot, ".patchloom-"));
+  const stagedPath = path.join(tempDir, path.basename(patchPath));
+  try {
+    await fs.copyFile(patchPath, stagedPath);
+  } catch (error) {
+    await fs.rm(tempDir, { recursive: true, force: true });
+    throw error;
+  }
+  return {
+    patchPath: stagedPath,
+    cleanup: async () => {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  };
 }
 
 function toWorkspaceFileTarget(folder: VSCode.WorkspaceFolder, absolutePath: string): WorkspaceFileTarget {

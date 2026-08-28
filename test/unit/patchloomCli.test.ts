@@ -26,9 +26,12 @@ import { classifyAgentsFile, generateAgentRules } from "../../src/commands/initi
 import { buildStatusDetails, preferredStatusAction } from "../../src/commands/showStatus.js";
 import {
   buildCreateQuickAction,
+  buildPatchApplyQuickAction,
+  buildDocDeleteWhereQuickAction,
   buildDocGetQuickAction,
   buildDocMergeQuickAction,
   buildDocSetQuickAction,
+  buildDocUpdateQuickAction,
   buildApplyFragmentQuickAction,
   buildInsertAfterMatchQuickAction,
   buildReplaceQuickAction,
@@ -670,6 +673,41 @@ describe("patchloom CLI integration", async () => {
     });
   });
 
+  test("patch apply via Quick Action args (CLI 0.30+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.30.0") < 0) {
+      t.skip(`requires patchloom >= 0.30.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "code.rs");
+      await fs.writeFile(file, "fn old() {}\n", "utf8");
+      const patchFile = path.join(dir, "change.patch");
+      await fs.writeFile(
+        patchFile,
+        [
+          "*** Begin Patch",
+          "*** Update File: code.rs",
+          "@@",
+          "-fn old() {}",
+          "+fn new() {}",
+          "*** End Patch",
+          ""
+        ].join("\n"),
+        "utf8"
+      );
+
+      const action = buildPatchApplyQuickAction(patchFile);
+      await execFileAsync(binaryPath, action.args, { cwd: dir, timeout: 5000 });
+
+      const content = await fs.readFile(file, "utf8");
+      assert.match(content, /fn new\(\) \{\}/);
+      assert.doesNotMatch(content, /fn old\(\) \{\}/);
+    });
+  });
+
   test("create through a file parent is invalid_input (CLI 0.31+)", async (t) => {
     const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
     const version = parsePatchloomVersion(`${stdout}${stderr}`);
@@ -721,6 +759,54 @@ describe("patchloom CLI integration", async () => {
       const content = await fs.readFile(file, "utf8");
       assert.match(content, /<<: \*shared/, "alias merge key should be preserved");
       assert.match(content, /retries/, "new field should be written onto the alias");
+    });
+  });
+
+  test("doc update via Quick Action args (CLI 0.27+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.27.0") < 0) {
+      t.skip(`requires patchloom >= 0.27.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "data.json");
+      await fs.writeFile(
+        file,
+        JSON.stringify({ items: [{ enabled: true }, { enabled: true }] }),
+        "utf8"
+      );
+
+      const action = buildDocUpdateQuickAction(file, "items[*].enabled", "false");
+      await execFileAsync(binaryPath, withApplyFlag(action.args), { timeout: 5000 });
+
+      const content = JSON.parse(await fs.readFile(file, "utf8")) as { items: Array<{ enabled: boolean }> };
+      assert.deepEqual(content.items, [{ enabled: false }, { enabled: false }]);
+    });
+  });
+
+  test("doc delete-where via Quick Action args (CLI 0.27+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.27.0") < 0) {
+      t.skip(`requires patchloom >= 0.27.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "data.json");
+      await fs.writeFile(
+        file,
+        JSON.stringify({ items: [{ name: "keep" }, { name: "stale" }] }),
+        "utf8"
+      );
+
+      const action = buildDocDeleteWhereQuickAction(file, "items", "name=stale");
+      await execFileAsync(binaryPath, withApplyFlag(action.args), { timeout: 5000 });
+
+      const content = JSON.parse(await fs.readFile(file, "utf8")) as { items: Array<{ name: string }> };
+      assert.deepEqual(content.items, [{ name: "keep" }]);
     });
   });
 

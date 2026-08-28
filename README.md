@@ -93,6 +93,7 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Apply fragment at anchor** | Morph-style freeform fragment at a unique anchor (`--after` / `--before` / `--old`, CLI 0.22+) |
 | **Tidy file** | Whitespace and newline cleanup with diff preview |
 | **Set structured value** | Update a JSON, YAML, or TOML key with diff preview |
+| **Update matching structured values** | Update all JSON, YAML, or TOML nodes matching a wildcard or predicate (`doc update`, CLI 0.27+) |
 | **Search text** | Find pattern matches across workspace files (results in output channel) |
 | **Search files without match** | List files that do not contain the pattern (`search -L`, CLI 0.29+) |
 | **Create file** | Scaffold a new file with optional content and open it in the editor |
@@ -100,6 +101,7 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Prepend to file** | Prepend content to the start of an existing file (CLI 0.9+) |
 | **Read structured value** | Read a JSON/YAML/TOML key and copy to clipboard |
 | **Delete structured value** | Remove a key from JSON, YAML, or TOML with diff preview |
+| **Delete matching array items** | Remove array items matching a predicate (`doc delete-where`, CLI 0.27+; array path plus `key=value` predicate) |
 | **Merge into structured file** | Merge a partial JSON object into a config file (optional multi-doc selector, CLI 0.16+) |
 | **Append to array** | Append a value to a JSON, YAML, or TOML array |
 | **Prepend to array** | Prepend a value to a JSON, YAML, or TOML array |
@@ -111,14 +113,15 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Append table row** | Append a row to a markdown table under a heading |
 | **Upsert bullet** | Add a bullet under a heading if it is not already present |
 | **Replace markdown section** | Replace content under a markdown heading |
+| **Apply patch (unified / Begin Patch / SEARCH-REPLACE)** | Apply a unified diff, Codex Begin Patch, or Aider SEARCH/REPLACE (`patch apply`, CLI 0.30+) |
 | **Merge patch (three-way)** | Apply a stale patch using three-way merge (v0.2.0+) |
 | **Undo last change** | Restore files from the latest Patchloom backup session |
 
-Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay inside the workspace root (CLI 0.10+). Containment is relative to the effective working directory (the workspace folder). Patch merge skips containment when the patch file may live outside the workspace.
+Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay inside the workspace root (CLI 0.10+). Containment is relative to the effective working directory (the workspace folder). Patch apply and patch merge skip containment when the patch file may live outside the workspace.
 
 ### Batch operations
 
-`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, multi-match `doc.update`, multi-doc `doc.merge`, file append, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
+`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, multi-match `doc.update`, `doc.delete_where`, multi-doc `doc.merge`, file append, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
 
 ### Output channel
 
@@ -203,10 +206,13 @@ On CLI 0.29+, `search -L` / `--files-without-match` lists files that do not cont
 On CLI 0.31+, `doc set` on a mapping that is only `service_a: *shared` writes a merge key plus local fields (`<<: *shared` and your new keys) instead of inlining the whole object. Sequence items (`- *shared`) still expand or stay not-applied.
 
 **Patch apply formats**
-On CLI 0.30+, `patch apply` (and MCP `apply_patch`) accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE. Update and SEARCH matches must be unique unless you pass `--replace-all` (SEARCH/REPLACE only). The Quick Action **Merge patch (three-way)** is still `patch merge` for stale unified diffs.
+On CLI 0.30+, `patch apply` (and MCP `apply_patch`) accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE. Update and SEARCH matches must be unique unless you pass `--replace-all` (SEARCH/REPLACE only). The Quick Action **Apply patch (unified / Begin Patch / SEARCH-REPLACE)** builds `patch apply`. **Merge patch (three-way)** is still `patch merge` for stale unified diffs.
 
 **Batch replace shape**
 Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). Do not paste CLI form `replace OLD --new NEW path` into a batch plan; CLI 0.18+ returns a clear parse error with the PATH OLD NEW hint.
+
+**Batch doc.update / delete_where shape**
+Batch lines use `doc.update PATH SELECTOR VALUE` and `doc.delete_where PATH SELECTOR PREDICATE`. These are dotted batch ops (path, then selector, then value or predicate).
 
 **Create or rename destination already exists**
 On CLI 0.19+, create/rename conflicts report `error_kind: already_exists` (not a generic `invalid_input`). Use the force flag when overwriting is intentional, or pick a free destination path.
@@ -218,7 +224,7 @@ On CLI 0.20+, sole-path loads of binary or invalid UTF-8 files report `error_kin
 On CLI 0.22+, over-wide fuzzy matches can report `error_kind: fuzzy_span_suspicious`. Prefer an exact `old` string, structured `doc`/`md`/`ast` edits, or `apply-fragment` with a unique anchor.
 
 **Doc selector needs multi-match op**
-On CLI 0.27+, `doc set` / `doc ensure` / `doc delete` with a predicate or wildcard selector stay `error_kind: invalid_input` and may include `suggested_op` (`doc.update` or `doc.delete_where`). The extension surfaces that hint in notifications; full CLI text for search, undo, patch-merge, and batch apply is in the Output channel. Use the multi-match op (or a concrete index path such as `items.0.val`).
+On CLI 0.27+, `doc set` / `doc ensure` / `doc delete` with a predicate or wildcard selector stay `error_kind: invalid_input` and may include `suggested_op`. Standalone CLI is `doc update` / `doc delete-where`; batch plans use `doc.update` / `doc.delete_where`. The extension surfaces that hint in notifications; full CLI text for search, undo, patch-merge, and batch apply is in the Output channel. Use the multi-match op (or a concrete index path such as `items.0.val`). The matching Quick Actions are **Update matching structured values** and **Delete matching array items**.
 
 **Ambiguous markdown heading**
 On CLI 0.25+, section ops that match the same heading more than once report `error_kind: ambiguous`. Make the heading unique or use a level-qualified query (for example `## Rules`).
