@@ -82,6 +82,26 @@ export function formatCliOutput(result: { exitCode: number; stdout: string; stde
   return output || `exit code ${result.exitCode}`;
 }
 
+/**
+ * Quick Action toast wrapper around formatCliOutput. Agents still parse the
+ * CLI token from formatCliOutput; picker labels are for humans in the UI.
+ */
+export function formatQuickActionCliOutput(result: {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}): string {
+  return formatCliOutput(result)
+    .replaceAll(
+      "(try doc.update)",
+      '(try Quick Action "Update matching structured values" or CLI doc.update)'
+    )
+    .replaceAll(
+      "(try doc.delete_where)",
+      '(try Quick Action "Delete matching array items" or CLI doc.delete_where)'
+    );
+}
+
 function extractCliJsonError(stream: string): string | undefined {
   const trimmed = stream.trim();
   if (!trimmed.startsWith("{")) {

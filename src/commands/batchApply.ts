@@ -32,6 +32,9 @@ export function buildBatchTemplate(): string {
   return BATCH_TEMPLATE;
 }
 
+export const BATCH_APPLY_PROMPT =
+  "Edit the batch plan, then click Apply to execute all operations atomically. Multi-match lines use dotted batch ops: doc.update PATH SELECTOR VALUE and doc.delete_where PATH SELECTOR PREDICATE.";
+
 export function parseBatchOperationCount(plan: string): number {
   return plan.split("\n").filter((line) => line.trim().length > 0).length;
 }
@@ -69,7 +72,7 @@ export async function batchApply(): Promise<void> {
   await vscode.window.showTextDocument(doc, { preview: false });
 
   const choice = await vscode.window.showInformationMessage(
-    "Edit the batch plan, then click Apply to execute all operations atomically.",
+    BATCH_APPLY_PROMPT,
     "Apply"
   );
   if (choice !== "Apply") {

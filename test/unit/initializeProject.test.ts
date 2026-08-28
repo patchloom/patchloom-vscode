@@ -14,6 +14,7 @@ import { setPatchloomLog } from "../../src/logging/outputChannel.js";
 import {
   formatCliOutput,
   formatError,
+  formatQuickActionCliOutput,
   isAllowedPatchloomEnvKey,
   mergePatchloomEnv,
   resolvePatchloomEnvFromInspect,
@@ -292,6 +293,41 @@ test("formatCliOutput appends suggested_op when present (CLI 0.27+)", () => {
     formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
     "invalid_input: selector uses wildcard/predicate, which is not valid for doc.set (single path only) (try doc.update)"
   );
+});
+
+test("formatQuickActionCliOutput maps doc.update suggested_op to the picker label", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error:
+      "selector uses wildcard/predicate, which is not valid for doc.set (single path only)",
+    error_kind: "invalid_input",
+    suggested_op: "doc.update",
+    applied: false
+  });
+  assert.equal(
+    formatQuickActionCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    'invalid_input: selector uses wildcard/predicate, which is not valid for doc.set (single path only) (try Quick Action "Update matching structured values" or CLI doc.update)'
+  );
+});
+
+test("formatQuickActionCliOutput maps doc.delete_where suggested_op to the picker label", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error:
+      "selector uses wildcard/predicate, which is not valid for doc.delete (single path only)",
+    error_kind: "invalid_input",
+    suggested_op: "doc.delete_where",
+    applied: false
+  });
+  assert.equal(
+    formatQuickActionCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    'invalid_input: selector uses wildcard/predicate, which is not valid for doc.delete (single path only) (try Quick Action "Delete matching array items" or CLI doc.delete_where)'
+  );
+});
+
+test("formatQuickActionCliOutput leaves formatCliOutput unchanged when no suggested_op", () => {
+  const result = { exitCode: 1, stdout: "", stderr: "boom" };
+  assert.equal(formatQuickActionCliOutput(result), formatCliOutput(result));
 });
 
 test("formatCliOutput surfaces ambiguous kind (CLI 0.25+)", () => {

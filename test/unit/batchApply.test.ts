@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  BATCH_APPLY_PROMPT,
   buildBatchApplyArgs,
   buildBatchTemplate,
   isEmptyBatchPlan,
@@ -157,4 +158,9 @@ test("buildBatchTemplate includes doc.delete_where multi-match example (CLI 0.27
 
 test("buildBatchApplyArgs prefixes global --contain before batch --apply", () => {
   assert.deepEqual(buildBatchApplyArgs(), ["--contain", "batch", "--apply"]);
+});
+
+test("BATCH_APPLY_PROMPT names dotted doc.update and doc.delete_where shapes", () => {
+  assert.match(BATCH_APPLY_PROMPT, /doc\.update PATH SELECTOR VALUE/);
+  assert.match(BATCH_APPLY_PROMPT, /doc\.delete_where PATH SELECTOR PREDICATE/);
 });

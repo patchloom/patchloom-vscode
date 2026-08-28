@@ -29,6 +29,7 @@ import {
   buildTidyQuickAction,
   buildUndoQuickAction,
   isAllowedPreviewMiss,
+  previewMissMessage,
   isMarkdownPath,
   isStructuredDocumentPath,
   isPathInsideWorkspace,
@@ -189,9 +190,9 @@ test("isAllowedPreviewMiss allows replace exit 3", () => {
   assert.equal(isAllowedPreviewMiss(action, 3), true);
 });
 
-test("isAllowedPreviewMiss allows doc delete-where exit 3", () => {
+test("isAllowedPreviewMiss rejects doc delete-where exit 3", () => {
   const action = buildDocDeleteWhereQuickAction("/workspace/demo/data.json", "items", "name=stale");
-  assert.equal(isAllowedPreviewMiss(action, 3), true);
+  assert.equal(isAllowedPreviewMiss(action, 3), false);
 });
 
 test("isAllowedPreviewMiss allows doc set exit 3", () => {
@@ -212,6 +213,20 @@ test("isAllowedPreviewMiss rejects exit 1", () => {
 test("isAllowedPreviewMiss rejects exit 8", () => {
   const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
   assert.equal(isAllowedPreviewMiss(action, 8), false);
+});
+
+test("previewMissMessage explains delete-where predicate vs array path", () => {
+  const action = buildDocDeleteWhereQuickAction("/workspace/demo/data.json", "items", "name=stale");
+  const message = previewMissMessage(action, "data.json");
+  assert.match(message, /No items matched that predicate/);
+  assert.match(message, /array path/);
+  assert.match(message, /key=value/);
+  assert.doesNotMatch(message, /No changes to preview/);
+});
+
+test("previewMissMessage keeps replace-style no-changes copy", () => {
+  const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
+  assert.equal(previewMissMessage(action, "README.md"), "No changes to preview for README.md.");
 });
 
 test("retargetQuickAction swaps only the target path arguments", () => {

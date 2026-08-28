@@ -13,7 +13,7 @@ import {
   presentCliResultInOutput,
   type PatchloomLog
 } from "../logging/outputChannel.js";
-import { formatCliOutput, formatError, mergePatchloomEnv } from "../util.js";
+import { formatCliOutput, formatError, formatQuickActionCliOutput, mergePatchloomEnv } from "../util.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 
 const execFileAsync = promisify(execFile);
@@ -622,17 +622,17 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const selector = await vscode.window.showInputBox({
-          prompt: "Array selector path",
+          prompt: "Array path only (for example items). Do not use items[name=stale]; put the match in the predicate.",
           placeHolder: "items",
-          validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
+          validateInput: (value) => value.length > 0 ? undefined : "Array path is required."
         });
         if (selector === undefined) {
           return;
         }
 
         const predicate = await vscode.window.showInputBox({
-          prompt: "Predicate (key=value)",
-          placeHolder: "name=react or .=stale",
+          prompt: "Per-item predicate as key=value (for example name=stale)",
+          placeHolder: "name=stale",
           validateInput: (value) => value.length > 0 ? undefined : "Predicate is required."
         });
         if (predicate === undefined) {
@@ -1458,7 +1458,18 @@ export function isAllowedPreviewMiss(action: PlannedQuickAction, exitCode: numbe
     return false;
   }
   // PlannedQuickAction.args are pre-contain. executePatchloom prepends --contain later.
-  return !(action.args[0] === "doc" && action.args[1] === "update");
+  // doc update and delete-where: exit 3 is a path miss (key not found), not a soft no-op.
+  return !(
+    action.args[0] === "doc" &&
+    (action.args[1] === "update" || action.args[1] === "delete-where")
+  );
+}
+
+export function previewMissMessage(action: PlannedQuickAction, relativePath: string): string {
+  if (action.args[0] === "doc" && action.args[1] === "delete-where") {
+    return `No items matched that predicate in ${relativePath}. Check the array path (for example items) versus the key=value predicate (for example name=stale).`;
+  }
+  return `No changes to preview for ${relativePath}.`;
 }
 
 export function retargetQuickAction(action: PlannedQuickAction, nextTargetPath: string): PlannedQuickAction {
@@ -1502,7 +1513,7 @@ async function previewAndMaybeApply(
     return;
   }
   if (!preview) {
-    await vscode.window.showInformationMessage(`No changes to preview for ${target.relativePath}.`);
+    await vscode.window.showInformationMessage(previewMissMessage(action, target.relativePath));
     return;
   }
 
@@ -1525,7 +1536,7 @@ async function previewAndMaybeApply(
   if (result.exitCode !== 0) {
     presentCliResultInOutput(getPatchloomLog(), result);
     await vscode.window.showErrorMessage(
-      `Patchloom failed while applying changes to ${target.relativePath}: ${formatCliOutput(result)}`
+      `Patchloom failed while applying changes to ${target.relativePath}: ${formatQuickActionCliOutput(result)}`
     );
     return;
   }
@@ -1553,7 +1564,7 @@ async function buildPreviewDocument(
     const result = await executePatchloom(binaryPath, withApplyFlag(previewAction.args), tempDir);
     if (result.exitCode !== 0 && !isAllowedPreviewMiss(action, result.exitCode)) {
       presentCliResultInOutput(getPatchloomLog(), result);
-      throw new Error(formatCliOutput(result));
+      throw new Error(formatQuickActionCliOutput(result));
     }
 
     const previewContent = await fs.readFile(tempPath, "utf8");
