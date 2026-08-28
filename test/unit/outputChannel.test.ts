@@ -291,3 +291,17 @@ test("presentCliResultInOutput skips empty streams", () => {
 test("presentCliResultInOutput no-ops when log is undefined", () => {
   presentCliResultInOutput(undefined, { stdout: "out", stderr: "err" });
 });
+
+test("writeUserVisibleOutput through createPatchloomLog writes raw lines without timestamp", () => {
+  const lines: string[] = [];
+  const log = createPatchloomLog(() => ({
+    appendLine(value: string) { lines.push(value); },
+    show() {},
+    dispose() {}
+  }));
+
+  writeUserVisibleOutput(log, "a\nb");
+
+  assert.deepEqual(lines, ["a", "b"]);
+  assert.ok(lines.every((line) => !line.includes("[")));
+});

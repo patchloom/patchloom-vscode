@@ -2,7 +2,13 @@ import { execFile } from "node:child_process";
 import type * as VSCode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import { formatCliOutput, mergePatchloomEnv } from "../util.js";
-import { getPatchloomLog, getPatchloomRuntimeConfig, logCliCommand, logCliResult } from "../logging/outputChannel.js";
+import {
+  getPatchloomLog,
+  getPatchloomRuntimeConfig,
+  logCliCommand,
+  logCliResult,
+  presentCliResultInOutput
+} from "../logging/outputChannel.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
 // Batch replace is PATH OLD NEW (not CLI `replace OLD --new NEW path`). See CLI 0.18+ batch --help.
@@ -74,7 +80,7 @@ export async function batchApply(): Promise<void> {
   logCliResult(log, runtime.trace, result.exitCode, result.stdout, result.stderr);
 
   if (result.exitCode !== 0) {
-    log?.show();
+    presentCliResultInOutput(log, result);
     await vscode.window.showErrorMessage(
       `Batch apply failed: ${formatCliOutput(result)}`
     );
@@ -82,7 +88,7 @@ export async function batchApply(): Promise<void> {
   }
 
   const ops = parseBatchOperationCount(plan);
-  log?.show();
+  presentCliResultInOutput(log, result);
   await vscode.window.showInformationMessage(
     `Batch apply completed: ${ops} operation(s) applied.`
   );

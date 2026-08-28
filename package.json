@@ -222,7 +222,7 @@
             "messages",
             "verbose"
           ],
-          "markdownDescription": "Trace level for Patchloom CLI output. `messages` logs command invocations and results. `verbose` includes full stdout/stderr."
+          "markdownDescription": "Trace level for diagnostic Patchloom CLI logging. `messages` logs command invocations and exit codes. `verbose` includes full stdout/stderr for every command. User-facing results (search hits, search `-L`, undo restore details, patch-merge streams, and batch-apply streams) always appear in the Output channel regardless of this setting."
         },
         "patchloom.env": {
           "type": "object",
