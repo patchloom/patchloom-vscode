@@ -19,8 +19,10 @@ import {
 } from "../../src/binary/patchloom.js";
 import {
   assertTrustedManagedInstallDownloadUrl,
+  assertTrustedManagedInstallRedirectUrl,
   buildManagedInstallReleaseAssets,
   isTrustedManagedInstallDownloadUrl,
+  isTrustedManagedInstallRedirectUrl,
   calculateSha256Hex,
   clearManagedInstallFailure,
   clearManagedInstallFailureRecord,
@@ -37,6 +39,7 @@ import {
   promoteManagedInstallBinary,
   resolveManagedInstallChecksum,
   resolveManagedInstallPaths,
+  resolveManagedInstallRedirectUrl,
   resolveManagedInstallTransactionPaths,
   setManagedInstallFailure,
   isMuslLinux,
@@ -976,6 +979,75 @@ test("isTrustedManagedInstallDownloadUrl respects custom repo parameter", () => 
       "custom/repo"
     ),
     false
+  );
+});
+
+// --- managed install redirect URL trust tests ---
+
+test("resolveManagedInstallRedirectUrl resolves relative Location against current URL", () => {
+  const resolved = resolveManagedInstallRedirectUrl(
+    "https://github.com/patchloom/patchloom/releases/download/v0.1.0/archive.tar.xz",
+    "/foo"
+  );
+  assert.equal(resolved, "https://github.com/foo");
+  assert.equal(isTrustedManagedInstallRedirectUrl(resolved), true);
+});
+
+test("isTrustedManagedInstallRedirectUrl accepts GitHub release CDN hosts over HTTPS", () => {
+  assert.equal(
+    isTrustedManagedInstallRedirectUrl("https://objects.githubusercontent.com/github-production-release-asset/x"),
+    true
+  );
+  assert.equal(
+    isTrustedManagedInstallRedirectUrl("https://release-assets.githubusercontent.com/x"),
+    true
+  );
+  assert.equal(
+    isTrustedManagedInstallRedirectUrl("https://github-releases.githubusercontent.com/x"),
+    true
+  );
+  assert.equal(
+    isTrustedManagedInstallRedirectUrl("https://github.com/patchloom/patchloom/releases/download/v0.1.0/x"),
+    true
+  );
+});
+
+test("isTrustedManagedInstallRedirectUrl rejects non-HTTPS and untrusted hosts", () => {
+  assert.equal(
+    isTrustedManagedInstallRedirectUrl("https://evil.example/payload"),
+    false
+  );
+  assert.equal(
+    isTrustedManagedInstallRedirectUrl("http://objects.githubusercontent.com/x"),
+    false
+  );
+  assert.equal(
+    isTrustedManagedInstallRedirectUrl("http://github.com/x"),
+    false
+  );
+  assert.equal(isTrustedManagedInstallRedirectUrl("not-a-url"), false);
+  assert.equal(isTrustedManagedInstallRedirectUrl(""), false);
+});
+
+test("assertTrustedManagedInstallRedirectUrl throws untrusted-download-url for evil hosts", () => {
+  assert.doesNotThrow(() =>
+    assertTrustedManagedInstallRedirectUrl("https://objects.githubusercontent.com/x")
+  );
+  assert.throws(
+    () => assertTrustedManagedInstallRedirectUrl("https://evil.example/payload"),
+    (error: unknown) => {
+      assert.ok(error instanceof ManagedInstallVerificationError);
+      assert.equal(error.reason, "untrusted-download-url");
+      return true;
+    }
+  );
+  assert.throws(
+    () => assertTrustedManagedInstallRedirectUrl("http://objects.githubusercontent.com/x"),
+    (error: unknown) => {
+      assert.ok(error instanceof ManagedInstallVerificationError);
+      assert.equal(error.reason, "untrusted-download-url");
+      return true;
+    }
   );
 });
 
