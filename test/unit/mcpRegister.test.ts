@@ -6,6 +6,8 @@ import {
 } from "../../src/mcp/register.js";
 
 class FakeStdio {
+  cwd?: { fsPath: string };
+
   constructor(
     public label: string,
     public command: string,
@@ -57,4 +59,17 @@ test("createMcpStdioServerDefinition forwards PATCHLOOM env", () => {
     env: { PATCHLOOM_MCP_SURFACE: "core" }
   }) as FakeStdio;
   assert.equal(instance.env.PATCHLOOM_MCP_SURFACE, "core");
+});
+
+test("createMcpStdioServerDefinition assigns workspace cwd after construct", () => {
+  const instance = createMcpStdioServerDefinition(
+    FakeStdio,
+    {
+      label: "Patchloom MCP",
+      command: "/opt/patchloom",
+      args: ["mcp-server"]
+    },
+    { fsPath: "/workspace/demo" }
+  ) as FakeStdio;
+  assert.equal(instance.cwd?.fsPath, "/workspace/demo");
 });
