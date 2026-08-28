@@ -144,6 +144,10 @@ export function buildPatchloomMcpEntry(
   return entry;
 }
 
+function usesMcpServersKey(kind: McpTargetKind): boolean {
+  return kind === "windsurf-user" || kind === "cursor-workspace";
+}
+
 function withPatchloomEntry(
   kind: McpTargetKind,
   config: Record<string, unknown>,
@@ -151,7 +155,7 @@ function withPatchloomEntry(
   mcpSurface: McpSurface = "full"
 ): Record<string, unknown> {
   const entry = buildPatchloomMcpEntry(commandPath, mcpSurface);
-  if (kind === "windsurf-user") {
+  if (usesMcpServersKey(kind)) {
     const servers = objectValue(config.mcpServers);
     return {
       ...config,
@@ -173,8 +177,18 @@ function withPatchloomEntry(
 }
 
 function hasPatchloomEntry(kind: McpTargetKind, config: Record<string, unknown>): boolean {
-  const key = kind === "windsurf-user" ? "mcpServers" : "servers";
-  const root = objectValue(config[key]);
+  if (usesMcpServersKey(kind)) {
+    const modern = objectValue(config.mcpServers);
+    if (typeof modern.patchloom === "object" && modern.patchloom !== null) {
+      return true;
+    }
+    if (kind === "cursor-workspace") {
+      const legacy = objectValue(config.servers);
+      return typeof legacy.patchloom === "object" && legacy.patchloom !== null;
+    }
+    return false;
+  }
+  const root = objectValue(config.servers);
   return typeof root.patchloom === "object" && root.patchloom !== null;
 }
 
