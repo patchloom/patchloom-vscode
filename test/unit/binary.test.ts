@@ -189,6 +189,52 @@ test("preferredBinaryRemediationAction reinstalls when managed binary present bu
   });
 });
 
+test("preferredBinaryRemediationAction opens settings when patchloom.path is not ready even if managed exists", () => {
+  const action = preferredBinaryRemediationAction({
+    ready: false,
+    source: "setting",
+    message: "Patchloom binary is not executable: /does/not/exist",
+    binaryPath: "/does/not/exist",
+    managedInstall: {
+      exists: true,
+      binaryPath: "/managed/managed-bin/patchloom",
+      target: {
+        platform: "darwin",
+        arch: "arm64",
+        targetTriple: "aarch64-apple-darwin",
+        archiveFormat: ".tar.xz"
+      }
+    }
+  });
+  assert.deepEqual(action, {
+    title: "Open Settings",
+    command: "patchloom.openPatchloomSettings"
+  });
+});
+
+test("preferredBinaryRemediationAction opens releases when PATH is not ready even if managed exists", () => {
+  const action = preferredBinaryRemediationAction({
+    ready: false,
+    source: "path",
+    message: "Patchloom binary is not executable: /usr/local/bin/patchloom",
+    binaryPath: "/usr/local/bin/patchloom",
+    managedInstall: {
+      exists: true,
+      binaryPath: "/managed/managed-bin/patchloom",
+      target: {
+        platform: "darwin",
+        arch: "arm64",
+        targetTriple: "aarch64-apple-darwin",
+        archiveFormat: ".tar.xz"
+      }
+    }
+  });
+  assert.deepEqual(action, {
+    title: "Open Releases",
+    command: "patchloom.openPatchloomReleases"
+  });
+});
+
 test("preferredBinaryRemediationAction updates outdated managed install", () => {
   const action = preferredBinaryRemediationAction({
     ready: true,
