@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.6.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.5.0...patchloom-v0.6.0) (2026-08-28)
+
+
+### Features
+
+* add doc update, delete-where, and patch apply Quick Actions ([#246](https://github.com/patchloom/patchloom-vscode/issues/246)) ([cb81c51](https://github.com/patchloom/patchloom-vscode/commit/cb81c51e1c1c9ba9ac44cfbe6883946c894a42de))
+
+
+### Bug Fixes
+
+* assemble Quick Action argv for clap operands and dash values ([#257](https://github.com/patchloom/patchloom-vscode/issues/257)) ([c2151ae](https://github.com/patchloom/patchloom-vscode/commit/c2151ae5d4c9862ca9f7e793333f6592085c19af))
+* compare Update Patchloom to the managed binary ([#244](https://github.com/patchloom/patchloom-vscode/issues/244)) ([6af72fa](https://github.com/patchloom/patchloom-vscode/commit/6af72fa93bd28eea5201f65ce13273fcafdd51b7))
+* construct McpStdioServerDefinition positionally and pass env ([#250](https://github.com/patchloom/patchloom-vscode/issues/250)) ([7cf2d7b](https://github.com/patchloom/patchloom-vscode/commit/7cf2d7bcd6c316ea7dd005b27847594ebcf36b2e))
+* do not treat Cursor servers-only MCP files as configured ([#253](https://github.com/patchloom/patchloom-vscode/issues/253)) ([9d896a0](https://github.com/patchloom/patchloom-vscode/commit/9d896a08aa8a2976c16b163342121889ed138b9d))
+* do not wipe JSONC MCP configs when adding Patchloom ([#248](https://github.com/patchloom/patchloom-vscode/issues/248)) ([c36ba6d](https://github.com/patchloom/patchloom-vscode/commit/c36ba6da0c368cc2d4be0f6d74527e5b3363de11))
+* honor setting PATH remediations and register native MCP ([#249](https://github.com/patchloom/patchloom-vscode/issues/249)) ([62c0e5f](https://github.com/patchloom/patchloom-vscode/commit/62c0e5fb5fec84fe7d50efc52236f0d33896482d))
+* pass dash-looking operands after -- ([#256](https://github.com/patchloom/patchloom-vscode/issues/256)) ([2c2973a](https://github.com/patchloom/patchloom-vscode/commit/2c2973a06a8e67444280af2b5b8c8c4000967627))
+* set native MCP server cwd to the workspace folder ([#251](https://github.com/patchloom/patchloom-vscode/issues/251)) ([c8ecfa0](https://github.com/patchloom/patchloom-vscode/commit/c8ecfa09eeb6e53506752f06cb847d0dc3ec018e))
+* stage symlink patches and honor space-form doc update hints ([#247](https://github.com/patchloom/patchloom-vscode/issues/247)) ([6d416a3](https://github.com/patchloom/patchloom-vscode/commit/6d416a331f437bcb75f36b001f1596b0091a7a92))
+* treat --apply/--contain as flags, not user text ([#254](https://github.com/patchloom/patchloom-vscode/issues/254)) ([ebbd3b9](https://github.com/patchloom/patchloom-vscode/commit/ebbd3b9ef4e85827f13c4ffc28ca06c4ad23dfa7))
+* write Cursor MCP config under mcpServers ([#252](https://github.com/patchloom/patchloom-vscode/issues/252)) ([6b54013](https://github.com/patchloom/patchloom-vscode/commit/6b54013884f12226ad7ba5eebd432b6dc3815bad))
+
 ## [0.5.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.4.0...patchloom-v0.5.0) (2026-08-28)
 
 
