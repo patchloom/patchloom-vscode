@@ -63,7 +63,7 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 - **Cursor** (`.cursor/mcp.json`)
 - **Windsurf** (`~/.codeium/windsurf/mcp_config.json`)
 
-When configuring, pick **Full tool inventory** (default) or **Core pack**. Core sets `PATCHLOOM_MCP_SURFACE=core` on the server entry.
+When configuring, pick **Full tool inventory** (default) or **Core pack**. Core sets `PATCHLOOM_MCP_SURFACE=core` on the server entry. Existing servers in JSON or JSONC (`//` comments, trailing commas) stay in the file. A config that is not an object is left unchanged and the command reports an error.
 
 CLI **0.31.0** (and 0.24+) exposes **58** MCP tools by default (including `list_files` and `apply_fragment`). The core pack is 11 tools: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `server_info`. `search_files` accepts `files_without_match` (CLI 0.29+). `apply_patch` accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE (CLI 0.30+). Absolute paths that resolve inside the MCP workspace root are allowed; empty paths, `../`, and outside paths still reject with stable `error_kind` peels.
 
