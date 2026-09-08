@@ -73,6 +73,7 @@ test/
 scripts/
   hide-test-vscode.sh   macOS: patch test VS Code to suppress window activation
   guard-no-release-merge.sh  Hard abort if agent tries to merge a release PR without approval
+  apply-release-notes.sh     Apply release-note-<semver> (or legacy RELEASE_NOTES.md) onto a GitHub Release
 .github/
   CODEOWNERS               Owner for all files
   copilot-instructions.md  Pointer to AGENTS.md for GitHub Copilot
@@ -92,7 +93,8 @@ scripts/
     fossa.yml                  FOSSA license compliance scan
     links.yml                  Markdown link checker (lychee)
     pat-expiry.yml             Monthly VSCE PAT expiry reminder
-    post-merge.yml             Trigger CI/security/scorecard on main after auto-merge
+    post-merge.yml             Scorecard dispatch after squash (not ci/security)
+    apply-release-notes.yml    Cheap apply of release-note-<semver> onto a GitHub Release
     pr-title.yml               Semantic PR title validation
     scorecard.yml              OpenSSF Scorecard analysis (weekly + on push)
     release.yml                Release: release-please + .vsix packaging and upload

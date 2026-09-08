@@ -3,7 +3,17 @@ name: FOSSA license scan
 on:
   push:
     branches: [main]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - ".github/workflows/fossa.yml"
   pull_request:
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - ".github/workflows/fossa.yml"
   workflow_dispatch:
 
 permissions:
@@ -16,6 +26,7 @@ concurrency:
 jobs:
   fossa:
     name: License compliance
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please')
     env:
       FOSSA_API_KEY: ${{ secrets.FOSSA_API_KEY }}
     runs-on: ubuntu-latest

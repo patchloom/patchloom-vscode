@@ -1,8 +1,10 @@
 name: ci
 
+# Recipe A: product compile stays on PR / merge_group / dispatch.
+# Do not add push to main (that is a second matrix). Scorecard default-branch
+# runs stay in post-merge.yml. Recipe G: release-please* heads skip the
+# 3-OS + integration + UI matrix and run a cheap ubuntu tsc instead.
 on:
-  push:
-    branches: [main]
   pull_request:
   merge_group:
   workflow_dispatch:
@@ -44,7 +46,10 @@ jobs:
 
   unit-test:
     needs: [changes]
-    if: always() && (needs.changes.result == 'skipped' || needs.changes.outputs.code == 'true')
+    if: >
+      always()
+      && (needs.changes.result == 'skipped' || needs.changes.outputs.code == 'true')
+      && (github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please'))
     strategy:
       fail-fast: false
       matrix:
@@ -96,7 +101,7 @@ jobs:
           fi
 
       - name: Update coverage badge
-        if: matrix.os == 'ubuntu-latest' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'workflow_dispatch'
         continue-on-error: true
         uses: schneegans/dynamic-badges-action@28b0fa8bdeb46170ac397105ece0c1fe58f68910 # v1.9.0
         with:
@@ -109,7 +114,10 @@ jobs:
 
   build:
     needs: [changes]
-    if: always() && (needs.changes.result == 'skipped' || needs.changes.outputs.code == 'true')
+    if: >
+      always()
+      && (needs.changes.result == 'skipped' || needs.changes.outputs.code == 'true')
+      && (github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -139,6 +147,7 @@ jobs:
       && (needs.changes.result == 'skipped' || needs.changes.outputs.code == 'true')
       && (needs.unit-test.result == 'success' || needs.unit-test.result == 'skipped')
       && (needs.build.result == 'success' || needs.build.result == 'skipped')
+      && (github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please'))
     strategy:
       fail-fast: false
       matrix:
@@ -185,6 +194,29 @@ jobs:
         if: runner.os != 'Linux'
         run: npx extest run-tests './out-uitest/test/ui/*.test.js' --extensions_dir .vscode-test/extensions
 
+  # Recipe G: version-bump PRs already ran the full matrix on the feature PR.
+  # Keep a cheap ubuntu compile so a broken package.json / tsconfig still fails.
+  release-please-check:
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-please')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: ./.github/actions/setup-node
+
+      - name: Typecheck (release-please stand-in)
+        run: npx tsc --noEmit
+
   ci:
     # Final gate job (if: always()). This is the recommended pattern (see patchloom
     # and attune) so that individual matrix jobs can use the changes filter without
@@ -194,12 +226,13 @@ jobs:
       - unit-test
       - build
       - integration-test
+      - release-please-check
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: All CI jobs passed (or were correctly skipped for docs-only change)
         run: |
-          results=("${{ needs.unit-test.result }}" "${{ needs.build.result }}" "${{ needs.integration-test.result }}")
+          results=("${{ needs.unit-test.result }}" "${{ needs.build.result }}" "${{ needs.integration-test.result }}" "${{ needs.release-please-check.result }}")
           for r in "${results[@]}"; do
             if [[ "$r" != "success" && "$r" != "skipped" ]]; then
               echo "FAILED: dependency reported '$r'"

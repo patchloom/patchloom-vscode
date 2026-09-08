@@ -26,12 +26,14 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Trigger workflows on main
+      # Recipe A: do not dispatch ci.yml or security.yml on a green squash.
+      # The feature PR (or merge_group) already ran those. A second matrix
+      # is waste. Scorecard wants a default-branch run; keep that dispatch.
+      # Do not set require-up-to-date to justify dropping this file (#156).
+      - name: Trigger Scorecard on main
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh workflow run ci.yml --ref main --repo "${{ github.repository }}"
-          gh workflow run security.yml --ref main --repo "${{ github.repository }}"
           gh workflow run scorecard.yml --ref main --repo "${{ github.repository }}"
 
       - name: Auto-update open PR branches
