@@ -631,6 +631,73 @@ export async function runQuickAction(): Promise<void> {
       }
     },
     {
+      label: "List structured keys",
+      description: "List object keys at a JSON, YAML, or TOML selector",
+      detail: "Builds `patchloom doc keys <file> <selector>` (CLI 0.32+). Use `.` for the document root.",
+      run: async () => {
+        const target = await pickStructuredDocumentTarget("doc keys");
+        if (!target) {
+          return;
+        }
+
+        const selector = await vscode.window.showInputBox({
+          prompt: "Selector path (use . for the document root)",
+          placeHolder: ".",
+          value: ".",
+          validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
+        });
+        if (selector === undefined) {
+          return;
+        }
+
+        const action = buildDocKeysQuickAction(target.absolutePath, selector);
+        const result = await executePatchloom(binaryPath, action, target.workspaceFolder.uri.fsPath);
+
+        if (result.exitCode !== 0) {
+          await vscode.window.showErrorMessage(`Patchloom doc keys failed: ${formatCliOutput(result)}`);
+          return;
+        }
+
+        presentCliResultInOutput(getPatchloomLog(), result);
+        const value = result.stdout.trim();
+        await vscode.env.clipboard.writeText(value);
+        await vscode.window.showInformationMessage(`Keys at ${selector} copied to clipboard`);
+      }
+    },
+    {
+      label: "Count structured length",
+      description: "Count array items or object keys at a selector",
+      detail: "Builds `patchloom doc len <file> <selector>` (CLI 0.32+). Use `.` for the document root.",
+      run: async () => {
+        const target = await pickStructuredDocumentTarget("doc len");
+        if (!target) {
+          return;
+        }
+
+        const selector = await vscode.window.showInputBox({
+          prompt: "Selector path (use . for the document root)",
+          placeHolder: "items",
+          validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
+        });
+        if (selector === undefined) {
+          return;
+        }
+
+        const action = buildDocLenQuickAction(target.absolutePath, selector);
+        const result = await executePatchloom(binaryPath, action, target.workspaceFolder.uri.fsPath);
+
+        if (result.exitCode !== 0) {
+          await vscode.window.showErrorMessage(`Patchloom doc len failed: ${formatCliOutput(result)}`);
+          return;
+        }
+
+        presentCliResultInOutput(getPatchloomLog(), result);
+        const value = result.stdout.trim();
+        await vscode.env.clipboard.writeText(value);
+        await vscode.window.showInformationMessage(`${selector} length = ${value} (copied to clipboard)`);
+      }
+    },
+    {
       label: "Delete structured value",
       description: "Remove a key from JSON, YAML, or TOML with diff preview",
       detail: "Builds `patchloom doc delete <file> <selector>`",
@@ -1381,6 +1448,26 @@ export function buildDocGetQuickAction(targetPath: string, selector: string): Pl
   const args = withEndOfOptions(["doc", "get"], [targetPath, selector]);
   return {
     title: `Get ${selector} from ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [3],
+    args
+  };
+}
+
+export function buildDocKeysQuickAction(targetPath: string, selector: string): PlannedQuickAction {
+  const args = withEndOfOptions(["doc", "keys"], [targetPath, selector]);
+  return {
+    title: `Keys at ${selector} in ${path.basename(targetPath)}`,
+    targetPath,
+    targetArgIndices: [3],
+    args
+  };
+}
+
+export function buildDocLenQuickAction(targetPath: string, selector: string): PlannedQuickAction {
+  const args = withEndOfOptions(["doc", "len"], [targetPath, selector]);
+  return {
+    title: `Length of ${selector} in ${path.basename(targetPath)}`,
     targetPath,
     targetArgIndices: [3],
     args

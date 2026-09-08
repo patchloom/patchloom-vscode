@@ -15,6 +15,8 @@ import {
   buildDocDeleteWhereQuickAction,
   buildDocEnsureQuickAction,
   buildDocGetQuickAction,
+  buildDocKeysQuickAction,
+  buildDocLenQuickAction,
   buildDocMergeQuickAction,
   buildDocMoveQuickAction,
   buildDocPrependQuickAction,
@@ -427,6 +429,22 @@ test("buildDocGetQuickAction builds a doc get command", () => {
 
   assert.equal(action.title, "Get scripts.test from package.json");
   assert.deepEqual(action.args, ["doc", "get", "--", "/workspace/demo/package.json", "scripts.test"]);
+  assert.deepEqual(action.targetArgIndices, [3]);
+});
+
+test("buildDocKeysQuickAction builds a doc keys command", () => {
+  const action = buildDocKeysQuickAction("/workspace/demo/package.json", ".");
+
+  assert.equal(action.title, "Keys at . in package.json");
+  assert.deepEqual(action.args, ["doc", "keys", "--", "/workspace/demo/package.json", "."]);
+  assert.deepEqual(action.targetArgIndices, [3]);
+});
+
+test("buildDocLenQuickAction builds a doc len command", () => {
+  const action = buildDocLenQuickAction("/workspace/demo/data.json", "items");
+
+  assert.equal(action.title, "Length of items in data.json");
+  assert.deepEqual(action.args, ["doc", "len", "--", "/workspace/demo/data.json", "items"]);
   assert.deepEqual(action.targetArgIndices, [3]);
 });
 
