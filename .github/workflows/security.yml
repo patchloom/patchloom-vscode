@@ -1,8 +1,8 @@
 name: security
 
+# Recipe A: no third CodeQL on every push to main. PR / merge_group
+# already scanned the tree. Weekly schedule keeps the default branch warm.
 on:
-  push:
-    branches: [main]
   pull_request:
   merge_group:
   schedule:
@@ -97,27 +97,38 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
+      actions: read
+      contents: read
       security-events: write
     steps:
+      - name: Release-please stand-in
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-please')
+        run: echo 'version-bump PR; CodeQL already ran on the feature PR'
+
       - name: Harden runner
+        if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please')
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: audit
 
       - name: Checkout
+        if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please')
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Initialize CodeQL
+        if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please')
         uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           languages: javascript-typescript,actions
 
       - name: Autobuild
+        if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please')
         uses: github/codeql-action/autobuild@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
 
       - name: Perform CodeQL analysis
+        if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release-please')
         uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
 
   dependency-review:

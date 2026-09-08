@@ -94,15 +94,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ needs.release-please.outputs.tag_name }}" patchloom.vsix
       - name: Apply custom release notes
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ -f RELEASE_NOTES.md ]; then
-            echo "Custom release notes found, updating release body..."
-            gh release edit "${{ needs.release-please.outputs.tag_name }}" --notes-file RELEASE_NOTES.md
-          else
-            echo "No custom release notes, using auto-generated notes"
-          fi
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+          RELEASE_NOTES: ${{ vars.RELEASE_NOTES }}
+          RELEASE_NOTES_TAG: ${{ vars.RELEASE_NOTES_TAG }}
+        run: bash scripts/apply-release-notes.sh
       # See ~/.grok/skills/vsce-publish/SKILL.md (or /vsce-publish) for the full
       # one-time browser setup (aex.dev.azure.com, PAT scopes, Open VSX agreement
       # + create-namespace + ownership claim), secret names, and troubleshooting.
