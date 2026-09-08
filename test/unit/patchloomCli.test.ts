@@ -29,6 +29,8 @@ import {
   buildPatchApplyQuickAction,
   buildDocDeleteWhereQuickAction,
   buildDocGetQuickAction,
+  buildDocKeysQuickAction,
+  buildDocLenQuickAction,
   buildDocMergeQuickAction,
   buildDocSetQuickAction,
   buildDocUpdateQuickAction,
@@ -739,6 +741,61 @@ describe("patchloom CLI integration", async () => {
         assert.match(payload, /parent path is not a directory/);
         assert.match(payload, /invalid_input/);
       }
+    });
+  });
+
+  test("doc keys and doc len via Quick Action args (CLI 0.32+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.32.0") < 0) {
+      t.skip(`requires patchloom >= 0.32.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "cfg.json");
+      await fs.writeFile(file, JSON.stringify({ port: 8080, name: "demo" }), "utf8");
+
+      const keysAction = buildDocKeysQuickAction(file, ".");
+      const keys = await execFileAsync(
+        binaryPath,
+        serializePatchloomArgs({ args: keysAction.args }),
+        { timeout: 5000 }
+      );
+      assert.match(keys.stdout, /port/);
+      assert.match(keys.stdout, /name/);
+
+      const lenAction = buildDocLenQuickAction(file, ".");
+      const len = await execFileAsync(
+        binaryPath,
+        serializePatchloomArgs({ args: lenAction.args }),
+        { timeout: 5000 }
+      );
+      assert.match(len.stdout.trim(), /^2$/);
+    });
+  });
+
+  test("search dest glob is cwd-only (CLI 0.33+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.33.0") < 0) {
+      t.skip(`requires patchloom >= 0.33.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      await fs.writeFile(path.join(dir, "hit.txt"), "needle\n", "utf8");
+      await fs.mkdir(path.join(dir, "nested"));
+      await fs.writeFile(path.join(dir, "nested", "miss.txt"), "needle\n", "utf8");
+
+      const action = buildSearchQuickAction("*.txt", "needle");
+      const result = await execFileAsync(
+        binaryPath,
+        serializePatchloomArgs({ args: action.args }),
+        { cwd: dir, timeout: 5000 }
+      );
+      assert.match(result.stdout, /hit\.txt/);
+      assert.doesNotMatch(result.stdout, /nested/);
     });
   });
 
