@@ -194,6 +194,19 @@ test("formatCliOutput surfaces binary kind (CLI 0.20+)", () => {
   );
 });
 
+test("formatCliOutput surfaces parse_timeout kind (CLI 0.34+)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "AST parse exceeded 5s",
+    error_kind: "parse_timeout",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 4, stdout, stderr: "" }),
+    "parse_timeout: AST parse exceeded 5s"
+  );
+});
+
 test("formatCliOutput surfaces invalid_encoding kind (CLI 0.20+)", () => {
   const stdout = JSON.stringify({
     ok: false,

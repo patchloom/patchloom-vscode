@@ -275,7 +275,7 @@
     "@types/vscode": "~1.90.0",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.0.0",
-    "fast-check": "^4.9.0",
+    "fast-check": "^4.10.1",
     "ovsx": "^1.2.0",
     "typescript": "^7.0.2",
     "vscode-extension-tester": "^8.26.1"
