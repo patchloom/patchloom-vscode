@@ -53,7 +53,7 @@ test/
     batchApply.test.ts   Batch template and operation count parsing (20 tests)
     binary.test.ts       Binary discovery, managed install, compatibility, workspace env (76 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
-    initializeProject.test.ts  Status display, agents file classification, formatError (69 tests)
+    initializeProject.test.ts  Status display, agents file classification, formatError (70 tests)
     managedLifecycle.test.ts   Managed install with real file I/O (26 tests)
     mcpConfig.test.ts    MCP config with real temp directories (16 tests)
     managedInstall.test.ts  Managed Update compares latest vs managed binary (10 tests)
