@@ -278,7 +278,7 @@
     "fast-check": "^4.9.0",
     "ovsx": "^1.2.0",
     "typescript": "^7.0.2",
-    "vscode-extension-tester": "^8.26.0"
+    "vscode-extension-tester": "^8.26.1"
   },
   "dependencies": {
     "jsonc-parser": "^3.3.1"
