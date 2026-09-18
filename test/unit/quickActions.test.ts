@@ -37,6 +37,7 @@ import {
   isAllowedPreviewMiss,
   previewMissMessage,
   isMarkdownPath,
+  isEnvDocumentPath,
   isStructuredDocumentPath,
   isPathInsideWorkspace,
   isRealPathInsideWorkspace,
@@ -316,17 +317,23 @@ test("buildPrependQuickAction builds a file prepend command", () => {
 
 test("isStructuredDocumentPath recognizes supported structured formats", () => {
   assert.equal(isStructuredDocumentPath("package.json"), true);
+  assert.equal(isStructuredDocumentPath("tsconfig.jsonc"), true);
   assert.equal(isStructuredDocumentPath("config.yaml"), true);
   assert.equal(isStructuredDocumentPath("config.yml"), true);
   assert.equal(isStructuredDocumentPath("Cargo.toml"), true);
+  assert.equal(isStructuredDocumentPath("app.ini"), true);
+  assert.equal(isStructuredDocumentPath("app.properties"), true);
   assert.equal(isStructuredDocumentPath("README.md"), false);
 });
 
 test("isStructuredDocumentPath handles uppercase extensions", () => {
   assert.equal(isStructuredDocumentPath("data.JSON"), true);
+  assert.equal(isStructuredDocumentPath("tsconfig.JSONC"), true);
   assert.equal(isStructuredDocumentPath("config.YAML"), true);
   assert.equal(isStructuredDocumentPath("config.YML"), true);
   assert.equal(isStructuredDocumentPath("settings.TOML"), true);
+  assert.equal(isStructuredDocumentPath("APP.INI"), true);
+  assert.equal(isStructuredDocumentPath("app.PROPERTIES"), true);
   assert.equal(isStructuredDocumentPath("README.MD"), false);
 });
 
@@ -336,10 +343,20 @@ test("isStructuredDocumentPath rejects files without extensions", () => {
   assert.equal(isStructuredDocumentPath("file."), false);
 });
 
-test("isStructuredDocumentPath rejects dotfiles without basenames", () => {
+test("isStructuredDocumentPath rejects extension-only dotfiles", () => {
   assert.equal(isStructuredDocumentPath(".json"), false);
   assert.equal(isStructuredDocumentPath(".yaml"), false);
-  assert.equal(isStructuredDocumentPath(".env"), false);
+  assert.equal(isStructuredDocumentPath(".jsonc"), false);
+});
+
+test("isStructuredDocumentPath accepts .env and .env.* (CLI 0.35+)", () => {
+  assert.equal(isStructuredDocumentPath(".env"), true);
+  assert.equal(isStructuredDocumentPath(".env.local"), true);
+  assert.equal(isStructuredDocumentPath(".env.production"), true);
+  assert.equal(isStructuredDocumentPath(path.join("config", ".env")), true);
+  assert.equal(isEnvDocumentPath(".envrc"), false);
+  assert.equal(isStructuredDocumentPath(".envrc"), false);
+  assert.equal(isStructuredDocumentPath("foo.env"), false);
 });
 
 test("buildTidyQuickAction with a single fix omits unselected flags", () => {

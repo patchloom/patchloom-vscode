@@ -207,6 +207,19 @@ test("formatCliOutput surfaces parse_timeout kind (CLI 0.34+)", () => {
   );
 });
 
+test("formatCliOutput surfaces undo path no_matches kind (CLI 0.35+)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "no backup entry for path nope.txt in session 1",
+    error_kind: "no_matches",
+    applied: false
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 3, stdout, stderr: "" }),
+    "no_matches: no backup entry for path nope.txt in session 1"
+  );
+});
+
 test("formatCliOutput surfaces invalid_encoding kind (CLI 0.20+)", () => {
   const stdout = JSON.stringify({
     ok: false,

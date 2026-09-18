@@ -20,10 +20,12 @@ export const BATCH_TEMPLATE = [
   "replace src/example.ts \"typo_here\" \"fixed\" --fuzzy --min-fuzzy-score 0.80",
   "replace src/example.ts \"anchor_line\" --insert-after=\"new sibling line\"",
   "doc.set package.json version \"2.0.0\"",
+  "doc.set tsconfig.jsonc compilerOptions.strict true",
   "doc.update data.json \"items[*].enabled\" true",
   "doc.delete_where data.json items name=stale",
   "doc.merge multi-doc.yaml 0 \"{\\\"debug\\\": true}\"",
   "file.append src/example.ts \"new appended line\"",
+  "file.rename src/old_pkg src/new_pkg",
   "md.insert_after_section README.md \"## Config\" \"## FAQ\"",
   "tidy.fix src/example.ts",
   ""
