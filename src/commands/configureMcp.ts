@@ -48,7 +48,7 @@ export async function configureMcp(): Promise<void> {
     [
       {
         label: "Full tool inventory",
-        description: "Default (58 tools on CLI 0.24+; verified on 0.34)",
+        description: "Default (64 tools on CLI 0.35+; verified on 0.35)",
         surface: "full" as const
       },
       {

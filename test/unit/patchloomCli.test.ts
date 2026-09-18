@@ -1035,6 +1035,66 @@ describe("patchloom CLI integration", async () => {
       assert.equal(vscodeTarget.configured, true, "target should be detected as configured");
     });
   });
+
+  test("doc set JSONC keeps comments (CLI 0.35+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.35.0") < 0) {
+      t.skip(`requires patchloom >= 0.35.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const file = path.join(dir, "tsconfig.jsonc");
+      await fs.writeFile(file, "// keep\n{\n  \"compilerOptions\": { \"strict\": false }\n}\n", "utf8");
+      const action = buildDocSetQuickAction(file, "compilerOptions.strict", "true");
+      await execFileAsync(
+        binaryPath,
+        serializePatchloomArgs({ args: action.args, apply: true }),
+        { timeout: 5000 }
+      );
+      const content = await fs.readFile(file, "utf8");
+      assert.match(content, /\/\/ keep/);
+      assert.match(content, /"strict": true/);
+    });
+  });
+
+  test("doc set .env and directory rename (CLI 0.35+)", async (t) => {
+    const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], { timeout: 5000 });
+    const version = parsePatchloomVersion(`${stdout}${stderr}`);
+    if (!version || comparePatchloomVersions(version, "0.35.0") < 0) {
+      t.skip(`requires patchloom >= 0.35.0 (found ${version ?? "unknown"})`);
+      return;
+    }
+
+    await withTempDir(async (dir) => {
+      const envFile = path.join(dir, ".env");
+      await fs.writeFile(envFile, "FOO=1\n# comment\nBAR=2\n", "utf8");
+      const action = buildDocSetQuickAction(envFile, "FOO", "9");
+      await execFileAsync(
+        binaryPath,
+        serializePatchloomArgs({ args: action.args, apply: true }),
+        { cwd: dir, timeout: 5000 }
+      );
+      const envContent = await fs.readFile(envFile, "utf8");
+      assert.match(envContent, /FOO=9/);
+      assert.match(envContent, /# comment/);
+
+      await fs.mkdir(path.join(dir, "old_pkg"));
+      await fs.writeFile(path.join(dir, "old_pkg", "mod.rs"), "fn x() {}\n", "utf8");
+      await execFileAsync(binaryPath, ["rename", "old_pkg", "new_pkg", "--apply"], {
+        cwd: dir,
+        timeout: 5000
+      });
+      assert.equal(await fs.readFile(path.join(dir, "new_pkg", "mod.rs"), "utf8"), "fn x() {}\n");
+      await assert.rejects(() => fs.access(path.join(dir, "old_pkg")));
+
+      const preview = await execFileAsync(binaryPath, ["--json", "undo"], { cwd: dir, timeout: 5000 })
+        .then((result) => result.stdout)
+        .catch((error: { stdout?: string }) => error.stdout ?? "");
+      assert.match(preview, /rename back to old_pkg/);
+    });
+  });
 });
 
 // --- End-to-end: managed install + MCP server ---
@@ -1170,6 +1230,19 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
         `tool should have a non-empty name: ${JSON.stringify(tool)}`);
       assert.ok(tool.inputSchema !== undefined,
         `tool ${tool.name} should have an inputSchema`);
+    }
+
+    const { stdout: versionOut, stderr: versionErr } = await execFileAsync(
+      binaryPath,
+      ["--version"],
+      { timeout: 60000 }
+    );
+    const installed = parsePatchloomVersion(`${versionOut}${versionErr}`);
+    if (installed && comparePatchloomVersions(installed, "0.35.0") >= 0) {
+      const names = new Set(tools.map((tool) => tool.name));
+      assert.ok(names.has("explain_plan"), "CLI 0.35+ full inventory includes explain_plan");
+      assert.ok(names.has("tidy_check"), "CLI 0.35+ full inventory includes tidy_check");
+      assert.ok(tools.length >= 64, `CLI 0.35+ full inventory is 64+ tools (got ${tools.length})`);
     }
   });
 

@@ -65,7 +65,7 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 
 When configuring, pick **Full tool inventory** (default) or **Core pack**. Core sets `PATCHLOOM_MCP_SURFACE=core` on the server entry. Existing servers in JSON or JSONC (`//` comments, trailing commas) stay in the file. A config that is not an object is left unchanged and the command reports an error.
 
-CLI **0.34.0** (and 0.24+) exposes **58** MCP tools by default (including `list_files` and `apply_fragment`). The core pack is 11 tools: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `server_info`. `search_files` accepts `files_without_match` (CLI 0.29+). `apply_patch` accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE (CLI 0.30+). `doc_query` can list object keys and count array or object length (CLI 0.32+). Search, replace, and tidy dests accept cwd-only globs such as `*.txt` (CLI 0.33+; use `**/*.txt` or `--glob` for nested files). Absolute paths that resolve inside the MCP workspace root are allowed; empty paths, `../`, and outside paths still reject with stable `error_kind` peels.
+CLI **0.35.0** exposes **64** MCP tools by default (including `explain_plan`, `tidy_check`, `list_files`, and `apply_fragment`). The core pack is still 11 tools: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `server_info`. `doc` accepts `.jsonc` (comments stay on set), plus `.env`, `.ini`, and `.properties`. `doc_set` accepts `if_exists` to skip a missing file or selector. `apply_patch` accepts `apply=false` for a check-only preview. CLI `list-files` inventories ignore-aware paths the same way as MCP `list_files`. `search_files` accepts `files_without_match` (CLI 0.29+). `apply_patch` accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE (CLI 0.30+). `doc_query` can list object keys and count array or object length (CLI 0.32+). Search, replace, and tidy dests accept cwd-only globs such as `*.txt` (CLI 0.33+; use `**/*.txt` or `--glob` for nested files). Absolute paths that resolve inside the MCP workspace root are allowed; empty paths, `../`, and outside paths still reject with stable `error_kind` peels.
 
 ### Status bar
 
@@ -92,23 +92,23 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Insert text before match** | Line-oriented insert before each match (CLI 0.16+) |
 | **Apply fragment at anchor** | Morph-style freeform fragment at a unique anchor (`--after` / `--before` / `--old`, CLI 0.22+) |
 | **Tidy file** | Whitespace and newline cleanup with diff preview |
-| **Set structured value** | Update a JSON, YAML, or TOML key with diff preview |
-| **Update matching structured values** | Update all JSON, YAML, or TOML nodes matching a wildcard or predicate (`doc update`, CLI 0.27+) |
+| **Set structured value** | Update a JSON, JSONC, YAML, TOML, .env, INI, or .properties key with diff preview |
+| **Update matching structured values** | Update matching nodes in those formats (`doc update`, CLI 0.27+) |
 | **Search text** | Find pattern matches across workspace files (results in output channel) |
 | **Search files without match** | List files that do not contain the pattern (`search -L`, CLI 0.29+) |
 | **Create file** | Scaffold a new file with optional content and open it in the editor |
 | **Append to file** | Append content to an existing file |
 | **Prepend to file** | Prepend content to the start of an existing file (CLI 0.9+) |
-| **Read structured value** | Read a JSON/YAML/TOML key and copy to clipboard |
+| **Read structured value** | Read a JSON, JSONC, YAML, TOML, .env, INI, or .properties key and copy to clipboard |
 | **List structured keys** | List object keys at a selector (`doc keys`, CLI 0.32+; `.` is the document root) |
 | **Count structured length** | Count array items or object keys (`doc len`, CLI 0.32+) |
-| **Delete structured value** | Remove a key from JSON, YAML, or TOML with diff preview |
+| **Delete structured value** | Remove a key from JSON, JSONC, YAML, TOML, .env, INI, or .properties with diff preview |
 | **Delete matching array items** | Remove array items matching a predicate (`doc delete-where`, CLI 0.27+; array path plus `key=value` predicate) |
 | **Merge into structured file** | Merge a partial JSON object into a config file (optional multi-doc selector, CLI 0.16+) |
-| **Append to array** | Append a value to a JSON, YAML, or TOML array |
-| **Prepend to array** | Prepend a value to a JSON, YAML, or TOML array |
+| **Append to array** | Append a value to a JSON, JSONC, YAML, TOML, .env, INI, or .properties array |
+| **Prepend to array** | Prepend a value to a JSON, JSONC, YAML, TOML, .env, INI, or .properties array |
 | **Ensure structured value** | Idempotent set: write only if the key is missing |
-| **Move/rename key** | Move or rename a selector path in JSON, YAML, or TOML |
+| **Move/rename key** | Move or rename a selector path in those formats |
 | **Insert after heading** | Insert content immediately after a markdown heading line |
 | **Insert after section** | Insert a sibling markdown section after a full section body (CLI 0.14+) |
 | **Insert before heading** | Insert content immediately before a markdown heading line |
@@ -123,7 +123,7 @@ Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay insid
 
 ### Batch operations
 
-`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, multi-match `doc.update`, `doc.delete_where`, multi-doc `doc.merge`, file append, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
+`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, JSONC `doc.set`, multi-match `doc.update`, `doc.delete_where`, multi-doc `doc.merge`, file append, directory `file.rename`, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
 
 ### Output channel
 
@@ -181,7 +181,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
 **CLI compatibility warning / upgrade path**
-The extension requires Patchloom **0.3.0** or newer; **0.34.0** is recommended. Which fix to use depends on how the CLI was resolved (status shows Source):
+The extension requires Patchloom **0.3.0** or newer; **0.35.0** is recommended. Which fix to use depends on how the CLI was resolved (status shows Source):
 
 1. **Source: managed install** → **Patchloom: Update Patchloom** (checksum-verified GitHub release into extension storage)
 2. **Source: PATH** → upgrade that install in place (**Scoop** `scoop update patchloom` on Windows; Homebrew / npm / cargo / the official installer elsewhere). Managed Install will not override a PATH binary.
@@ -219,6 +219,21 @@ On CLI 0.34+, a bad dest glob or `--glob` is `error_kind: invalid_input` (not a 
 
 **AST parse timed out**
 On CLI 0.34+, an AST parse that runs longer than five seconds reports `error_kind: parse_timeout` and exit 4. Narrow the file or pick an explicit language. Unknown explicit language is `invalid_input`.
+
+**JSONC and key-value documents**
+On CLI 0.35+, Quick Actions accept `.jsonc` (comments stay on `doc set`), plus `.env` / `.env.*`, `.ini`, and `.properties`. Use `doc --as` when the extension is not enough. `.properties` keys are flat (a name like `app.name` is one key, not nested `app` then `name`); run **List structured keys** to see the literal names.
+
+**Directory rename and undo**
+On CLI 0.35+, `rename` moves a real directory and undo puts it back. Dry-run undo reports the rename-back without writing. Batch plans use `file.rename FROM TO`.
+
+**Doc set if the key already exists**
+On CLI 0.35+, `doc set --if-exists` (MCP `doc_set.if_exists`) succeeds and writes nothing when the file or selector is missing. **Ensure structured value** is the inverse: write only when the key is absent.
+
+**Undo one path from a session**
+On CLI 0.35+, `undo --path` restores only those session paths. An unknown path is `error_kind: no_matches` and does not restore the rest of the session.
+
+**HTTP MCP Host allowlist**
+The extension's MCP server is stdio. If you bind Streamable HTTP yourself (`patchloom mcp-server --http`), non-loopback binds keep the Host allowlist. Add extra names with `--allowed-host`. Loopback still starts without `--allow-unauthenticated`.
 
 **Patch apply formats**
 On CLI 0.30+, `patch apply` (and MCP `apply_patch`) accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE. Update and SEARCH matches must be unique unless you pass `--replace-all` (SEARCH/REPLACE only). The Quick Action **Apply patch (unified / Begin Patch / SEARCH-REPLACE)** builds `patch apply`. **Merge patch (three-way)** is still `patch merge` for stale unified diffs.
@@ -277,7 +292,7 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 ## Requirements
 
 - VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
-- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (**0.34.0+ recommended** for empty or whitespace-only edit payloads as `invalid_input`, AST `parse_timeout` (exit 4), dest/`--glob` mistakes as `invalid_input` (not parse errors), dest globs on search/replace/tidy (`*.txt` is cwd-only), `doc keys` / `doc len`, YAML merge-key edits that keep `<<:` and comments, Windows dest/`--cwd` rules, charset / EditorConfig `charset`, YAML alias-to-merge on `doc set`, create/rename `parent path is not a directory`, numeric selector compares (`servers[port>8000]`), `search -L` / `files_without_match`, Codex Begin Patch and Aider SEARCH/REPLACE on `patch apply`, `agent-rules --surface core` honoring `--mode`, empty-path fail-closed (`path must not be empty`), `suggested_op` on fail-closed doc navigation, `not_regular_file` soft peels, ambiguous markdown headings, `list_files` MCP inventory, `apply-fragment`, full `error_kind` peels (`binary` / `invalid_encoding` / `fuzzy_span_suspicious` / `already_exists` / `guard_rejected` / `ambiguous` / `parse_timeout`), optional `PATCHLOOM_MCP_SURFACE=core` 11-tool pack, multi-doc `doc merge --selector`, line-oriented inserts, batch `replace PATH OLD NEW` hints, 58 MCP tools, and agent-facing JSON envelopes)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (**0.35.0+ recommended** for JSONC / `.env` / INI / `.properties` `doc` edits, directory `rename` with undo, `doc set --if-exists`, CLI `list-files`, MCP `explain_plan` / `tidy_check` / `apply_patch` `apply=false`, HTTP MCP Host allowlist, 64 MCP tools, empty or whitespace-only edit payloads as `invalid_input`, AST `parse_timeout` (exit 4), dest/`--glob` mistakes as `invalid_input`, dest globs on search/replace/tidy (`*.txt` is cwd-only), `doc keys` / `doc len`, YAML merge-key edits that keep `<<:` and comments, Windows dest/`--cwd` rules, charset / EditorConfig `charset`, YAML alias-to-merge on `doc set`, create/rename `parent path is not a directory`, numeric selector compares (`servers[port>8000]`), `search -L` / `files_without_match`, Codex Begin Patch and Aider SEARCH/REPLACE on `patch apply`, `agent-rules --surface core` honoring `--mode`, empty-path fail-closed (`path must not be empty`), `suggested_op` on fail-closed doc navigation, `not_regular_file` soft peels, ambiguous markdown headings, `list_files` MCP inventory, `apply-fragment`, full `error_kind` peels (`binary` / `invalid_encoding` / `fuzzy_span_suspicious` / `already_exists` / `guard_rejected` / `ambiguous` / `parse_timeout` / `no_matches`), optional `PATCHLOOM_MCP_SURFACE=core` 11-tool pack, multi-doc `doc merge --selector`, line-oriented inserts, batch `replace PATH OLD NEW` hints, and agent-facing JSON envelopes)
 
 ## Contributing
 

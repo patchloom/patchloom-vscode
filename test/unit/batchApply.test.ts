@@ -8,21 +8,23 @@ import {
   parseBatchOperationCount
 } from "../../src/commands/batchApply.js";
 
-test("buildBatchTemplate returns line-oriented format with ten operations", () => {
+test("buildBatchTemplate returns line-oriented format with twelve operations", () => {
   const template = buildBatchTemplate();
   const lines = template.split("\n").filter((line) => line.trim().length > 0);
 
-  assert.equal(lines.length, 10);
+  assert.equal(lines.length, 12);
   assert.ok(lines[0].startsWith("replace "), "first line should be a replace operation");
   assert.ok(lines[1].startsWith("replace ") && lines[1].includes("--fuzzy"), "second line should be fuzzy replace");
   assert.ok(lines[2].startsWith("replace ") && lines[2].includes("--insert-after"), "third line should be insert-after");
   assert.ok(lines[3].startsWith("doc.set "), "fourth line should be a doc.set operation");
-  assert.ok(lines[4].startsWith("doc.update "), "fifth line should be multi-match doc.update");
-  assert.ok(lines[5].startsWith("doc.delete_where "), "sixth line should be multi-match doc.delete_where");
-  assert.ok(lines[6].startsWith("doc.merge "), "seventh line should be multi-doc doc.merge");
-  assert.ok(lines[7].startsWith("file.append "), "eighth line should be a file.append operation");
-  assert.ok(lines[8].startsWith("md.insert_after_section "), "ninth line should be md.insert_after_section");
-  assert.ok(lines[9].startsWith("tidy.fix "), "tenth line should be a tidy.fix operation");
+  assert.ok(lines[4].startsWith("doc.set ") && lines[4].includes("tsconfig.jsonc"), "fifth line should be JSONC doc.set");
+  assert.ok(lines[5].startsWith("doc.update "), "sixth line should be multi-match doc.update");
+  assert.ok(lines[6].startsWith("doc.delete_where "), "seventh line should be multi-match doc.delete_where");
+  assert.ok(lines[7].startsWith("doc.merge "), "eighth line should be multi-doc doc.merge");
+  assert.ok(lines[8].startsWith("file.append "), "ninth line should be a file.append operation");
+  assert.ok(lines[9].startsWith("file.rename "), "tenth line should be a directory file.rename");
+  assert.ok(lines[10].startsWith("md.insert_after_section "), "eleventh line should be md.insert_after_section");
+  assert.ok(lines[11].startsWith("tidy.fix "), "twelfth line should be a tidy.fix operation");
 });
 
 test("buildBatchTemplate ends with a newline", () => {
@@ -131,6 +133,16 @@ test("buildBatchTemplate includes replace --insert-after example (CLI 0.16)", ()
     /replace \S+ ".+" --insert-after=/,
     "insert-after should use batch flag form path pattern --insert-after=payload"
   );
+});
+
+test("buildBatchTemplate includes JSONC doc.set and directory file.rename (CLI 0.35+)", () => {
+  const lines = buildBatchTemplate().split("\n");
+  const jsoncLine = lines.find((l) => l.includes("tsconfig.jsonc"));
+  const renameLine = lines.find((l) => l.startsWith("file.rename "));
+  assert.ok(jsoncLine, "template should contain a JSONC doc.set example");
+  assert.match(jsoncLine, /doc\.set tsconfig\.jsonc compilerOptions\.strict true/);
+  assert.ok(renameLine, "template should contain a file.rename example");
+  assert.match(renameLine, /file\.rename \S+ \S+/);
 });
 
 test("buildBatchTemplate includes doc.update multi-match example (CLI 0.27+ suggested_op sibling)", () => {

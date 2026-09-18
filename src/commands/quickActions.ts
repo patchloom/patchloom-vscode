@@ -18,8 +18,19 @@ import { formatCliOutput, formatError, formatQuickActionCliOutput, mergePatchloo
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 
 const execFileAsync = promisify(execFile);
-const STRUCTURED_FILE_EXTENSIONS = new Set([".json", ".yaml", ".yml", ".toml"]);
+const STRUCTURED_FILE_EXTENSIONS = new Set([
+  ".json",
+  ".jsonc",
+  ".yaml",
+  ".yml",
+  ".toml",
+  ".ini",
+  ".properties"
+]);
 const MARKDOWN_FILE_EXTENSIONS = new Set([".md", ".markdown", ".mdx"]);
+/** Human label for picker copy. `.env` / `.env.*` are basename matches, not extensions. */
+export const STRUCTURED_DOCUMENT_LABEL =
+  "JSON, JSONC, YAML, TOML, .env, INI, or .properties";
 
 export type TidyFix = "ensure-final-newline" | "trim-trailing-whitespace" | "normalize-eol-lf";
 
@@ -340,7 +351,7 @@ export async function runQuickAction(): Promise<void> {
     },
     {
       label: "Set structured value",
-      description: "Update JSON, YAML, or TOML with diff preview",
+      description: `Update ${STRUCTURED_DOCUMENT_LABEL} with diff preview`,
       detail: "Builds `patchloom doc set <file> <selector> <value>`",
       run: async () => {
         const target = await pickStructuredDocumentTarget("doc set");
@@ -372,7 +383,7 @@ export async function runQuickAction(): Promise<void> {
     },
     {
       label: "Update matching structured values",
-      description: "Update all JSON, YAML, or TOML nodes matching a wildcard or predicate",
+      description: `Update all ${STRUCTURED_DOCUMENT_LABEL} nodes matching a wildcard or predicate`,
       detail: "Builds `patchloom doc update <file> <selector> <value>`",
       run: async () => {
         const target = await pickStructuredDocumentTarget("doc update");
@@ -600,7 +611,7 @@ export async function runQuickAction(): Promise<void> {
     },
     {
       label: "Read structured value",
-      description: "Read a value from JSON, YAML, or TOML",
+      description: `Read a value from ${STRUCTURED_DOCUMENT_LABEL}`,
       detail: "Builds `patchloom doc get <file> <selector>`",
       run: async () => {
         const target = await pickStructuredDocumentTarget("doc get");
@@ -632,7 +643,7 @@ export async function runQuickAction(): Promise<void> {
     },
     {
       label: "List structured keys",
-      description: "List object keys at a JSON, YAML, or TOML selector",
+      description: `List object keys at a ${STRUCTURED_DOCUMENT_LABEL} selector`,
       detail: "Builds `patchloom doc keys <file> <selector>` (CLI 0.32+). Use `.` for the document root.",
       run: async () => {
         const target = await pickStructuredDocumentTarget("doc keys");
@@ -699,7 +710,7 @@ export async function runQuickAction(): Promise<void> {
     },
     {
       label: "Delete structured value",
-      description: "Remove a key from JSON, YAML, or TOML with diff preview",
+      description: `Remove a key from ${STRUCTURED_DOCUMENT_LABEL} with diff preview`,
       detail: "Builds `patchloom doc delete <file> <selector>`",
       run: async () => {
         const target = await pickStructuredDocumentTarget("doc delete");
@@ -790,7 +801,7 @@ export async function runQuickAction(): Promise<void> {
     },
     {
       label: "Append to array",
-      description: "Append a value to a JSON, YAML, or TOML array",
+      description: `Append a value to a ${STRUCTURED_DOCUMENT_LABEL} array`,
       detail: "Builds `patchloom doc append <file> <selector> <value>`",
       run: async () => {
         const target = await pickStructuredDocumentTarget("doc append");
@@ -821,7 +832,7 @@ export async function runQuickAction(): Promise<void> {
     },
     {
       label: "Prepend to array",
-      description: "Prepend a value to a JSON, YAML, or TOML array",
+      description: `Prepend a value to a ${STRUCTURED_DOCUMENT_LABEL} array`,
       detail: "Builds `patchloom doc prepend <file> <selector> <value>`",
       run: async () => {
         const target = await pickStructuredDocumentTarget("doc prepend");
@@ -883,7 +894,7 @@ export async function runQuickAction(): Promise<void> {
     },
     {
       label: "Move/rename key",
-      description: "Move or rename a selector path in JSON, YAML, or TOML",
+      description: `Move or rename a selector path in ${STRUCTURED_DOCUMENT_LABEL}`,
       detail: "Builds `patchloom doc move <file> <from> <to>`",
       run: async () => {
         const target = await pickStructuredDocumentTarget("doc move");
@@ -1676,8 +1687,16 @@ export function isMarkdownPath(filePath: string): boolean {
   return MARKDOWN_FILE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }
 
+export function isEnvDocumentPath(filePath: string): boolean {
+  const base = path.basename(filePath);
+  return base === ".env" || base.startsWith(".env.");
+}
+
 export function isStructuredDocumentPath(filePath: string): boolean {
-  return STRUCTURED_FILE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+  if (STRUCTURED_FILE_EXTENSIONS.has(path.extname(filePath).toLowerCase())) {
+    return true;
+  }
+  return isEnvDocumentPath(filePath);
 }
 
 export function isAllowedPreviewMiss(action: PlannedQuickAction, exitCode: number): boolean {
@@ -1808,7 +1827,7 @@ async function buildPreviewDocument(
 
 async function pickStructuredDocumentTarget(opLabel: string): Promise<WorkspaceFileTarget | undefined> {
   const target = await pickWorkspaceFileTarget(
-    `Select a JSON, YAML, or TOML file for Patchloom ${opLabel}`
+    `Select a ${STRUCTURED_DOCUMENT_LABEL} file for Patchloom ${opLabel}`
   );
   if (!target) {
     return undefined;
@@ -1816,7 +1835,7 @@ async function pickStructuredDocumentTarget(opLabel: string): Promise<WorkspaceF
   if (!isStructuredDocumentPath(target.absolutePath)) {
     const vscode = await import("vscode");
     await vscode.window.showWarningMessage(
-      `${target.relativePath} is not a supported JSON, YAML, or TOML file for Patchloom ${opLabel}.`
+      `${target.relativePath} is not a supported ${STRUCTURED_DOCUMENT_LABEL} file for Patchloom ${opLabel}.`
     );
     return undefined;
   }
