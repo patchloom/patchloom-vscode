@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.7.0...patchloom-v0.8.0) (2026-09-18)
+
+
+### Features
+
+* align extension with patchloom CLI 0.34.0 ([#273](https://github.com/patchloom/patchloom-vscode/issues/273)) ([4fe432b](https://github.com/patchloom/patchloom-vscode/commit/4fe432bf929c9c3be1f1774a323bbd30dd086141))
+* align extension with patchloom CLI 0.35.0 ([#275](https://github.com/patchloom/patchloom-vscode/issues/275)) ([d1aefd1](https://github.com/patchloom/patchloom-vscode/commit/d1aefd187da18daf712a14bb3cd22fcaf4356030))
+
 ## [0.7.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.6.0...patchloom-v0.7.0) (2026-09-08)
 
 
