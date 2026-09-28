@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.9.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.8.0...patchloom-v0.9.0) (2026-09-28)
+
+
+### Features
+
+* align the extension with Patchloom CLI 0.37.0 ([#285](https://github.com/patchloom/patchloom-vscode/issues/285)) ([aab9eba](https://github.com/patchloom/patchloom-vscode/commit/aab9ebae2cd978ef610bbbeaaf2bf179d2ef67e2))
+
+
+### Bug Fixes
+
+* reject missing files under a symlinked directory ([#284](https://github.com/patchloom/patchloom-vscode/issues/284)) ([fb6b2c2](https://github.com/patchloom/patchloom-vscode/commit/fb6b2c231a9069ef26ece54c029e75d7fff06f8d))
+* require Node 22 for vsce 4 packaging ([#282](https://github.com/patchloom/patchloom-vscode/issues/282)) ([d1ceafa](https://github.com/patchloom/patchloom-vscode/commit/d1ceafab11dfade44e0ce36557a4aff4444cd6d5))
+
 ## [0.8.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.7.0...patchloom-v0.8.0) (2026-09-18)
 
 
