@@ -48,12 +48,12 @@ export async function configureMcp(): Promise<void> {
     [
       {
         label: "Full tool inventory",
-        description: "Default (64 tools on CLI 0.35+; verified on 0.35)",
+        description: "Default (66 tools on CLI 0.37+; verified on 0.37)",
         surface: "full" as const
       },
       {
         label: "Core pack",
-        description: "Sets PATCHLOOM_MCP_SURFACE=core (11 tools; CLI 0.22+)",
+        description: "Sets PATCHLOOM_MCP_SURFACE=core (12 tools on CLI 0.37+; 11 on 0.22-0.36)",
         surface: "core" as const
       }
     ],

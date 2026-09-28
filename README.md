@@ -65,7 +65,7 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 
 When configuring, pick **Full tool inventory** (default) or **Core pack**. Core sets `PATCHLOOM_MCP_SURFACE=core` on the server entry. Existing servers in JSON or JSONC (`//` comments, trailing commas) stay in the file. A config that is not an object is left unchanged and the command reports an error.
 
-CLI **0.35.0** exposes **64** MCP tools by default (including `explain_plan`, `tidy_check`, `list_files`, and `apply_fragment`). The core pack is still 11 tools: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `server_info`. `doc` accepts `.jsonc` (comments stay on set), plus `.env`, `.ini`, and `.properties`. `doc_set` accepts `if_exists` to skip a missing file or selector. `apply_patch` accepts `apply=false` for a check-only preview. CLI `list-files` inventories ignore-aware paths the same way as MCP `list_files`. `search_files` accepts `files_without_match` (CLI 0.29+). `apply_patch` accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE (CLI 0.30+). `doc_query` can list object keys and count array or object length (CLI 0.32+). Search, replace, and tidy dests accept cwd-only globs such as `*.txt` (CLI 0.33+; use `**/*.txt` or `--glob` for nested files). Absolute paths that resolve inside the MCP workspace root are allowed; empty paths, `../`, and outside paths still reject with stable `error_kind` peels.
+CLI **0.37.0** exposes **66** MCP tools by default (including `explain_plan`, `tidy_check`, `list_files`, `apply_fragment`, `notebook_edit`, and `operation_schema`). The core pack is 12 tools on CLI 0.37+: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `operation_schema`, `server_info`. `doc` accepts `.jsonc` (comments stay on set), plus `.env`, `.ini`, and `.properties`. `doc_set` accepts `if_exists` to skip a missing file or selector. `apply_patch` accepts `apply=false` for a check-only preview. CLI `list-files` inventories ignore-aware paths the same way as MCP `list_files`. `search_files` accepts `files_without_match` (CLI 0.29+). `apply_patch` accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE (CLI 0.30+). `doc_query` can list object keys and count array or object length (CLI 0.32+). Search, replace, and tidy dests accept cwd-only globs such as `*.txt` (CLI 0.33+; use `**/*.txt` or `--glob` for nested files). Absolute paths that resolve inside the MCP workspace root are allowed; empty paths, `../`, and outside paths still reject with stable `error_kind` peels.
 
 ### Status bar
 
@@ -181,7 +181,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
 **CLI compatibility warning / upgrade path**
-The extension requires Patchloom **0.3.0** or newer; **0.35.0** is recommended. Which fix to use depends on how the CLI was resolved (status shows Source):
+The extension requires Patchloom **0.3.0** or newer; **0.37.0** is recommended. Which fix to use depends on how the CLI was resolved (status shows Source):
 
 1. **Source: managed install** → **Patchloom: Update Patchloom** (checksum-verified GitHub release into extension storage)
 2. **Source: PATH** → upgrade that install in place (**Scoop** `scoop update patchloom` on Windows; Homebrew / npm / cargo / the official installer elsewhere). Managed Install will not override a PATH binary.
@@ -231,6 +231,24 @@ On CLI 0.35+, `doc set --if-exists` (MCP `doc_set.if_exists`) succeeds and write
 
 **Undo one path from a session**
 On CLI 0.35+, `undo --path` restores only those session paths. An unknown path is `error_kind: no_matches` and does not restore the rest of the session.
+
+**SEARCH/REPLACE and Begin Patch markers**
+On CLI 0.36+, a SEARCH/REPLACE document with CRLF line endings matches an LF file. A trailing `***` on Begin Patch, End Patch, and dest markers is ignored. Dest-less SEARCH/REPLACE is still `invalid_input` on the CLI and on MCP. Pass a dest line.
+
+**INI and properties values**
+On CLI 0.37+, `doc set` on `.properties` and `.ini` writes the value as text. It does not wrap the value in quotes. A leading space is escaped. `doc get` returns that text.
+
+**Replace a markdown section**
+On CLI 0.37+, `md replace-section` keeps a body line whose text matches the heading. A leading `# Title` in the replacement is still removed so the heading is not duplicated.
+
+**Notebook cells and plan hashes**
+On CLI 0.37+, MCP `notebook_edit` replaces one Jupyter cell's source by `cell_id` and leaves the cell type and outputs. A missing id is `no_matches`. Two cells with the same id are `ambiguous`. There is no Quick Action for this. Plan `read` can return `sha256` of the whole file. `expected_sha256` refuses the plan with `stale` when that hash does not match the file text from before the plan. `agent_preset: true` on a plan forces unique replace with a fuzzy floor of 0.90. A `command_position` replace stays an exact command-token match.
+
+**Smaller execute_plan schema**
+On CLI 0.37+, the published `execute_plan` schema lists `version` and `operations`. Fetch one operation's fields with `operation_schema`. The server still accepts `ops` in place of `operations`. The full inventory is 66 tools. The core pack is 12 and includes `operation_schema`.
+
+**Tidy a directory**
+On CLI 0.37+, plan `tidy.fix` on a directory includes dotfiles such as `.gitignore`. `.git` is still skipped.
 
 **HTTP MCP Host allowlist**
 The extension's MCP server is stdio. If you bind Streamable HTTP yourself (`patchloom mcp-server --http`), non-loopback binds keep the Host allowlist. Add extra names with `--allowed-host`. Loopback still starts without `--allow-unauthenticated`.
@@ -292,7 +310,7 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 ## Requirements
 
 - VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
-- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (**0.35.0+ recommended** for JSONC / `.env` / INI / `.properties` `doc` edits, directory `rename` with undo, `doc set --if-exists`, CLI `list-files`, MCP `explain_plan` / `tidy_check` / `apply_patch` `apply=false`, HTTP MCP Host allowlist, 64 MCP tools, empty or whitespace-only edit payloads as `invalid_input`, AST `parse_timeout` (exit 4), dest/`--glob` mistakes as `invalid_input`, dest globs on search/replace/tidy (`*.txt` is cwd-only), `doc keys` / `doc len`, YAML merge-key edits that keep `<<:` and comments, Windows dest/`--cwd` rules, charset / EditorConfig `charset`, YAML alias-to-merge on `doc set`, create/rename `parent path is not a directory`, numeric selector compares (`servers[port>8000]`), `search -L` / `files_without_match`, Codex Begin Patch and Aider SEARCH/REPLACE on `patch apply`, `agent-rules --surface core` honoring `--mode`, empty-path fail-closed (`path must not be empty`), `suggested_op` on fail-closed doc navigation, `not_regular_file` soft peels, ambiguous markdown headings, `list_files` MCP inventory, `apply-fragment`, full `error_kind` peels (`binary` / `invalid_encoding` / `fuzzy_span_suspicious` / `already_exists` / `guard_rejected` / `ambiguous` / `parse_timeout` / `no_matches`), optional `PATCHLOOM_MCP_SURFACE=core` 11-tool pack, multi-doc `doc merge --selector`, line-oriented inserts, batch `replace PATH OLD NEW` hints, and agent-facing JSON envelopes)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (**0.37.0+ recommended** for JSONC / `.env` / INI / `.properties` `doc` edits, directory `rename` with undo, `doc set --if-exists`, CLI `list-files`, MCP `explain_plan` / `tidy_check` / `notebook_edit` / `operation_schema` / `apply_patch` `apply=false`, HTTP MCP Host allowlist, 66 MCP tools, empty or whitespace-only edit payloads as `invalid_input`, AST `parse_timeout` (exit 4), dest/`--glob` mistakes as `invalid_input`, dest globs on search/replace/tidy (`*.txt` is cwd-only), `doc keys` / `doc len`, YAML merge-key edits that keep `<<:` and comments, Windows dest/`--cwd` rules, charset / EditorConfig `charset`, YAML alias-to-merge on `doc set`, create/rename `parent path is not a directory`, numeric selector compares (`servers[port>8000]`), `search -L` / `files_without_match`, Codex Begin Patch and Aider SEARCH/REPLACE on `patch apply`, `agent-rules --surface core` honoring `--mode`, empty-path fail-closed (`path must not be empty`), `suggested_op` on fail-closed doc navigation, `not_regular_file` soft peels, ambiguous markdown headings, `list_files` MCP inventory, `apply-fragment`, full `error_kind` peels (`binary` / `invalid_encoding` / `fuzzy_span_suspicious` / `already_exists` / `guard_rejected` / `ambiguous` / `parse_timeout` / `no_matches`), optional `PATCHLOOM_MCP_SURFACE=core` 12-tool pack, multi-doc `doc merge --selector`, line-oriented inserts, batch `replace PATH OLD NEW` hints, and agent-facing JSON envelopes)
 
 ## Contributing
 
