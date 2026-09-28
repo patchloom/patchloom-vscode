@@ -14,7 +14,7 @@ npm run compile
 npm test
 ```
 
-**Requirements:** Node.js 20+ and VS Code 1.90+.
+**Requirements:** Node.js 22+ and VS Code 1.90+. Packaging uses `@vscode/vsce` 4, which does not run on Node 20. `.nvmrc` pins 22.
 
 ## Development workflow
 
