@@ -995,6 +995,19 @@ test("isRealPathInsideWorkspace follows symlinks and stays fail-closed", async (
       return;
     }
     assert.equal(isRealPathInsideWorkspace(workspaceRoot, linkPath), false);
+
+    const escapeDir = path.join(workspaceRoot, "escape");
+    try {
+      await fs.symlink(outsideRoot, escapeDir, "dir");
+    } catch {
+      t.skip("fs.symlink is not available on this platform");
+      return;
+    }
+    assert.equal(
+      isRealPathInsideWorkspace(workspaceRoot, path.join(workspaceRoot, "escape", "missing.txt")),
+      false,
+      "missing file under a directory symlink to outside"
+    );
   } finally {
     await fs.rm(workspaceRoot, { recursive: true, force: true });
     await fs.rm(outsideRoot, { recursive: true, force: true });

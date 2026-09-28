@@ -1961,11 +1961,42 @@ export function isPathInsideWorkspace(workspaceRoot: string, absolutePath: strin
   return isResolvedPathInsideWorkspace(workspaceRoot, absolutePath);
 }
 
+function isEnoent(error: unknown): boolean {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && (error as { code?: unknown }).code === "ENOENT";
+}
+
+/** Real path of absolutePath, or of its nearest existing ancestor plus the missing suffix. */
+function realPathAllowingMissingSuffix(absolutePath: string): string | undefined {
+  const missing: string[] = [];
+  let current = path.resolve(absolutePath);
+  while (true) {
+    try {
+      const realAncestor = realpathSync(current);
+      if (missing.length === 0) {
+        return realAncestor;
+      }
+      return path.join(realAncestor, ...missing.slice().reverse());
+    } catch (error) {
+      if (!isEnoent(error)) {
+        return undefined;
+      }
+      const parent = path.dirname(current);
+      if (parent === current) {
+        return undefined;
+      }
+      missing.push(path.basename(current));
+      current = parent;
+    }
+  }
+}
+
 /**
  * True when the real path stays inside the workspace.
- * Missing or dangling targets fall back to the lexical path so a typed
- * in-workspace miss can reach ensureWorkspaceFileReady instead of looking
- * like an escape. Existing files that realpath outside stay rejected.
+ * A missing leaf uses the nearest existing ancestor's real path plus the
+ * missing suffix. Existing files that realpath outside stay rejected.
  */
 export function isRealPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
   let realRoot: string;
@@ -1974,11 +2005,11 @@ export function isRealPathInsideWorkspace(workspaceRoot: string, absolutePath: s
   } catch {
     return false;
   }
-  try {
-    return isResolvedPathInsideWorkspace(realRoot, realpathSync(absolutePath));
-  } catch {
-    return isResolvedPathInsideWorkspace(workspaceRoot, absolutePath);
+  const resolved = realPathAllowingMissingSuffix(absolutePath);
+  if (resolved === undefined) {
+    return false;
   }
+  return isResolvedPathInsideWorkspace(realRoot, resolved);
 }
 
 export interface StagedExternalPatch {
