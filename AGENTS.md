@@ -65,6 +65,7 @@ test/
     quickActions.test.ts Quick action command building, path containment, patch merge (95 tests)
     verifyMcp.test.ts    MCP server verify and JSON-RPC response parsing (15 tests)
     downloadIntegration.test.ts  HTTP download, redirect, streaming SHA-256 (12 tests)
+    packageEngines.test.ts   engines.node major meets installed vsce and ovsx floors (1 test)
   suite/
     index.ts             VS Code extension integration tests
     runExtensionTests.ts  Test runner using @vscode/test-electron
