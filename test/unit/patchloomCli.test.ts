@@ -1243,6 +1243,11 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
       assert.ok(names.has("explain_plan"), "CLI 0.35+ full inventory includes explain_plan");
       assert.ok(names.has("tidy_check"), "CLI 0.35+ full inventory includes tidy_check");
       assert.ok(tools.length >= 64, `CLI 0.35+ full inventory is 64+ tools (got ${tools.length})`);
+      if (comparePatchloomVersions(installed, "0.37.0") >= 0) {
+        assert.ok(names.has("notebook_edit"), "CLI 0.37+ full inventory includes notebook_edit");
+        assert.ok(names.has("operation_schema"), "CLI 0.37+ full inventory includes operation_schema");
+        assert.ok(tools.length >= 66, `CLI 0.37+ full inventory is 66+ tools (got ${tools.length})`);
+      }
     }
   });
 

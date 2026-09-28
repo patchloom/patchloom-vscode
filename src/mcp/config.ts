@@ -34,7 +34,7 @@ export interface McpApplyInputs extends McpInspectionInputs {
   readonly includeKinds?: readonly McpTargetKind[];
   /**
    * MCP tool inventory for coding agents (CLI 0.22+ / 0.24+).
-   * `core` sets `PATCHLOOM_MCP_SURFACE=core` on the server entry (11 tools).
+   * `core` sets `PATCHLOOM_MCP_SURFACE=core` on the server entry (12 tools on CLI 0.37+).
    * Default `full` omits the env var so the CLI uses its full inventory.
    */
   readonly mcpSurface?: McpSurface;
