@@ -36,6 +36,10 @@ import {
   buildUndoQuickAction,
   isAllowedPreviewMiss,
   previewMissMessage,
+  DOC_SET_SELECTOR_PROMPT,
+  DOC_SET_SELECTOR_PLACEHOLDER,
+  DOC_UPDATE_SELECTOR_PROMPT,
+  DOC_UPDATE_SELECTOR_PLACEHOLDER,
   isMarkdownPath,
   isEnvDocumentPath,
   isStructuredDocumentPath,
@@ -210,6 +214,15 @@ test("isAllowedPreviewMiss rejects doc delete-where exit 3", () => {
 test("isAllowedPreviewMiss allows doc set exit 3", () => {
   const action = buildDocSetQuickAction("/workspace/demo/package.json", "scripts.test", "vitest");
   assert.equal(isAllowedPreviewMiss(action, 3), true);
+});
+
+test("doc set selector copy sends predicates to doc update", () => {
+  assert.equal(DOC_SET_SELECTOR_PLACEHOLDER, "scripts.test");
+  assert.match(DOC_SET_SELECTOR_PROMPT, /concrete path/);
+  assert.match(DOC_SET_SELECTOR_PROMPT, /Update matching structured values/);
+  assert.doesNotMatch(DOC_SET_SELECTOR_PROMPT, /accepts numeric compares/);
+  assert.match(DOC_UPDATE_SELECTOR_PROMPT, /servers\[port>8000\]/);
+  assert.match(DOC_UPDATE_SELECTOR_PLACEHOLDER, /servers\[port>8000\]/);
 });
 
 test("isAllowedPreviewMiss rejects markdown heading miss exit 3", () => {

@@ -43,6 +43,16 @@ const MARKDOWN_FILE_EXTENSIONS = new Set([".md", ".markdown", ".mdx"]);
 export const STRUCTURED_DOCUMENT_LABEL =
   "JSON, JSONC, YAML, TOML, .env, INI, or .properties";
 
+/** `doc set` accepts a concrete path. A predicate is `doc update`. */
+export const DOC_SET_SELECTOR_PROMPT =
+  "Selector path. Use a concrete path such as scripts.test. A predicate such as servers[port>8000] goes to Update matching structured values.";
+export const DOC_SET_SELECTOR_PLACEHOLDER = "scripts.test";
+
+/** `doc update` is the multi-match write, including numeric compares. */
+export const DOC_UPDATE_SELECTOR_PROMPT =
+  "Selector path (wildcards, predicates, and numeric compares such as items[name=foo].v or servers[port>8000])";
+export const DOC_UPDATE_SELECTOR_PLACEHOLDER = "items[*].enabled or servers[port>8000]";
+
 export type TidyFix = "ensure-final-newline" | "trim-trailing-whitespace" | "normalize-eol-lf";
 
 export interface PlannedQuickAction {
@@ -371,8 +381,8 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const selector = await vscode.window.showInputBox({
-          prompt: "Selector path (CLI 0.30+ accepts numeric compares such as servers[port>8000])",
-          placeHolder: "scripts.test or servers[port>8000]",
+          prompt: DOC_SET_SELECTOR_PROMPT,
+          placeHolder: DOC_SET_SELECTOR_PLACEHOLDER,
           validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
         });
         if (selector === undefined) {
@@ -403,8 +413,8 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const selector = await vscode.window.showInputBox({
-          prompt: "Selector path (wildcards and predicates such as items[*].enabled)",
-          placeHolder: "items[*].enabled or items[name=foo].v",
+          prompt: DOC_UPDATE_SELECTOR_PROMPT,
+          placeHolder: DOC_UPDATE_SELECTOR_PLACEHOLDER,
           validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
         });
         if (selector === undefined) {
