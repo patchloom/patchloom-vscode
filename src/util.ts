@@ -88,10 +88,24 @@ const QUICK_ACTION_DELETE_WHERE_HINT =
   '(try Quick Action "Delete matching array items" or CLI `doc delete-where`)';
 
 /**
+ * A suggestion ("use doc update", "try doc.delete_where"), not the name of
+ * the operation that just failed ("doc.update matched nothing").
+ */
+function mentionsSuggestedCommand(raw: string, commands: readonly string[]): boolean {
+  const folded = raw.toLowerCase();
+  return commands.some((command) =>
+    folded.includes(`try ${command}`) ||
+    folded.includes(`use ${command}`) ||
+    folded.includes(`use: ${command}`) ||
+    folded.includes(`retry with ${command}`)
+  );
+}
+
+/**
  * Quick Action toast wrapper around formatCliOutput. Agents still parse the
  * CLI token from formatCliOutput; picker labels are for humans in the UI.
- * Preview does not pass --json, so also scan human stderr for suggested_op
- * tokens (doc.update, doc update, doc.delete_where, doc delete-where).
+ * Preview does not pass --json, so also scan human stderr for suggestion
+ * phrasing. The failing operation's own name is not a suggestion.
  */
 export function formatQuickActionCliOutput(result: {
   exitCode: number;
@@ -103,15 +117,21 @@ export function formatQuickActionCliOutput(result: {
     .replaceAll("(try doc.delete_where)", QUICK_ACTION_DELETE_WHERE_HINT);
 
   const raw = `${result.stderr}\n${result.stdout}`;
-  const mentionsUpdate = raw.includes("doc.update") || raw.includes("doc update");
-  const mentionsDelete =
-    raw.includes("doc.delete_where") || raw.includes("doc delete-where");
+  const suggestsUpdate = mentionsSuggestedCommand(raw, ["doc.update", "doc update"]);
+  const suggestsDelete = mentionsSuggestedCommand(raw, ["doc.delete_where", "doc delete-where"]);
+  const namesDeleteOp = raw.includes("doc.delete_where") || raw.includes("doc delete-where");
   const mentionsSuggestedOp = raw.includes("suggested_op");
 
-  if (!formatted.includes(QUICK_ACTION_UPDATE_HINT) && (mentionsUpdate || (mentionsSuggestedOp && !mentionsDelete))) {
+  if (
+    !formatted.includes(QUICK_ACTION_UPDATE_HINT) &&
+    (suggestsUpdate || (mentionsSuggestedOp && !namesDeleteOp))
+  ) {
     formatted = `${formatted} ${QUICK_ACTION_UPDATE_HINT}`;
   }
-  if (!formatted.includes(QUICK_ACTION_DELETE_WHERE_HINT) && mentionsDelete) {
+  if (
+    !formatted.includes(QUICK_ACTION_DELETE_WHERE_HINT) &&
+    (suggestsDelete || (mentionsSuggestedOp && namesDeleteOp))
+  ) {
     formatted = `${formatted} ${QUICK_ACTION_DELETE_WHERE_HINT}`;
   }
   return formatted;

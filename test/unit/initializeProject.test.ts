@@ -402,6 +402,24 @@ test("formatQuickActionCliOutput maps human stderr doc.delete_where to the picke
   );
 });
 
+test("formatQuickActionCliOutput does not suggest doc update when that operation matched nothing", () => {
+  const stderr =
+    "operation 1 (doc.update) failed: d.json: doc.update matched nothing for selector 'servers[port>8000]'";
+  assert.equal(
+    formatQuickActionCliOutput({ exitCode: 3, stdout: "", stderr }),
+    stderr
+  );
+});
+
+test("formatQuickActionCliOutput maps a colon Use: doc update hint to the picker label", () => {
+  const stderr =
+    "selector uses wildcard/predicate, which is not valid for doc.set (single path only). Use: doc update <file> 'items[id=b].val' <value>";
+  assert.equal(
+    formatQuickActionCliOutput({ exitCode: 1, stdout: "", stderr }),
+    `${stderr} (try Quick Action "Update matching structured values" or CLI \`doc update\`)`
+  );
+});
+
 test("formatCliOutput keeps dotted suggested_op token for agents", () => {
   const stdout = JSON.stringify({
     ok: false,
