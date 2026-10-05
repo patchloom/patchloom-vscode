@@ -72,6 +72,7 @@ export interface BatchApplyReport {
   readonly filesChanged: number;
   readonly filesCreated: number;
   readonly filesDeleted: number;
+  readonly filesRenamed: number;
   readonly matchCount: number | undefined;
   readonly refused: readonly BatchRefusedOperation[];
   readonly unchanged: readonly BatchUnchangedMutation[];
@@ -88,6 +89,7 @@ export function parseBatchApplyReport(stdout: string): BatchApplyReport | undefi
       files_changed?: unknown;
       files_created?: unknown;
       files_deleted?: unknown;
+      files_renamed?: unknown;
       match_count?: unknown;
       refused?: unknown;
       mutations?: unknown;
@@ -115,6 +117,7 @@ export function parseBatchApplyReport(stdout: string): BatchApplyReport | undefi
       filesChanged: parsed.files_changed,
       filesCreated: typeof parsed.files_created === "number" ? parsed.files_created : 0,
       filesDeleted: typeof parsed.files_deleted === "number" ? parsed.files_deleted : 0,
+      filesRenamed: typeof parsed.files_renamed === "number" ? parsed.files_renamed : 0,
       matchCount: typeof parsed.match_count === "number" ? parsed.match_count : undefined,
       refused,
       unchanged: unchangedMutations(parsed.mutations)
@@ -133,6 +136,7 @@ export interface BatchApplyCompletion {
  * Exit 0 is not "every plan line was applied". CLI 0.37 keeps earlier writes
  * when another replace matches nothing (`refused` or `match_count: 0`) or
  * when `doc.delete` removes nothing (`mutations[].changed === false`).
+ * A rename-only plan has `files_changed: 0` and `files_renamed: 1`.
  */
 export function formatBatchApplyCompletion(stdout: string, operationCount: number): BatchApplyCompletion {
   const report = parseBatchApplyReport(stdout);
@@ -176,6 +180,9 @@ function describeBatchFileTally(report: BatchApplyReport): string {
   }
   if (report.filesDeleted > 0) {
     parts.push(`${report.filesDeleted} file(s) deleted`);
+  }
+  if (report.filesRenamed > 0) {
+    parts.push(`${report.filesRenamed} file(s) renamed`);
   }
   return parts.length > 0 ? parts.join(", ") : "no files changed";
 }

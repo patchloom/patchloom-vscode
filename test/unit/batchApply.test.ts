@@ -248,6 +248,20 @@ test("formatBatchApplyCompletion warns when a same-file replace reports match_co
   assert.match(completion.message, /1 file\(s\) changed/);
 });
 
+test("formatBatchApplyCompletion reports a rename when no file content changed", () => {
+  const stdout = JSON.stringify({
+    ok: true,
+    applied: true,
+    files_changed: 0,
+    files_created: 0,
+    files_deleted: 0,
+    files_renamed: 1
+  });
+  const completion = formatBatchApplyCompletion(stdout, 1);
+  assert.equal(completion.warning, false);
+  assert.equal(completion.message, "Batch apply completed: 1 file(s) renamed.");
+});
+
 test("formatBatchApplyCompletion reports created files without a zero changed count", () => {
   const stdout = JSON.stringify({
     ok: true,
