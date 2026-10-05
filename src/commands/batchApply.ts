@@ -13,12 +13,13 @@ import { activeWorkspaceFolder } from "../workspace/readiness.js";
 import { serializePatchloomArgs } from "./quickActions.js";
 
 // Batch replace is PATH OLD NEW (not CLI `replace OLD --new NEW path`). See CLI 0.18+ batch --help.
+// --insert-after is not a batch flag. The CLI stores that token as the new text.
 // doc.update / doc.delete_where are the multi-match siblings of doc.set / doc.delete
 // (CLI 0.27+ suggested_op hints this).
 export const BATCH_TEMPLATE = [
   "replace src/example.ts \"old text\" \"new text\"",
   "replace src/example.ts \"typo_here\" \"fixed\" --fuzzy --min-fuzzy-score 0.80",
-  "replace src/example.ts \"anchor_line\" --insert-after=\"new sibling line\"",
+  "file.prepend src/example.ts \"header line\"",
   "doc.set package.json version \"2.0.0\"",
   "doc.set tsconfig.jsonc compilerOptions.strict true",
   "doc.update data.json \"items[*].enabled\" true",

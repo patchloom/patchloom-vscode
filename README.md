@@ -258,7 +258,7 @@ The extension's MCP server is stdio. If you bind Streamable HTTP yourself (`patc
 On CLI 0.30+, `patch apply` (and MCP `apply_patch`) accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE. Update and SEARCH matches must be unique unless you pass `--replace-all` (SEARCH/REPLACE only). The Quick Action **Apply patch (unified / Begin Patch / SEARCH-REPLACE)** builds `patch apply`. **Merge patch (three-way)** is still `patch merge` for stale unified diffs.
 
 **Batch replace shape**
-Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). Do not paste CLI form `replace OLD --new NEW path` into a batch plan; CLI 0.18+ returns a clear parse error with the PATH OLD NEW hint.
+Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). Do not paste CLI form `replace OLD --new NEW path` into a batch plan; CLI 0.18+ returns a clear parse error with the PATH OLD NEW hint. `--insert-after` is not a batch flag. The Quick Action **Insert text after match** uses it. In a batch plan that token is the new text, so the matched line is replaced. Prepend with `file.prepend PATH "text"`.
 
 **Batch doc.update / delete_where shape**
 Batch lines use `doc.update PATH SELECTOR VALUE` and `doc.delete_where PATH SELECTOR PREDICATE`. These are dotted batch ops (path, then selector, then value or predicate).

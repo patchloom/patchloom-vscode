@@ -15,7 +15,8 @@ test("buildBatchTemplate returns line-oriented format with twelve operations", (
   assert.equal(lines.length, 12);
   assert.ok(lines[0].startsWith("replace "), "first line should be a replace operation");
   assert.ok(lines[1].startsWith("replace ") && lines[1].includes("--fuzzy"), "second line should be fuzzy replace");
-  assert.ok(lines[2].startsWith("replace ") && lines[2].includes("--insert-after"), "third line should be insert-after");
+  assert.ok(lines[2].startsWith("file.prepend "), "third line should be file.prepend");
+  assert.equal(lines.some((line) => line.includes("--insert-after")), false);
   assert.ok(lines[3].startsWith("doc.set "), "fourth line should be a doc.set operation");
   assert.ok(lines[4].startsWith("doc.set ") && lines[4].includes("tsconfig.jsonc"), "fifth line should be JSONC doc.set");
   assert.ok(lines[5].startsWith("doc.update "), "sixth line should be multi-match doc.update");
@@ -137,15 +138,11 @@ test("buildBatchTemplate doc.merge line uses path selector value (CLI 0.16 multi
   assert.match(mergeLine, /\s0\s/, "example should merge into document 0");
 });
 
-test("buildBatchTemplate includes replace --insert-after example (CLI 0.16)", () => {
+test("buildBatchTemplate uses file.prepend instead of a batch --insert-after token", () => {
   const lines = buildBatchTemplate().split("\n");
-  const insertLine = lines.find((l) => l.includes("--insert-after"));
-  assert.ok(insertLine, "template should contain an insert-after example");
-  assert.match(
-    insertLine,
-    /replace \S+ ".+" --insert-after=/,
-    "insert-after should use batch flag form path pattern --insert-after=payload"
-  );
+  const prependLine = lines.find((line) => line.startsWith("file.prepend "));
+  assert.equal(prependLine, "file.prepend src/example.ts \"header line\"");
+  assert.equal(lines.some((line) => line.includes("--insert-after")), false);
 });
 
 test("buildBatchTemplate includes JSONC doc.set and directory file.rename (CLI 0.35+)", () => {
