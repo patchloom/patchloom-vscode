@@ -453,10 +453,10 @@ test("performManagedInstall runs full pipeline with injected I/O", async () => {
         }
       },
       extractArchive: async (inputs) => {
-        // Simulate extraction: create the binary in staging
-        const txPaths = resolveManagedInstallTransactionPaths(installRoot, target);
-        await fs.mkdir(path.dirname(txPaths.stagedBinaryPath), { recursive: true });
-        await fs.writeFile(txPaths.stagedBinaryPath, "#!/bin/sh\necho patchloom 0.1.0\n", { mode: 0o755 });
+        // Unix cargo-dist layout: patchloom-<triple>/patchloom
+        const extracted = path.join(inputs.destDir, `patchloom-${target.targetTriple}`, "patchloom");
+        await fs.mkdir(path.dirname(extracted), { recursive: true });
+        await fs.writeFile(extracted, "#!/bin/sh\necho patchloom 0.1.0\n", { mode: 0o755 });
       },
       readFileContent: async (filePath) => {
         return fs.readFile(filePath, "utf8");
@@ -549,14 +549,84 @@ test("performManagedInstall fetches latest version when none specified", async (
         }
       },
       extractArchive: async (inputs) => {
-        const txPaths = resolveManagedInstallTransactionPaths(installRoot, target);
-        await fs.mkdir(path.dirname(txPaths.stagedBinaryPath), { recursive: true });
-        await fs.writeFile(txPaths.stagedBinaryPath, "binary-0.3.0", { mode: 0o755 });
+        const extracted = path.join(inputs.destDir, `patchloom-${target.targetTriple}`, "patchloom");
+        await fs.mkdir(path.dirname(extracted), { recursive: true });
+        await fs.writeFile(extracted, "binary-0.3.0", { mode: 0o755 });
       },
       readFileContent: async (filePath) => fs.readFile(filePath, "utf8"),
       failurePersistence: { storageRoot: installRoot }
     });
 
     assert.equal(result.version, "0.3.0");
+  });
+});
+
+test("performManagedInstall promotes patchloom.exe from a flat Windows zip", async () => {
+  await withTempDir(async (installRoot) => {
+    const target = detectManagedInstallTarget("win32", "x64");
+    assert.ok(target);
+    // SHA-256 of "fake-archive-content"
+    const checksumContent = "fd3d4b42292957ad0b649621615962140c857fbf7342038d6cc6b2b1ab8c3411  patchloom-x86_64-pc-windows-msvc.zip\n";
+
+    const result = await performManagedInstall({
+      installRoot,
+      version: "0.37.0",
+      platform: "win32",
+      arch: "x64",
+      downloadFile: async (inputs) => {
+        await fs.mkdir(path.dirname(inputs.destPath), { recursive: true });
+        if (inputs.url.endsWith(".sha256")) {
+          await fs.writeFile(inputs.destPath, checksumContent, "utf8");
+        } else {
+          await fs.writeFile(inputs.destPath, "fake-archive-content", "utf8");
+        }
+      },
+      extractArchive: async (inputs) => {
+        // patchloom 0.37.0 Windows zip: patchloom.exe at the archive root.
+        await fs.writeFile(path.join(inputs.destDir, "patchloom.exe"), "windows-binary", "utf8");
+      },
+      readFileContent: async (filePath) => fs.readFile(filePath, "utf8"),
+      failurePersistence: { storageRoot: installRoot }
+    });
+
+    assert.equal(result.version, "0.37.0");
+    assert.equal(result.target.targetTriple, "x86_64-pc-windows-msvc");
+    assert.ok(result.binaryPath.endsWith(`${path.sep}patchloom.exe`));
+    assert.equal(await fs.readFile(result.binaryPath, "utf8"), "windows-binary");
+  });
+});
+
+test("performManagedInstall reports a missing extracted binary", async () => {
+  await withTempDir(async (installRoot) => {
+    clearManagedInstallFailure();
+    const checksumContent = "fd3d4b42292957ad0b649621615962140c857fbf7342038d6cc6b2b1ab8c3411  patchloom-x86_64-pc-windows-msvc.zip\n";
+
+    await assert.rejects(
+      () => performManagedInstall({
+        installRoot,
+        version: "0.37.0",
+        platform: "win32",
+        arch: "x64",
+        downloadFile: async (inputs) => {
+          await fs.mkdir(path.dirname(inputs.destPath), { recursive: true });
+          if (inputs.url.endsWith(".sha256")) {
+            await fs.writeFile(inputs.destPath, checksumContent, "utf8");
+          } else {
+            await fs.writeFile(inputs.destPath, "fake-archive-content", "utf8");
+          }
+        },
+        extractArchive: async (inputs) => {
+          await fs.writeFile(path.join(inputs.destDir, "README.md"), "no binary", "utf8");
+        },
+        readFileContent: async (filePath) => fs.readFile(filePath, "utf8"),
+        failurePersistence: { storageRoot: installRoot }
+      }),
+      /did not contain patchloom\.exe/
+    );
+
+    const failure = await loadManagedInstallFailure({ storageRoot: installRoot });
+    assert.ok(failure);
+    assert.equal(failure.stage, "extract");
+    assert.equal(failure.reason, "extract-failed");
   });
 });
