@@ -510,6 +510,36 @@ test("resolveWorkspaceRelativePath rejects workspace root itself", () => {
   );
 });
 
+test("resolveWorkspaceRelativePath accepts the real path of a symlinked workspace", async (t) => {
+  const realRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-rel-"));
+  const linkRoot = `${realRoot}-link`;
+  const outside = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-rel-out-"));
+  try {
+    await fs.writeFile(path.join(realRoot, "a.ts"), "x");
+    try {
+      await fs.symlink(realRoot, linkRoot, "dir");
+    } catch {
+      t.skip("fs.symlink is not available on this platform");
+      return;
+    }
+
+    assert.equal(resolveWorkspaceRelativePath(linkRoot, path.join(realRoot, "a.ts")), "a.ts");
+    assert.equal(resolveWorkspaceRelativePath(realRoot, path.join(linkRoot, "a.ts")), "a.ts");
+    assert.equal(
+      resolveWorkspaceRelativePath(linkRoot, path.join(realRoot, "src", "new.ts")),
+      "src/new.ts"
+    );
+    assert.throws(
+      () => resolveWorkspaceRelativePath(linkRoot, path.join(outside, "x.ts")),
+      /must stay inside the current workspace folder/
+    );
+  } finally {
+    await fs.rm(realRoot, { recursive: true, force: true });
+    await fs.rm(linkRoot, { force: true });
+    await fs.rm(outside, { recursive: true, force: true });
+  }
+});
+
 // --- #32: edge-case builder tests ---
 
 test("buildSearchQuickAction with empty pattern produces valid args", () => {

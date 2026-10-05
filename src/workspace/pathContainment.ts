@@ -71,14 +71,33 @@ export function isRealPathInsideWorkspace(root: string, absolutePath: string): b
   return isResolvedPathInsideRoot(realRoot, resolved);
 }
 
-export function resolveWorkspaceRelativePath(workspaceRoot: string, absolutePath: string): string {
-  const resolvedRoot = path.resolve(workspaceRoot);
-  const resolvedPath = path.resolve(absolutePath);
-  const relativePath = path.relative(resolvedRoot, resolvedPath);
+const workspacePathError =
+  "File path must stay inside the current workspace folder. Use a path under this folder (for example src/app.ts), or open the folder that owns the file.";
+
+function relativeInsideRoot(root: string, absolutePath: string): string | undefined {
+  const relativePath = path.relative(path.resolve(root), path.resolve(absolutePath));
   if (!relativePath || pathEscapesRoot(relativePath) || path.isAbsolute(relativePath)) {
-    throw new Error(
-      "File path must stay inside the current workspace folder. Use a path under this folder (for example src/app.ts), or open the folder that owns the file."
-    );
+    return undefined;
   }
   return relativePath.split(path.sep).join("/");
+}
+
+export function resolveWorkspaceRelativePath(workspaceRoot: string, absolutePath: string): string {
+  const lexical = relativeInsideRoot(workspaceRoot, absolutePath);
+  if (lexical) {
+    return lexical;
+  }
+  // /var and /tmp are symlinks to /private on macOS. The folder URI and a
+  // pasted path can name one file with two prefixes. Accept that only when
+  // the real path is still inside the real workspace.
+  if (isRealPathInsideWorkspace(workspaceRoot, absolutePath)) {
+    const realFile = realPathAllowingMissingSuffix(absolutePath);
+    if (realFile) {
+      const viaReal = relativeInsideRoot(realpathSync(workspaceRoot), realFile);
+      if (viaReal) {
+        return viaReal;
+      }
+    }
+  }
+  throw new Error(workspacePathError);
 }
