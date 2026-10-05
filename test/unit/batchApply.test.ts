@@ -54,6 +54,18 @@ test("parseBatchOperationCount ignores blank lines between operations", () => {
   assert.equal(parseBatchOperationCount(plan), 2);
 });
 
+test("parseBatchOperationCount ignores # comments the CLI skips", () => {
+  const plan = [
+    "# note",
+    "  # indented",
+    'replace a.txt "x" "y"',
+    ""
+  ].join("\n");
+  assert.equal(parseBatchOperationCount(plan), 1);
+  assert.equal(parseBatchOperationCount("\uFEFF# only a comment\n"), 0);
+  assert.equal(parseBatchOperationCount("\uFEFFtidy.fix src/main.ts\n"), 1);
+});
+
 test("parseBatchOperationCount counts a single operation", () => {
   assert.equal(parseBatchOperationCount('tidy.fix src/main.ts'), 1);
 });
@@ -61,6 +73,7 @@ test("parseBatchOperationCount counts a single operation", () => {
 test("isEmptyBatchPlan is true for empty and whitespace-only plans", () => {
   assert.equal(isEmptyBatchPlan(""), true);
   assert.equal(isEmptyBatchPlan("   \n  \n"), true);
+  assert.equal(isEmptyBatchPlan("# comment only\n  # still a comment\n"), true);
 });
 
 test("isEmptyBatchPlan is false when at least one operation is present", () => {
@@ -175,4 +188,5 @@ test("buildBatchApplyArgs prefixes global --contain before batch --apply", () =>
 test("BATCH_APPLY_PROMPT names dotted doc.update and doc.delete_where shapes", () => {
   assert.match(BATCH_APPLY_PROMPT, /doc\.update PATH SELECTOR VALUE/);
   assert.match(BATCH_APPLY_PROMPT, /doc\.delete_where PATH SELECTOR PREDICATE/);
+  assert.match(BATCH_APPLY_PROMPT, /first non-whitespace character is #/);
 });

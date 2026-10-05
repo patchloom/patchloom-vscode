@@ -36,10 +36,15 @@ export function buildBatchTemplate(): string {
 }
 
 export const BATCH_APPLY_PROMPT =
-  "Edit the batch plan, then click Apply to execute all operations atomically. Multi-match lines use dotted batch ops: doc.update PATH SELECTOR VALUE and doc.delete_where PATH SELECTOR PREDICATE.";
+  "Edit the batch plan, then click Apply to execute all operations atomically. Lines whose first non-whitespace character is # are comments and are not applied. Multi-match lines use dotted batch ops: doc.update PATH SELECTOR VALUE and doc.delete_where PATH SELECTOR PREDICATE.";
 
+/** Count operations `patchloom batch` will run. A leading BOM, blank lines, and `#` comments are ignored. */
 export function parseBatchOperationCount(plan: string): number {
-  return plan.split("\n").filter((line) => line.trim().length > 0).length;
+  const body = plan.charCodeAt(0) === 0xfeff ? plan.slice(1) : plan;
+  return body.split("\n").filter((line) => {
+    const trimmed = line.trim();
+    return trimmed.length > 0 && !trimmed.startsWith("#");
+  }).length;
 }
 
 /** True when the plan has no non-empty operation lines. */
