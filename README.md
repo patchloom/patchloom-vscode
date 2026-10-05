@@ -72,8 +72,8 @@ CLI **0.37.0** exposes **66** MCP tools by default (including `explain_plan`, `t
 
 The status bar shows MCP and binary readiness at a glance:
 
-- **$(plug) Patchloom MCP** when the MCP server is configured
-- **$(check) Patchloom** when the binary is ready but MCP is not yet set up
+- **$(plug) Patchloom**, with the detected version when known (`$(plug) Patchloom v0.37.0`), when an MCP config file is configured
+- **$(check) Patchloom**, with the detected version when known, when the binary is ready and MCP is not configured
 - **$(warning) Patchloom** when the binary is missing or needs an upgrade
 
 Click it to see full diagnostics, including per-file MCP configuration status (VS Code, portable workspace, Cursor, Windsurf).

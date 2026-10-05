@@ -50,5 +50,8 @@ cargo install patchloom
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/patchloom/patchloom/releases/latest/download/patchloom-installer.sh | sh
 ```
 
-After installation, the status bar shows a green checkmark when the CLI
-is detected.
+After installation, the status bar shows `$(check) Patchloom` when the
+CLI is detected and MCP is not configured yet. It shows `$(plug) Patchloom`
+when an MCP config file is configured, and `$(warning) Patchloom` when
+the CLI is missing or too old. A detected version is appended on the
+check and plug states.
