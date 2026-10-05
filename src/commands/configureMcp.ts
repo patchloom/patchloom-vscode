@@ -3,9 +3,14 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import { getPatchloomLog, writeUserVisibleOutput } from "../logging/outputChannel.js";
-import { configureMcpTargets, inspectMcpTargets, readMcpConfigText } from "../mcp/config.js";
+import {
+  configureMcpTargets,
+  formatMcpConfigureFailureMessage,
+  inspectMcpTargets,
+  McpConfigureError,
+  readMcpConfigText
+} from "../mcp/config.js";
 import { refreshStatusBar } from "../status/statusBar.js";
-import { formatError } from "../util.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 
 export async function configureMcp(): Promise<void> {
@@ -80,11 +85,14 @@ export async function configureMcp(): Promise<void> {
       }
     });
   } catch (error) {
-    const message = formatError(error);
+    const message = formatMcpConfigureFailureMessage(error);
     const log = getPatchloomLog();
     writeUserVisibleOutput(log, message);
     log?.show();
-    await vscode.window.showErrorMessage(`Failed to configure MCP: ${message}`);
+    await vscode.window.showErrorMessage(message);
+    if (error instanceof McpConfigureError && error.completed.some((result) => result.changed)) {
+      await refreshStatusBar();
+    }
     return;
   }
 

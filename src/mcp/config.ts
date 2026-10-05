@@ -26,6 +26,27 @@ export interface McpTargetResult extends McpTargetStatus {
   readonly changed: boolean;
 }
 
+/** A configure stop after zero or more targets were already written. */
+export class McpConfigureError extends Error {
+  readonly completed: readonly McpTargetResult[];
+
+  constructor(message: string, completed: readonly McpTargetResult[]) {
+    super(message);
+    this.name = "McpConfigureError";
+    this.completed = completed;
+  }
+}
+
+/** Toast text when configure stops. Names targets that were already saved. */
+export function formatMcpConfigureFailureMessage(error: unknown): string {
+  const message = error instanceof Error && error.message.length > 0 ? error.message : String(error);
+  const changed = error instanceof McpConfigureError
+    ? error.completed.filter((result) => result.changed).length
+    : 0;
+  const saved = changed > 0 ? `Updated ${changed} MCP config target(s). ` : "";
+  return `${saved}Failed to configure MCP: ${message}`;
+}
+
 export interface McpInspectionInputs {
   readonly workspaceFolderPath?: string;
   readonly homeDir?: string;
@@ -90,41 +111,49 @@ export async function configureMcpTargets(inputs: McpApplyInputs): Promise<McpTa
   const mcpSurface = inputs.mcpSurface ?? "full";
 
   for (const target of targets) {
-    assertMcpConfigWriteContained(target, inputs.workspaceFolderPath);
-    const content = await readFile(target.filePath);
-    const original = parseJsonObject(content, target.filePath);
-    const entry = entryForKind(target.kind, patchloomCommand, mcpSurface);
-    const key = usesMcpServersKey(target.kind) ? "mcpServers" : "servers";
-    const existingRoot = original[key];
-    const currentEntry = isPlainObject(existingRoot) ? existingRoot.patchloom : undefined;
-    const hasText = typeof content === "string" && content.trim().length > 0;
+    try {
+      assertMcpConfigWriteContained(target, inputs.workspaceFolderPath);
+      const content = await readFile(target.filePath);
+      const original = parseJsonObject(content, target.filePath);
+      const entry = entryForKind(target.kind, patchloomCommand, mcpSurface);
+      const key = usesMcpServersKey(target.kind) ? "mcpServers" : "servers";
+      const existingRoot = original[key];
+      const currentEntry = isPlainObject(existingRoot) ? existingRoot.patchloom : undefined;
+      const hasText = typeof content === "string" && content.trim().length > 0;
 
-    if (hasText && isPlainObject(existingRoot) && stableJson(currentEntry) === stableJson(entry)) {
+      if (hasText && isPlainObject(existingRoot) && stableJson(currentEntry) === stableJson(entry)) {
+        results.push({
+          ...target,
+          exists: true,
+          configured: true,
+          changed: false
+        });
+        continue;
+      }
+
+      if (hasText && existingRoot !== undefined && !isPlainObject(existingRoot)) {
+        throw new Error(`Cannot update MCP config ${target.filePath}: "${key}" must be a JSON object`);
+      }
+
+      // JSON.stringify of the parse drops comments and trailing commas.
+      const serialized = typeof content === "string" && content.trim().length > 0
+        ? applyPatchloomEntry(content, key, entry)
+        : `${JSON.stringify(withPatchloomEntry(target.kind, original, patchloomCommand, mcpSurface), null, 2)}\n`;
+      await inputs.writeFile(target.filePath, serialized);
+
       results.push({
         ...target,
-        exists: true,
+        exists: content !== undefined,
         configured: true,
-        changed: false
+        changed: true
       });
-      continue;
+    } catch (error) {
+      if (error instanceof McpConfigureError) {
+        throw error;
+      }
+      const message = error instanceof Error && error.message.length > 0 ? error.message : String(error);
+      throw new McpConfigureError(message, results);
     }
-
-    if (hasText && existingRoot !== undefined && !isPlainObject(existingRoot)) {
-      throw new Error(`Cannot update MCP config ${target.filePath}: "${key}" must be a JSON object`);
-    }
-
-    // JSON.stringify of the parse drops comments and trailing commas.
-    const serialized = typeof content === "string" && content.trim().length > 0
-      ? applyPatchloomEntry(content, key, entry)
-      : `${JSON.stringify(withPatchloomEntry(target.kind, original, patchloomCommand, mcpSurface), null, 2)}\n`;
-    await inputs.writeFile(target.filePath, serialized);
-
-    results.push({
-      ...target,
-      exists: content !== undefined,
-      configured: true,
-      changed: true
-    });
   }
 
   return results;

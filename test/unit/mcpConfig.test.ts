@@ -7,7 +7,9 @@ import { parse as parseJsonc } from "jsonc-parser";
 import {
   buildPatchloomMcpEntry,
   configureMcpTargets,
+  formatMcpConfigureFailureMessage,
   inspectMcpTargets,
+  McpConfigureError,
   resolveMcpTargets
 } from "../../src/mcp/config.js";
 
@@ -184,6 +186,44 @@ test("configureMcpTargets refuses a non-object servers value", async () => {
       /must be a JSON object/
     );
     assert.equal(await fs.readFile(filePath, "utf8"), original);
+  });
+});
+
+test("configureMcpTargets keeps earlier target writes when a later target is not an object", async () => {
+  await withTempDir(async (workspace) => {
+    const vscodeDir = path.join(workspace, ".vscode");
+    await fs.mkdir(vscodeDir, { recursive: true });
+    await fs.writeFile(path.join(vscodeDir, "mcp.json"), "{}\n", "utf8");
+    const portablePath = path.join(workspace, ".mcp.json");
+    const portableOriginal = `{ "mcpServers": [] }\n`;
+    await fs.writeFile(portablePath, portableOriginal, "utf8");
+
+    await assert.rejects(
+      () => configureMcpTargets({
+        workspaceFolderPath: workspace,
+        homeDir: workspace,
+        includeKinds: ["vscode-workspace", "portable-workspace"],
+        patchloomPathSetting: "patchloom",
+        readFile: async (targetPath) => fs.readFile(targetPath, "utf8"),
+        writeFile: async (targetPath, content) => {
+          await fs.writeFile(targetPath, content, "utf8");
+        }
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof McpConfigureError);
+        assert.equal(error.completed.length, 1);
+        assert.equal(error.completed[0]?.kind, "vscode-workspace");
+        assert.equal(error.completed[0]?.changed, true);
+        assert.match(formatMcpConfigureFailureMessage(error), /^Updated 1 MCP config target\(s\)\. Failed to configure MCP: Cannot update MCP config /);
+        assert.match(formatMcpConfigureFailureMessage(error), /"mcpServers" must be a JSON object$/);
+        return true;
+      }
+    );
+
+    const vscodeConfig = await readJson(path.join(vscodeDir, "mcp.json"));
+    const servers = vscodeConfig.servers as Record<string, { command?: string }>;
+    assert.equal(servers.patchloom?.command, "patchloom");
+    assert.equal(await fs.readFile(portablePath, "utf8"), portableOriginal);
   });
 });
 
