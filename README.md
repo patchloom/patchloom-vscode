@@ -276,7 +276,7 @@ On CLI 0.22+, over-wide fuzzy matches can report `error_kind: fuzzy_span_suspici
 On CLI 0.27+, `doc set` / `doc ensure` / `doc delete` with a predicate or wildcard selector stay `error_kind: invalid_input` and may include `suggested_op`. Standalone CLI is `doc update` / `doc delete-where`; batch plans use `doc.update` / `doc.delete_where`. The extension surfaces that hint in notifications; full CLI text for search, undo, patch-merge, and batch apply is in the Output channel. Use the multi-match op (or a concrete index path such as `items.0.val`). The matching Quick Actions are **Update matching structured values** and **Delete matching array items**.
 
 **Ambiguous markdown heading**
-On CLI 0.25+, section ops that match the same heading more than once report `error_kind: ambiguous`. Make the heading unique or use a level-qualified query (for example `## Rules`).
+On CLI 0.25+, section ops that match the same heading more than once report `error_kind: ambiguous`. Make the heading unique or use a level-qualified query (for example `## Rules`). A heading that is absent is reported as not found, and the Quick Action preview shows that error.
 
 **MCP config not injected**
 Run `Patchloom: Configure MCP` and select the target editor config.

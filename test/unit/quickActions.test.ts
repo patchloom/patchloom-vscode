@@ -212,6 +212,21 @@ test("isAllowedPreviewMiss allows doc set exit 3", () => {
   assert.equal(isAllowedPreviewMiss(action, 3), true);
 });
 
+test("isAllowedPreviewMiss rejects markdown heading miss exit 3", () => {
+  const actions = [
+    buildMdReplaceSectionQuickAction("/workspace/demo/CHANGELOG.md", "## Missing", "x"),
+    buildMdTableAppendQuickAction("/workspace/demo/CHANGELOG.md", "## Missing", "| a | b |"),
+    buildMdUpsertBulletQuickAction("/workspace/demo/CHANGELOG.md", "## Missing", "x"),
+    buildMdInsertAfterHeadingQuickAction("/workspace/demo/CHANGELOG.md", "## Missing", "x"),
+    buildMdInsertAfterSectionQuickAction("/workspace/demo/CHANGELOG.md", "## Missing", "## FAQ"),
+    buildMdInsertBeforeHeadingQuickAction("/workspace/demo/CHANGELOG.md", "## Missing", "x")
+  ];
+  for (const action of actions) {
+    assert.equal(action.args[0], "md");
+    assert.equal(isAllowedPreviewMiss(action, 3), false);
+  }
+});
+
 test("isAllowedPreviewMiss rejects exit 0", () => {
   const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
   assert.equal(isAllowedPreviewMiss(action, 0), false);
