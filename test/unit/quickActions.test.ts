@@ -49,6 +49,7 @@ import {
   stageExternalPatchInWorkspace,
   formatUndoFailureMessage,
   presentPatchMergeOutcome,
+  filesWithoutMatchNoneMessage,
   presentSearchOutcome,
   presentUndoSuccess,
   resolveWorkspaceRelativePath,
@@ -962,6 +963,10 @@ test("presentSearchOutcome exit 0 writes streams + show, returns hits", () => {
   });
   assert.equal(kind, "hits");
   assert.deepEqual(messages, ["file.ts:1:hit", "note", "SHOW"]);
+});
+
+test("filesWithoutMatchNoneMessage does not claim every file contains the pattern", () => {
+  assert.equal(filesWithoutMatchNoneMessage("TODO"), 'No files without matches for "TODO".');
 });
 
 test("presentSearchOutcome exit 3 writes nothing, returns none", () => {

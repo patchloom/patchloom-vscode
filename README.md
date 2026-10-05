@@ -203,7 +203,7 @@ On CLI 0.31+, create and rename check each parent of the destination before stag
 On CLI 0.30+, selectors accept `!=`, `>`, `>=`, `<`, `<=`, and `[!key]` (for example `servers[port>8000]`). A non-numeric compare reports `error_kind: invalid_input`. Use a number on the right-hand side, or a concrete index path.
 
 **Search files without match**
-On CLI 0.29+, `search -L` / `--files-without-match` lists files that do not contain the pattern. Combining it with `--files-with-matches` or `--count` is `invalid_input`. When every scanned file contains the pattern, the CLI reports `error_kind: no_matches` and the text `no files without matches for 'PATTERN' in SCOPE` (that is not a content miss).
+On CLI 0.29+, `search -L` / `--files-without-match` lists files that do not contain the pattern. Combining it with `--files-with-matches` or `--count` is `invalid_input`. When that list is empty, the CLI exits 3 with `error_kind: no_matches` and `no files without matches for 'PATTERN' in SCOPE`. An empty folder, a glob that matches nothing, and a folder where every file contains the pattern all look the same. The Quick Action says no files lack the pattern.
 
 **YAML mapping alias stayed an alias**
 On CLI 0.31+, `doc set` on a mapping that is only `service_a: *shared` writes a merge key plus local fields (`<<: *shared` and your new keys) instead of inlining the whole object. Sequence items (`- *shared`) still expand or stay not-applied. CLI 0.32+ also keeps the merge key when you grow an inherited array, delete an inherited field, or write an empty object.

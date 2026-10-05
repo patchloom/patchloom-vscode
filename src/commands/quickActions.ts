@@ -118,6 +118,15 @@ export function presentSearchOutcome(
 }
 
 /**
+ * `--files-without-match` exits 3 when nothing is listed. An empty folder
+ * and a glob that matches nothing use that same exit, so this must not
+ * say every scanned file contains the pattern.
+ */
+export function filesWithoutMatchNoneMessage(pattern: string): string {
+  return `No files without matches for "${pattern}".`;
+}
+
+/**
  * `patch apply` and `patch merge` exit 0 when a patch writes nothing
  * (`applied: false`). That is not a successful apply.
  */
@@ -539,7 +548,7 @@ export async function runQuickAction(): Promise<void> {
         const outcome = presentSearchOutcome(log, result);
 
         if (outcome === "none") {
-          await vscode.window.showInformationMessage(`Every scanned file contains "${pattern}".`);
+          await vscode.window.showInformationMessage(filesWithoutMatchNoneMessage(pattern));
         } else if (outcome === "error") {
           await vscode.window.showErrorMessage(`Patchloom search failed: ${formatCliOutput(result)}`);
         } else {
