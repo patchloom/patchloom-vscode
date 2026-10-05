@@ -211,6 +211,18 @@ test("isAllowedPreviewMiss rejects doc delete-where exit 3", () => {
   assert.equal(isAllowedPreviewMiss(action, 3), false);
 });
 
+test("isAllowedPreviewMiss rejects missing-key exit 3 for append, prepend, merge, and move", () => {
+  const actions = [
+    buildDocAppendQuickAction("/workspace/demo/data.json", "missing", "true"),
+    buildDocPrependQuickAction("/workspace/demo/data.json", "missing", "true"),
+    buildDocMergeQuickAction("/workspace/demo/data.json", "{\"a\":1}", "missing"),
+    buildDocMoveQuickAction("/workspace/demo/data.json", "missing", "dest")
+  ];
+  for (const action of actions) {
+    assert.equal(isAllowedPreviewMiss(action, 3), false);
+  }
+});
+
 test("isAllowedPreviewMiss allows doc set exit 3", () => {
   const action = buildDocSetQuickAction("/workspace/demo/package.json", "scripts.test", "vitest");
   assert.equal(isAllowedPreviewMiss(action, 3), true);

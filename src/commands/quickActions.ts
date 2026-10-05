@@ -1730,16 +1730,24 @@ export function isAllowedPreviewMiss(action: PlannedQuickAction, exitCode: numbe
     return false;
   }
   // PlannedQuickAction.args are operands only. executePatchloom adds --contain.
-  // Exit 3 is a soft no-op for text replace (pattern not in the file). It is a
-  // real miss for doc update / delete-where (selector matched nothing) and for
-  // markdown section ops (heading not found). Those must surface the CLI error.
+  // Exit 3 is a soft no-op for text replace (pattern not in the file).
+  // It is a real miss for markdown section ops (heading not found) and for
+  // doc update, delete-where, append, prepend, merge, and move (missing key).
   if (action.args[0] === "md") {
     return false;
   }
-  return !(
+  if (
     action.args[0] === "doc" &&
-    (action.args[1] === "update" || action.args[1] === "delete-where")
-  );
+    (action.args[1] === "update" ||
+      action.args[1] === "delete-where" ||
+      action.args[1] === "append" ||
+      action.args[1] === "prepend" ||
+      action.args[1] === "merge" ||
+      action.args[1] === "move")
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export function previewMissMessage(action: PlannedQuickAction, relativePath: string): string {
