@@ -4,6 +4,7 @@ import {
   BATCH_APPLY_PROMPT,
   buildBatchApplyArgs,
   buildBatchTemplate,
+  formatBatchApplyCompletion,
   isEmptyBatchPlan,
   parseBatchOperationCount
 } from "../../src/commands/batchApply.js";
@@ -178,12 +179,66 @@ test("buildBatchTemplate includes doc.delete_where multi-match example (CLI 0.27
   );
 });
 
-test("buildBatchApplyArgs prefixes global --contain before batch --apply", () => {
-  assert.deepEqual(buildBatchApplyArgs(), ["--contain", "batch", "--apply"]);
+test("buildBatchApplyArgs prefixes global --contain before batch --json --apply", () => {
+  assert.deepEqual(buildBatchApplyArgs(), ["--contain", "batch", "--json", "--apply"]);
+});
+
+test("formatBatchApplyCompletion names a refused replace instead of claiming every line applied", () => {
+  const stdout = JSON.stringify({
+    ok: true,
+    status: "success",
+    applied: true,
+    files_changed: 1,
+    files_created: 0,
+    files_deleted: 0,
+    refused: [{ path: "b.txt", match_mode: "exact", reason: "no_matches" }]
+  });
+  const completion = formatBatchApplyCompletion(stdout, 2);
+  assert.equal(completion.warning, true);
+  assert.equal(
+    completion.message,
+    "Batch apply: 1 file(s) changed. 1 operation(s) were not applied: b.txt (no matches)."
+  );
+});
+
+test("formatBatchApplyCompletion warns when a same-file replace reports match_count 0", () => {
+  const stdout = JSON.stringify({
+    ok: true,
+    status: "success",
+    applied: true,
+    files_changed: 1,
+    files_created: 0,
+    files_deleted: 0,
+    match_count: 0
+  });
+  const completion = formatBatchApplyCompletion(stdout, 2);
+  assert.equal(completion.warning, true);
+  assert.match(completion.message, /A replace in the plan matched nothing/);
+  assert.match(completion.message, /1 file\(s\) changed/);
+});
+
+test("formatBatchApplyCompletion reports created files without a zero changed count", () => {
+  const stdout = JSON.stringify({
+    ok: true,
+    files_changed: 0,
+    files_created: 1,
+    files_deleted: 0
+  });
+  const completion = formatBatchApplyCompletion(stdout, 1);
+  assert.equal(completion.warning, false);
+  assert.equal(completion.message, "Batch apply completed: 1 file(s) created.");
+});
+
+test("formatBatchApplyCompletion falls back to the plan count when stdout is not JSON", () => {
+  const completion = formatBatchApplyCompletion("applied 2 operations\n", 2);
+  assert.equal(completion.warning, false);
+  assert.equal(completion.message, "Batch apply completed: 2 operation(s) applied.");
 });
 
 test("BATCH_APPLY_PROMPT names dotted doc.update and doc.delete_where shapes", () => {
   assert.match(BATCH_APPLY_PROMPT, /doc\.update PATH SELECTOR VALUE/);
   assert.match(BATCH_APPLY_PROMPT, /doc\.delete_where PATH SELECTOR PREDICATE/);
   assert.match(BATCH_APPLY_PROMPT, /first non-whitespace character is #/);
+  assert.match(BATCH_APPLY_PROMPT, /does not undo other writes/);
+  assert.equal(BATCH_APPLY_PROMPT.includes("execute all operations atomically"), false);
 });

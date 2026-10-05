@@ -124,7 +124,7 @@ Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay insid
 
 ### Batch operations
 
-`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, JSONC `doc.set`, multi-match `doc.update`, `doc.delete_where`, multi-doc `doc.merge`, file append, directory `file.rename`, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically. A line whose first non-whitespace character is `#` is a comment. Blank lines and comments are not operations. A plan that contains only those lines is not applied, and the completion message counts only real operations.
+`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, JSONC `doc.set`, multi-match `doc.update`, `doc.delete_where`, multi-doc `doc.merge`, file append, directory `file.rename`, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --json --apply`. A hard error rolls the plan back. A replace that matches nothing is refused, other successful writes stay, and the completion message names those refused paths. A line whose first non-whitespace character is `#` is a comment. Blank lines and comments are not operations. A plan that contains only those lines is not applied.
 
 ### Output channel
 
@@ -144,7 +144,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | `Patchloom: Initialize Project` | Generate or diff `AGENTS.md` from `patchloom agent-rules` (mode, platform, surface full/core) |
 | `Patchloom: Configure MCP` | Inject Patchloom MCP server config (full or core tool surface) into editor config files |
 | `Patchloom: Quick Action` | Build a Patchloom CLI command from an interactive picker |
-| `Patchloom: Batch Apply` | Open a batch plan and execute all operations atomically |
+| `Patchloom: Batch Apply` | Open a batch plan, apply it, and report refused operations |
 | `Patchloom: Show Output` | Open the Patchloom output channel for CLI logs and diagnostics |
 | `Patchloom: Show Status` | Display binary readiness, version, compatibility, and workspace state |
 | `Patchloom: Verify MCP Server` | Spawn the MCP server and verify it responds to a JSON-RPC initialize request |

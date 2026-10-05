@@ -37,7 +37,7 @@ export function buildBatchTemplate(): string {
 }
 
 export const BATCH_APPLY_PROMPT =
-  "Edit the batch plan, then click Apply to execute all operations atomically. Lines whose first non-whitespace character is # are comments and are not applied. Multi-match lines use dotted batch ops: doc.update PATH SELECTOR VALUE and doc.delete_where PATH SELECTOR PREDICATE.";
+  "Edit the batch plan, then click Apply. A hard error rolls the plan back. A replace that matches nothing stays refused and does not undo other writes. Lines whose first non-whitespace character is # are comments and are not applied. Multi-match lines use dotted batch ops: doc.update PATH SELECTOR VALUE and doc.delete_where PATH SELECTOR PREDICATE.";
 
 /** Count operations `patchloom batch` will run. A leading BOM, blank lines, and `#` comments are ignored. */
 export function parseBatchOperationCount(plan: string): number {
@@ -53,9 +53,129 @@ export function isEmptyBatchPlan(plan: string): boolean {
   return parseBatchOperationCount(plan) === 0;
 }
 
-/** CLI argv for Batch Apply. Flags come from serializePatchloomArgs, not from scanning operands. */
+/** CLI argv for Batch Apply. `--json` is how a refused replace is visible on exit 0. */
 export function buildBatchApplyArgs(): string[] {
-  return serializePatchloomArgs({ args: ["batch"], apply: true, contain: true });
+  return serializePatchloomArgs({ args: ["batch", "--json"], apply: true, contain: true });
+}
+
+export interface BatchRefusedOperation {
+  readonly path: string;
+  readonly reason: string;
+}
+
+export interface BatchApplyReport {
+  readonly filesChanged: number;
+  readonly filesCreated: number;
+  readonly filesDeleted: number;
+  readonly matchCount: number | undefined;
+  readonly refused: readonly BatchRefusedOperation[];
+}
+
+/** Parse `patchloom batch --json` stdout. Undefined when the CLI did not return that object. */
+export function parseBatchApplyReport(stdout: string): BatchApplyReport | undefined {
+  const trimmed = stdout.trim();
+  if (!trimmed.startsWith("{")) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      files_changed?: unknown;
+      files_created?: unknown;
+      files_deleted?: unknown;
+      match_count?: unknown;
+      refused?: unknown;
+    };
+    if (typeof parsed.files_changed !== "number") {
+      return undefined;
+    }
+    const refused: BatchRefusedOperation[] = [];
+    if (Array.isArray(parsed.refused)) {
+      for (const item of parsed.refused) {
+        if (!item || typeof item !== "object") {
+          continue;
+        }
+        const record = item as { path?: unknown; reason?: unknown };
+        if (typeof record.path !== "string" || record.path.length === 0) {
+          continue;
+        }
+        refused.push({
+          path: record.path,
+          reason: typeof record.reason === "string" && record.reason.length > 0 ? record.reason : "refused"
+        });
+      }
+    }
+    return {
+      filesChanged: parsed.files_changed,
+      filesCreated: typeof parsed.files_created === "number" ? parsed.files_created : 0,
+      filesDeleted: typeof parsed.files_deleted === "number" ? parsed.files_deleted : 0,
+      matchCount: typeof parsed.match_count === "number" ? parsed.match_count : undefined,
+      refused
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+export interface BatchApplyCompletion {
+  readonly warning: boolean;
+  readonly message: string;
+}
+
+/**
+ * Exit 0 is not "every plan line was applied". CLI 0.37 keeps earlier writes
+ * when another replace matches nothing, and reports that on `refused` or
+ * `match_count: 0`.
+ */
+export function formatBatchApplyCompletion(stdout: string, operationCount: number): BatchApplyCompletion {
+  const report = parseBatchApplyReport(stdout);
+  if (!report) {
+    return {
+      warning: false,
+      message: `Batch apply completed: ${operationCount} operation(s) applied.`
+    };
+  }
+
+  const tally = describeBatchFileTally(report);
+  if (report.refused.length > 0) {
+    const details = report.refused
+      .map((item) => `${item.path} (${describeRefusedReason(item.reason)})`)
+      .join(", ");
+    return {
+      warning: true,
+      message: `Batch apply: ${tally}. ${report.refused.length} operation(s) were not applied: ${details}.`
+    };
+  }
+  if (report.matchCount === 0) {
+    return {
+      warning: true,
+      message: `Batch apply: ${tally}. A replace in the plan matched nothing.`
+    };
+  }
+  return {
+    warning: false,
+    message: `Batch apply completed: ${tally}.`
+  };
+}
+
+function describeBatchFileTally(report: BatchApplyReport): string {
+  const parts: string[] = [];
+  if (report.filesChanged > 0) {
+    parts.push(`${report.filesChanged} file(s) changed`);
+  }
+  if (report.filesCreated > 0) {
+    parts.push(`${report.filesCreated} file(s) created`);
+  }
+  if (report.filesDeleted > 0) {
+    parts.push(`${report.filesDeleted} file(s) deleted`);
+  }
+  return parts.length > 0 ? parts.join(", ") : "no files changed";
+}
+
+function describeRefusedReason(reason: string): string {
+  if (reason === "no_matches") {
+    return "no matches";
+  }
+  return reason.replaceAll("_", " ");
 }
 
 export async function batchApply(): Promise<void> {
@@ -114,10 +234,13 @@ export async function batchApply(): Promise<void> {
   }
 
   const ops = parseBatchOperationCount(plan);
+  const completion = formatBatchApplyCompletion(result.stdout, ops);
   presentCliResultInOutput(log, result);
-  await vscode.window.showInformationMessage(
-    `Batch apply completed: ${ops} operation(s) applied.`
-  );
+  if (completion.warning) {
+    await vscode.window.showWarningMessage(completion.message);
+    return;
+  }
+  await vscode.window.showInformationMessage(completion.message);
 }
 
 interface BatchCommandResult {

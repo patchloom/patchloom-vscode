@@ -35,7 +35,7 @@ src/
     initializeProject.ts Initialize Project command: generate/diff AGENTS.md
     managedInstall.ts    Managed Install commands: install, update, reinstall Patchloom binary
     quickActions.ts       Quick Action command: replace, tidy, doc set, search, create, append, prepend, doc get, doc keys, doc len, patch merge
-    batchApply.ts        Batch Apply command: atomic multi-operation plan (line-oriented, not JSON)
+    batchApply.ts        Batch Apply command: line-oriented plan; hard errors roll back; refused replaces are reported
     setupWorkspace.ts     Setup Workspace command: guided readiness walkthrough
     showStatus.ts         Show Status command: diagnostics display
     verifyMcp.ts         Verify MCP Server command: JSON-RPC initialize probe
@@ -50,7 +50,7 @@ src/
   workspace/readiness.ts Workspace readiness: environment detection, folder selection
 test/
   unit/                  Unit tests (node:test, dependency-injected, no VS Code API)
-    batchApply.test.ts   Batch template and operation count parsing (22 tests)
+    batchApply.test.ts   Batch template and operation count parsing (26 tests)
     binary.test.ts       Binary discovery, managed install, compatibility, workspace env (76 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
     initializeProject.test.ts  Status display, agents file classification, formatError (71 tests)
