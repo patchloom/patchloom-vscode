@@ -1762,9 +1762,13 @@ export function isAllowedPreviewMiss(action: PlannedQuickAction, exitCode: numbe
   }
   // PlannedQuickAction.args are operands only. executePatchloom adds --contain.
   // Exit 3 is a soft no-op for text replace (pattern not in the file).
-  // It is a real miss for markdown section ops (heading not found) and for
-  // doc update, delete-where, append, prepend, merge, and move (missing key).
-  if (action.args[0] === "md") {
+  // It is a real miss when an anchor or heading was not found: markdown
+  // section ops, apply-fragment, and insert-before / insert-after.
+  // Same for doc update, delete-where, append, prepend, merge, and move.
+  if (action.args[0] === "md" || action.args[0] === "apply-fragment") {
+    return false;
+  }
+  if (action.args.some((arg) => arg.startsWith("--insert-before=") || arg.startsWith("--insert-after="))) {
     return false;
   }
   if (

@@ -208,6 +208,17 @@ test("isAllowedPreviewMiss allows replace exit 3", () => {
   assert.equal(isAllowedPreviewMiss(action, 3), true);
 });
 
+test("isAllowedPreviewMiss rejects a missing apply-fragment or insert anchor", () => {
+  const actions = [
+    buildApplyFragmentQuickAction("/workspace/demo/lib.rs", "after", "missing anchor", "  let x = 2;"),
+    buildInsertAfterMatchQuickAction("/workspace/demo/lib.rs", "nope", "zzz"),
+    buildInsertBeforeMatchQuickAction("/workspace/demo/lib.rs", "nope", "zzz")
+  ];
+  for (const action of actions) {
+    assert.equal(isAllowedPreviewMiss(action, 3), false);
+  }
+});
+
 test("isAllowedPreviewMiss rejects doc delete-where exit 3", () => {
   const action = buildDocDeleteWhereQuickAction("/workspace/demo/data.json", "items", "name=stale");
   assert.equal(isAllowedPreviewMiss(action, 3), false);
