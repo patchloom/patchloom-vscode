@@ -64,15 +64,23 @@ test("parseInitializeResponse returns undefined for non-JSON lines", () => {
 });
 
 test("parseInitializeResponse skips non-jsonrpc lines", () => {
-  const data = '{"status":"ok"}\n' + JSON.stringify({
+  const data = JSON.stringify({
+    result: { serverInfo: { name: "decoy", version: "9.9.9" } }
+  }) + "\n" + JSON.stringify({
     jsonrpc: "2.0",
     id: 1,
-    result: { protocolVersion: "2024-11-05", capabilities: {} }
+    result: {
+      protocolVersion: "2024-11-05",
+      serverInfo: { name: "patchloom", version: "0.2.0" },
+      capabilities: {}
+    }
   });
 
   const result = parseInitializeResponse(data);
   assert.ok(result);
   assert.equal(result.ok, true);
+  assert.equal(result.serverName, "patchloom");
+  assert.equal(result.serverVersion, "0.2.0");
 });
 
 test("parseInitializeResponse handles multi-line output with blank lines", () => {
@@ -173,9 +181,9 @@ test("buildStatusDetails shows per-editor MCP breakdown", () => {
     }
   );
 
-  assert.match(details, /VS Code workspace.*configured/);
-  assert.match(details, /Cursor workspace.*not configured/);
-  assert.match(details, /Windsurf user.*not configured/);
+  assert.match(details, /MCP VS Code workspace: \u2713 configured/);
+  assert.match(details, /MCP Cursor workspace: \u2717 not configured/);
+  assert.match(details, /MCP Windsurf user: \u2717 not configured/);
 });
 
 test("buildStatusDetails shows fallback when mcpTargets is undefined", () => {
@@ -224,8 +232,8 @@ test("buildStatusDetails shows checkmark for configured targets", () => {
     }
   );
 
-  assert.match(details, /\u2713/);
-  assert.match(details, /configured/);
+  assert.match(details, /MCP VS Code workspace: \u2713 configured/);
+  assert.doesNotMatch(details, /not configured/);
 });
 
 test("buildStatusDetails shows X for unconfigured targets", () => {
@@ -251,6 +259,6 @@ test("buildStatusDetails shows X for unconfigured targets", () => {
     }
   );
 
-  assert.match(details, /\u2717/);
-  assert.match(details, /not configured/);
+  assert.match(details, /MCP Cursor workspace: \u2717 not configured/);
+  assert.doesNotMatch(details, /\u2713 configured/);
 });
