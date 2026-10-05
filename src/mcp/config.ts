@@ -1,7 +1,9 @@
+import { existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { parse, type ParseError } from "jsonc-parser";
 import { configuredBinaryPathFromSetting } from "../binary/patchloom.js";
+import { isRealPathInsideWorkspace } from "../workspace/pathContainment.js";
 
 export type McpTargetKind =
   | "vscode-workspace"
@@ -51,6 +53,14 @@ export async function inspectMcpTargets(inputs: McpInspectionInputs): Promise<Mc
   const results: McpTargetStatus[] = [];
 
   for (const target of targets) {
+    if (!mcpConfigPathIsContained(target, inputs.workspaceFolderPath)) {
+      results.push({
+        ...target,
+        exists: false,
+        configured: false
+      });
+      continue;
+    }
     const content = await readFile(target.filePath);
     let configured = false;
     if (content !== undefined) {
@@ -80,6 +90,7 @@ export async function configureMcpTargets(inputs: McpApplyInputs): Promise<McpTa
   const mcpSurface = inputs.mcpSurface ?? "full";
 
   for (const target of targets) {
+    assertMcpConfigWriteContained(target, inputs.workspaceFolderPath);
     const content = await readFile(target.filePath);
     const original = parseJsonObject(content, target.filePath);
     const updated = withPatchloomEntry(target.kind, original, patchloomCommand, mcpSurface);
@@ -152,6 +163,37 @@ export function buildPatchloomMcpEntry(
     entry.env = { PATCHLOOM_MCP_SURFACE: "core" };
   }
   return entry;
+}
+
+function mcpConfigRoot(target: McpTarget, workspaceFolderPath?: string): string | undefined {
+  if (target.kind === "windsurf-user") {
+    return path.dirname(target.filePath);
+  }
+  return workspaceFolderPath;
+}
+
+function mcpConfigPathIsContained(target: McpTarget, workspaceFolderPath?: string): boolean {
+  const root = mcpConfigRoot(target, workspaceFolderPath);
+  if (!root) {
+    return false;
+  }
+  // A user Windsurf directory that does not exist yet has nothing to follow.
+  if (target.kind === "windsurf-user" && !existsSync(root)) {
+    return true;
+  }
+  return isRealPathInsideWorkspace(root, target.filePath);
+}
+
+function assertMcpConfigWriteContained(target: McpTarget, workspaceFolderPath?: string): void {
+  if (mcpConfigPathIsContained(target, workspaceFolderPath)) {
+    return;
+  }
+  const root = mcpConfigRoot(target, workspaceFolderPath);
+  throw new Error(
+    root
+      ? `Refusing to write MCP config ${target.filePath} because it resolves outside ${root}`
+      : `Refusing to write MCP config ${target.filePath} because it resolves outside the workspace`
+  );
 }
 
 function usesMcpServersKey(kind: McpTargetKind): boolean {

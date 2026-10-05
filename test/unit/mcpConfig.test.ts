@@ -214,6 +214,59 @@ test("configureMcpTargets writes portable .mcp.json with mcpServers and stdio ty
   });
 });
 
+test("configureMcpTargets refuses a config symlink that leaves the workspace", async (t) => {
+  await withTempDir(async (workspace) => {
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-mcp-outside-"));
+    try {
+      const secret = path.join(outside, "secret.txt");
+      await fs.writeFile(secret, "do-not-touch", "utf8");
+      const linkPath = path.join(workspace, ".mcp.json");
+      try {
+        await fs.symlink(secret, linkPath);
+      } catch {
+        t.skip("fs.symlink is not available on this platform");
+        return;
+      }
+
+      let reads = 0;
+      const inspected = await inspectMcpTargets({
+        workspaceFolderPath: workspace,
+        homeDir: workspace,
+        includeUserTarget: false,
+        readFile: async (filePath) => {
+          if (filePath === linkPath) {
+            reads += 1;
+          }
+          return undefined;
+        }
+      });
+      assert.equal(reads, 0);
+      assert.equal(
+        inspected.find((target) => target.kind === "portable-workspace")?.configured,
+        false
+      );
+
+      let writes = 0;
+      await assert.rejects(
+        () => configureMcpTargets({
+          workspaceFolderPath: workspace,
+          homeDir: workspace,
+          includeKinds: ["portable-workspace"],
+          patchloomPathSetting: "patchloom",
+          writeFile: async () => {
+            writes += 1;
+          }
+        }),
+        /resolves outside/
+      );
+      assert.equal(writes, 0);
+      assert.equal(await fs.readFile(secret, "utf8"), "do-not-touch");
+    } finally {
+      await fs.rm(outside, { recursive: true, force: true });
+    }
+  });
+});
+
 test("configureMcpTargets writes Cursor config with mcpServers key", async () => {
   await withTempDir(async (workspace) => {
     await configureMcpTargets({

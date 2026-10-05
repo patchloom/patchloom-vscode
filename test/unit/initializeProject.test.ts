@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 import test from "node:test";
 import { MINIMUM_SUPPORTED_PATCHLOOM_VERSION } from "../../src/binary/patchloom.js";
@@ -768,58 +770,68 @@ test("buildPatchloomMcpEntry points at patchloom mcp-server", () => {
 });
 
 test("inspectMcpTargets reports configured targets", async () => {
-  const targets = await inspectMcpTargets({
-    workspaceFolderPath: "/workspace/demo",
-    homeDir: "/Users/demo",
-    readFile: async (filePath) => {
-      if (filePath.endsWith(path.join(".vscode", "mcp.json"))) {
-        return '{"servers":{"patchloom":{"command":"patchloom","args":["mcp-server"]}}}';
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-mcp-inspect-"));
+  try {
+    const targets = await inspectMcpTargets({
+      workspaceFolderPath: workspace,
+      homeDir: path.join(workspace, "home"),
+      readFile: async (filePath) => {
+        if (filePath.endsWith(path.join(".vscode", "mcp.json"))) {
+          return '{"servers":{"patchloom":{"command":"patchloom","args":["mcp-server"]}}}';
+        }
+        return undefined;
       }
-      return undefined;
-    }
-  });
+    });
 
-  assert.equal(targets.length, 4, "should return vscode, portable, cursor, and windsurf");
-  const vscode = targets.find((t) => t.kind === "vscode-workspace");
-  const portable = targets.find((t) => t.kind === "portable-workspace");
-  const cursor = targets.find((t) => t.kind === "cursor-workspace");
-  const windsurf = targets.find((t) => t.kind === "windsurf-user");
-  assert.ok(vscode);
-  assert.equal(vscode.configured, true, "vscode-workspace should be configured");
-  assert.ok(portable);
-  assert.equal(portable.filePath, path.join("/workspace/demo", ".mcp.json"));
-  assert.equal(portable.configured, false, "portable workspace should not be configured");
-  assert.ok(cursor);
-  assert.equal(cursor.configured, false, "cursor-workspace should not be configured");
-  assert.ok(windsurf);
-  assert.equal(windsurf.configured, false, "windsurf-user should not be configured");
+    assert.equal(targets.length, 4, "should return vscode, portable, cursor, and windsurf");
+    const vscode = targets.find((t) => t.kind === "vscode-workspace");
+    const portable = targets.find((t) => t.kind === "portable-workspace");
+    const cursor = targets.find((t) => t.kind === "cursor-workspace");
+    const windsurf = targets.find((t) => t.kind === "windsurf-user");
+    assert.ok(vscode);
+    assert.equal(vscode.configured, true, "vscode-workspace should be configured");
+    assert.ok(portable);
+    assert.equal(portable.filePath, path.join(workspace, ".mcp.json"));
+    assert.equal(portable.configured, false, "portable workspace should not be configured");
+    assert.ok(cursor);
+    assert.equal(cursor.configured, false, "cursor-workspace should not be configured");
+    assert.ok(windsurf);
+    assert.equal(windsurf.configured, false, "windsurf-user should not be configured");
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
 });
 
 test("configureMcpTargets creates or updates only the selected target kinds", async () => {
-  const writes = new Map<string, string>();
-  const results = await configureMcpTargets({
-    workspaceFolderPath: "/workspace/demo",
-    homeDir: "/Users/demo",
-    includeKinds: ["cursor-workspace"],
-    patchloomPathSetting: "/custom/patchloom",
-    readFile: async (filePath) => {
-      if (filePath.endsWith(path.join(".cursor", "mcp.json"))) {
-        return '{"servers":{"other":{"command":"other"}}}';
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-mcp-select-"));
+  try {
+    const writes = new Map<string, string>();
+    const results = await configureMcpTargets({
+      workspaceFolderPath: workspace,
+      homeDir: path.join(workspace, "home"),
+      includeKinds: ["cursor-workspace"],
+      patchloomPathSetting: "/custom/patchloom",
+      readFile: async (filePath) => {
+        if (filePath.endsWith(path.join(".cursor", "mcp.json"))) {
+          return '{"servers":{"other":{"command":"other"}}}';
+        }
+        return undefined;
+      },
+      writeFile: async (filePath, content) => {
+        writes.set(filePath, content);
       }
-      return undefined;
-    },
-    writeFile: async (filePath, content) => {
-      writes.set(filePath, content);
-    }
-  });
+    });
 
-  assert.equal(results.length, 1);
-  const cursorPath = path.join("/workspace/demo", ".cursor", "mcp.json");
-  assert.equal(writes.has(cursorPath), true);
-  assert.equal(writes.has(path.join("/workspace/demo", ".vscode", "mcp.json")), false);
-  assert.match(writes.get(cursorPath) ?? "", /patchloom/);
-  assert.match(writes.get(cursorPath) ?? "", /mcp-server/);
-  assert.match(writes.get(cursorPath) ?? "", /other/);
+    assert.equal(results.length, 1);
+    const cursorPath = path.join(workspace, ".cursor", "mcp.json");
+    assert.equal(writes.has(cursorPath), true);
+    assert.equal(writes.has(path.join(workspace, ".vscode", "mcp.json")), false);
+    assert.match(writes.get(cursorPath) ?? "", /patchloom/);
+    assert.match(writes.get(cursorPath) ?? "", /mcp-server/);
+    assert.match(writes.get(cursorPath) ?? "", /other/);
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
 });
 
 test("buildAgentRulesArgs omits default all modes", () => {
