@@ -2,9 +2,15 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
-import { configureMcpTargets, inspectMcpTargets } from "../mcp/config.js";
+import { getPatchloomLog, writeUserVisibleOutput } from "../logging/outputChannel.js";
+import {
+  configureMcpTargets,
+  formatMcpConfigureFailureMessage,
+  inspectMcpTargets,
+  McpConfigureError,
+  readMcpConfigText
+} from "../mcp/config.js";
 import { refreshStatusBar } from "../status/statusBar.js";
-import { formatError } from "../util.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 
 export async function configureMcp(): Promise<void> {
@@ -26,7 +32,7 @@ export async function configureMcp(): Promise<void> {
   const selectable = targets.map((target) => ({
     label: target.label,
     description: target.filePath,
-    detail: target.configured ? "Already configured" : target.exists ? "Config file exists" : "Config file will be created",
+    detail: targetDetail(target),
     target
   }));
 
@@ -72,20 +78,21 @@ export async function configureMcp(): Promise<void> {
       includeUserTarget: environment.supportsUserMcpConfig,
       patchloomPathSetting: binaryPath,
       mcpSurface: surfacePick.surface,
-      readFile: async (filePath) => {
-        try {
-          return await fs.readFile(filePath, "utf8");
-        } catch {
-          return undefined;
-        }
-      },
+      readFile: readMcpConfigText,
       writeFile: async (filePath, content) => {
         await fs.mkdir(path.dirname(filePath), { recursive: true });
         await fs.writeFile(filePath, content, "utf8");
       }
     });
   } catch (error) {
-    await vscode.window.showErrorMessage(`Failed to configure MCP: ${formatError(error)}`);
+    const message = formatMcpConfigureFailureMessage(error);
+    const log = getPatchloomLog();
+    writeUserVisibleOutput(log, message);
+    log?.show();
+    await vscode.window.showErrorMessage(message);
+    if (error instanceof McpConfigureError && error.completed.some((result) => result.changed)) {
+      await refreshStatusBar();
+    }
     return;
   }
 
@@ -99,4 +106,19 @@ export async function configureMcp(): Promise<void> {
 
   await refreshStatusBar();
   await vscode.window.showInformationMessage(summary || "Patchloom MCP setup completed.");
+}
+
+function targetDetail(target: { kind: string; configured: boolean; exists: boolean }): string {
+  const state = target.configured
+    ? "Already configured"
+    : target.exists
+      ? "Config file exists"
+      : "Config file will be created";
+  if (target.kind === "portable-workspace") {
+    return `${state}. Preferred for current VS Code and Copilot`;
+  }
+  if (target.kind === "vscode-workspace") {
+    return `${state}. Older VS Code location`;
+  }
+  return state;
 }

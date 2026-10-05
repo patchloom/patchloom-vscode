@@ -30,12 +30,17 @@ import {
   buildMdUpsertBulletQuickAction,
   buildPatchApplyQuickAction,
   buildPatchMergeQuickAction,
+  patchCommandMadeNoChanges,
   buildReplaceQuickAction,
   buildSearchQuickAction,
   buildTidyQuickAction,
   buildUndoQuickAction,
   isAllowedPreviewMiss,
   previewMissMessage,
+  DOC_SET_SELECTOR_PROMPT,
+  DOC_SET_SELECTOR_PLACEHOLDER,
+  DOC_UPDATE_SELECTOR_PROMPT,
+  DOC_UPDATE_SELECTOR_PLACEHOLDER,
   isMarkdownPath,
   isEnvDocumentPath,
   isStructuredDocumentPath,
@@ -44,9 +49,11 @@ import {
   stageExternalPatchInWorkspace,
   formatUndoFailureMessage,
   presentPatchMergeOutcome,
+  filesWithoutMatchNoneMessage,
   presentSearchOutcome,
   presentUndoSuccess,
   resolveWorkspaceRelativePath,
+  sameRealFilePath,
   retargetQuickAction,
   serializePatchloomArgs,
   withEndOfOptions,
@@ -201,14 +208,61 @@ test("isAllowedPreviewMiss allows replace exit 3", () => {
   assert.equal(isAllowedPreviewMiss(action, 3), true);
 });
 
+test("isAllowedPreviewMiss rejects a missing apply-fragment or insert anchor", () => {
+  const actions = [
+    buildApplyFragmentQuickAction("/workspace/demo/lib.rs", "after", "missing anchor", "  let x = 2;"),
+    buildInsertAfterMatchQuickAction("/workspace/demo/lib.rs", "nope", "zzz"),
+    buildInsertBeforeMatchQuickAction("/workspace/demo/lib.rs", "nope", "zzz")
+  ];
+  for (const action of actions) {
+    assert.equal(isAllowedPreviewMiss(action, 3), false);
+  }
+});
+
 test("isAllowedPreviewMiss rejects doc delete-where exit 3", () => {
   const action = buildDocDeleteWhereQuickAction("/workspace/demo/data.json", "items", "name=stale");
   assert.equal(isAllowedPreviewMiss(action, 3), false);
 });
 
+test("isAllowedPreviewMiss rejects missing-key exit 3 for append, prepend, merge, and move", () => {
+  const actions = [
+    buildDocAppendQuickAction("/workspace/demo/data.json", "missing", "true"),
+    buildDocPrependQuickAction("/workspace/demo/data.json", "missing", "true"),
+    buildDocMergeQuickAction("/workspace/demo/data.json", "{\"a\":1}", "missing"),
+    buildDocMoveQuickAction("/workspace/demo/data.json", "missing", "dest")
+  ];
+  for (const action of actions) {
+    assert.equal(isAllowedPreviewMiss(action, 3), false);
+  }
+});
+
 test("isAllowedPreviewMiss allows doc set exit 3", () => {
   const action = buildDocSetQuickAction("/workspace/demo/package.json", "scripts.test", "vitest");
   assert.equal(isAllowedPreviewMiss(action, 3), true);
+});
+
+test("doc set selector copy sends predicates to doc update", () => {
+  assert.equal(DOC_SET_SELECTOR_PLACEHOLDER, "scripts.test");
+  assert.match(DOC_SET_SELECTOR_PROMPT, /concrete path/);
+  assert.match(DOC_SET_SELECTOR_PROMPT, /Update matching structured values/);
+  assert.doesNotMatch(DOC_SET_SELECTOR_PROMPT, /accepts numeric compares/);
+  assert.match(DOC_UPDATE_SELECTOR_PROMPT, /servers\[port>8000\]/);
+  assert.match(DOC_UPDATE_SELECTOR_PLACEHOLDER, /servers\[port>8000\]/);
+});
+
+test("isAllowedPreviewMiss rejects markdown heading miss exit 3", () => {
+  const actions = [
+    buildMdReplaceSectionQuickAction("/workspace/demo/CHANGELOG.md", "## Missing", "x"),
+    buildMdTableAppendQuickAction("/workspace/demo/CHANGELOG.md", "## Missing", "| a | b |"),
+    buildMdUpsertBulletQuickAction("/workspace/demo/CHANGELOG.md", "## Missing", "x"),
+    buildMdInsertAfterHeadingQuickAction("/workspace/demo/CHANGELOG.md", "## Missing", "x"),
+    buildMdInsertAfterSectionQuickAction("/workspace/demo/CHANGELOG.md", "## Missing", "## FAQ"),
+    buildMdInsertBeforeHeadingQuickAction("/workspace/demo/CHANGELOG.md", "## Missing", "x")
+  ];
+  for (const action of actions) {
+    assert.equal(action.args[0], "md");
+    assert.equal(isAllowedPreviewMiss(action, 3), false);
+  }
 });
 
 test("isAllowedPreviewMiss rejects exit 0", () => {
@@ -508,6 +562,36 @@ test("resolveWorkspaceRelativePath rejects workspace root itself", () => {
     () => resolveWorkspaceRelativePath("/workspace/demo", "/workspace/demo"),
     { message: "File path must stay inside the current workspace folder. Use a path under this folder (for example src/app.ts), or open the folder that owns the file." }
   );
+});
+
+test("resolveWorkspaceRelativePath accepts the real path of a symlinked workspace", async (t) => {
+  const realRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-rel-"));
+  const linkRoot = `${realRoot}-link`;
+  const outside = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-rel-out-"));
+  try {
+    await fs.writeFile(path.join(realRoot, "a.ts"), "x");
+    try {
+      await fs.symlink(realRoot, linkRoot, "dir");
+    } catch {
+      t.skip("fs.symlink is not available on this platform");
+      return;
+    }
+
+    assert.equal(resolveWorkspaceRelativePath(linkRoot, path.join(realRoot, "a.ts")), "a.ts");
+    assert.equal(resolveWorkspaceRelativePath(realRoot, path.join(linkRoot, "a.ts")), "a.ts");
+    assert.equal(
+      resolveWorkspaceRelativePath(linkRoot, path.join(realRoot, "src", "new.ts")),
+      "src/new.ts"
+    );
+    assert.throws(
+      () => resolveWorkspaceRelativePath(linkRoot, path.join(outside, "x.ts")),
+      /must stay inside the current workspace folder/
+    );
+  } finally {
+    await fs.rm(realRoot, { recursive: true, force: true });
+    await fs.rm(linkRoot, { force: true });
+    await fs.rm(outside, { recursive: true, force: true });
+  }
 });
 
 // --- #32: edge-case builder tests ---
@@ -810,8 +894,8 @@ test("buildPatchApplyQuickAction builds a patch apply command", () => {
   const action = buildPatchApplyQuickAction("/workspace/demo/changes.patch");
 
   assert.equal(action.title, "Apply patch changes.patch");
-  assert.deepEqual(action.targetArgIndices, [3]);
-  assert.deepEqual(action.args, ["patch", "apply", "--", "/workspace/demo/changes.patch"]);
+  assert.deepEqual(action.targetArgIndices, [4]);
+  assert.deepEqual(action.args, ["patch", "apply", "--json", "--", "/workspace/demo/changes.patch"]);
   assert.equal(action.apply, true);
 });
 
@@ -819,7 +903,7 @@ test("retargetQuickAction works with patch apply command", () => {
   const action = buildPatchApplyQuickAction("/workspace/demo/fix.patch");
   const retargeted = retargetQuickAction(action, "/tmp/preview/fix.patch");
 
-  assert.equal(retargeted.args[3], "/tmp/preview/fix.patch");
+  assert.equal(retargeted.args[4], "/tmp/preview/fix.patch");
   assert.equal(retargeted.args[0], "patch");
   assert.equal(retargeted.args[1], "apply");
   assert.equal(retargeted.apply, true);
@@ -831,8 +915,8 @@ test("buildPatchMergeQuickAction builds a patch merge command", () => {
   const action = buildPatchMergeQuickAction("/workspace/demo/changes.patch", false);
 
   assert.equal(action.title, "Merge patch changes.patch");
-  assert.deepEqual(action.targetArgIndices, [3]);
-  assert.deepEqual(action.args, ["patch", "merge", "--", "/workspace/demo/changes.patch"]);
+  assert.deepEqual(action.targetArgIndices, [4]);
+  assert.deepEqual(action.args, ["patch", "merge", "--json", "--", "/workspace/demo/changes.patch"]);
   assert.equal(action.apply, true);
 });
 
@@ -840,8 +924,8 @@ test("buildPatchMergeQuickAction includes allow-conflicts flag when enabled", ()
   const action = buildPatchMergeQuickAction("/workspace/demo/stale.diff", true);
 
   assert.equal(action.title, "Merge patch stale.diff");
-  assert.deepEqual(action.targetArgIndices, [4]);
-  assert.deepEqual(action.args, ["patch", "merge", "--allow-conflicts", "--", "/workspace/demo/stale.diff"]);
+  assert.deepEqual(action.targetArgIndices, [5]);
+  assert.deepEqual(action.args, ["patch", "merge", "--allow-conflicts", "--json", "--", "/workspace/demo/stale.diff"]);
   assert.equal(action.apply, true);
 });
 
@@ -849,9 +933,24 @@ test("retargetQuickAction works with patch merge command", () => {
   const action = buildPatchMergeQuickAction("/workspace/demo/fix.patch", false);
   const retargeted = retargetQuickAction(action, "/tmp/preview/fix.patch");
 
-  assert.equal(retargeted.args[3], "/tmp/preview/fix.patch");
+  assert.equal(retargeted.args[4], "/tmp/preview/fix.patch");
   assert.equal(retargeted.args[0], "patch");
   assert.equal(retargeted.args[1], "merge");
+});
+
+test("patchCommandMadeNoChanges is true when patch JSON says applied false", () => {
+  const stdout = JSON.stringify({ ok: true, files: [], applied: false });
+  assert.equal(patchCommandMadeNoChanges(stdout), true);
+});
+
+test("patchCommandMadeNoChanges is false when the patch applied", () => {
+  const stdout = JSON.stringify({
+    ok: true,
+    files: [{ path: "a.txt", status: "applied" }],
+    applied: true
+  });
+  assert.equal(patchCommandMadeNoChanges(stdout), false);
+  assert.equal(patchCommandMadeNoChanges("applied a.txt\n"), false);
 });
 
 // --- append Quick Action (reflecting patchloom 0.4.0+) ---
@@ -875,6 +974,10 @@ test("presentSearchOutcome exit 0 writes streams + show, returns hits", () => {
   });
   assert.equal(kind, "hits");
   assert.deepEqual(messages, ["file.ts:1:hit", "note", "SHOW"]);
+});
+
+test("filesWithoutMatchNoneMessage does not claim every file contains the pattern", () => {
+  assert.equal(filesWithoutMatchNoneMessage("TODO"), 'No files without matches for "TODO".');
 });
 
 test("presentSearchOutcome exit 3 writes nothing, returns none", () => {
@@ -961,6 +1064,31 @@ test("formatUndoFailureMessage prefixes other failures with Patchloom undo faile
     }),
     "Patchloom undo failed: permission denied"
   );
+});
+
+test("sameRealFilePath matches files across a symlinked workspace root", async (t) => {
+  const realRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-same-"));
+  const linkRoot = `${realRoot}-link`;
+  try {
+    const filePath = path.join(realRoot, "a.ts");
+    await fs.writeFile(filePath, "x");
+    const otherPath = path.join(realRoot, "b.ts");
+    await fs.writeFile(otherPath, "y");
+    try {
+      await fs.symlink(realRoot, linkRoot, "dir");
+    } catch {
+      t.skip("fs.symlink is not available on this platform");
+      return;
+    }
+
+    assert.equal(sameRealFilePath(path.join(linkRoot, "a.ts"), filePath), true);
+    assert.equal(sameRealFilePath(filePath, path.join(linkRoot, "a.ts")), true);
+    assert.equal(sameRealFilePath(path.join(linkRoot, "a.ts"), otherPath), false);
+    assert.equal(sameRealFilePath("/workspace/demo/missing.ts", "/workspace/demo/missing.ts"), true);
+  } finally {
+    await fs.rm(realRoot, { recursive: true, force: true });
+    await fs.rm(linkRoot, { force: true });
+  }
 });
 
 test("isRealPathInsideWorkspace follows symlinks and stays fail-closed", async (t) => {

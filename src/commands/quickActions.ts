@@ -1,5 +1,4 @@
 import { execFile } from "node:child_process";
-import { realpathSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -16,6 +15,18 @@ import {
 } from "../logging/outputChannel.js";
 import { formatCliOutput, formatError, formatQuickActionCliOutput, mergePatchloomEnv } from "../util.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
+import {
+  isRealPathInsideWorkspace,
+  resolveWorkspaceRelativePath,
+  sameRealFilePath
+} from "../workspace/pathContainment.js";
+
+export {
+  isPathInsideWorkspace,
+  isRealPathInsideWorkspace,
+  resolveWorkspaceRelativePath,
+  sameRealFilePath
+} from "../workspace/pathContainment.js";
 
 const execFileAsync = promisify(execFile);
 const STRUCTURED_FILE_EXTENSIONS = new Set([
@@ -31,6 +42,16 @@ const MARKDOWN_FILE_EXTENSIONS = new Set([".md", ".markdown", ".mdx"]);
 /** Human label for picker copy. `.env` / `.env.*` are basename matches, not extensions. */
 export const STRUCTURED_DOCUMENT_LABEL =
   "JSON, JSONC, YAML, TOML, .env, INI, or .properties";
+
+/** `doc set` accepts a concrete path. A predicate is `doc update`. */
+export const DOC_SET_SELECTOR_PROMPT =
+  "Selector path. Use a concrete path such as scripts.test. A predicate such as servers[port>8000] goes to Update matching structured values.";
+export const DOC_SET_SELECTOR_PLACEHOLDER = "scripts.test";
+
+/** `doc update` is the multi-match write, including numeric compares. */
+export const DOC_UPDATE_SELECTOR_PROMPT =
+  "Selector path (wildcards, predicates, and numeric compares such as items[name=foo].v or servers[port>8000])";
+export const DOC_UPDATE_SELECTOR_PLACEHOLDER = "items[*].enabled or servers[port>8000]";
 
 export type TidyFix = "ensure-final-newline" | "trim-trailing-whitespace" | "normalize-eol-lf";
 
@@ -94,6 +115,32 @@ export function presentSearchOutcome(
   }
   presentCliResultInOutput(log, result);
   return "hits";
+}
+
+/**
+ * `--files-without-match` exits 3 when nothing is listed. An empty folder
+ * and a glob that matches nothing use that same exit, so this must not
+ * say every scanned file contains the pattern.
+ */
+export function filesWithoutMatchNoneMessage(pattern: string): string {
+  return `No files without matches for "${pattern}".`;
+}
+
+/**
+ * `patch apply` and `patch merge` exit 0 when a patch writes nothing
+ * (`applied: false`). That is not a successful apply.
+ */
+export function patchCommandMadeNoChanges(stdout: string): boolean {
+  const trimmed = stdout.trim();
+  if (!trimmed.startsWith("{")) {
+    return false;
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as { applied?: unknown };
+    return parsed.applied === false;
+  } catch {
+    return false;
+  }
 }
 
 export function presentPatchMergeOutcome(
@@ -360,8 +407,8 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const selector = await vscode.window.showInputBox({
-          prompt: "Selector path (CLI 0.30+ accepts numeric compares such as servers[port>8000])",
-          placeHolder: "scripts.test or servers[port>8000]",
+          prompt: DOC_SET_SELECTOR_PROMPT,
+          placeHolder: DOC_SET_SELECTOR_PLACEHOLDER,
           validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
         });
         if (selector === undefined) {
@@ -392,8 +439,8 @@ export async function runQuickAction(): Promise<void> {
         }
 
         const selector = await vscode.window.showInputBox({
-          prompt: "Selector path (wildcards and predicates such as items[*].enabled)",
-          placeHolder: "items[*].enabled or items[name=foo].v",
+          prompt: DOC_UPDATE_SELECTOR_PROMPT,
+          placeHolder: DOC_UPDATE_SELECTOR_PLACEHOLDER,
           validateInput: (value) => value.length > 0 ? undefined : "Selector is required."
         });
         if (selector === undefined) {
@@ -501,7 +548,7 @@ export async function runQuickAction(): Promise<void> {
         const outcome = presentSearchOutcome(log, result);
 
         if (outcome === "none") {
-          await vscode.window.showInformationMessage(`Every scanned file contains "${pattern}".`);
+          await vscode.window.showInformationMessage(filesWithoutMatchNoneMessage(pattern));
         } else if (outcome === "error") {
           await vscode.window.showErrorMessage(`Patchloom search failed: ${formatCliOutput(result)}`);
         } else {
@@ -555,6 +602,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action, folder.uri.fsPath);
 
         if (result.exitCode !== 0) {
+          presentCliResultInOutput(getPatchloomLog(), result);
           await vscode.window.showErrorMessage(`Patchloom create failed: ${formatCliOutput(result)}`);
           return;
         }
@@ -632,6 +680,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action, target.workspaceFolder.uri.fsPath);
 
         if (result.exitCode !== 0) {
+          presentCliResultInOutput(getPatchloomLog(), result);
           await vscode.window.showErrorMessage(`Patchloom doc get failed: ${formatCliOutput(result)}`);
           return;
         }
@@ -665,6 +714,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action, target.workspaceFolder.uri.fsPath);
 
         if (result.exitCode !== 0) {
+          presentCliResultInOutput(getPatchloomLog(), result);
           await vscode.window.showErrorMessage(`Patchloom doc keys failed: ${formatCliOutput(result)}`);
           return;
         }
@@ -698,6 +748,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action, target.workspaceFolder.uri.fsPath);
 
         if (result.exitCode !== 0) {
+          presentCliResultInOutput(getPatchloomLog(), result);
           await vscode.window.showErrorMessage(`Patchloom doc len failed: ${formatCliOutput(result)}`);
           return;
         }
@@ -1185,6 +1236,8 @@ export async function runQuickAction(): Promise<void> {
 
           if (result.exitCode !== 0) {
             await vscode.window.showErrorMessage(`Patch apply failed: ${formatCliOutput(result)}`);
+          } else if (patchCommandMadeNoChanges(result.stdout)) {
+            await vscode.window.showWarningMessage("Patch made no changes.");
           } else {
             await vscode.window.showInformationMessage("Patch applied successfully.");
           }
@@ -1237,6 +1290,8 @@ export async function runQuickAction(): Promise<void> {
             await vscode.window.showWarningMessage("Patch merge completed with unresolved conflicts. Check the output for details.");
           } else if (outcome === "error") {
             await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
+          } else if (patchCommandMadeNoChanges(result.stdout)) {
+            await vscode.window.showWarningMessage("Patch merge made no changes.");
           } else {
             await vscode.window.showInformationMessage("Patch merged successfully.");
           }
@@ -1272,6 +1327,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action, folder.uri.fsPath);
 
         if (result.exitCode !== 0) {
+          presentCliResultInOutput(getPatchloomLog(), result);
           await vscode.window.showWarningMessage(formatUndoFailureMessage(result));
           return;
         }
@@ -1648,7 +1704,7 @@ export function buildMdInsertBeforeHeadingQuickAction(targetPath: string, headin
 }
 
 export function buildPatchApplyQuickAction(patchPath: string): PlannedQuickAction {
-  const args = withEndOfOptions(["patch", "apply"], [patchPath]);
+  const args = withEndOfOptions(["patch", "apply", "--json"], [patchPath]);
   return {
     title: `Apply patch ${path.basename(patchPath)}`,
     targetPath: patchPath,
@@ -1663,6 +1719,7 @@ export function buildPatchMergeQuickAction(patchPath: string, allowConflicts: bo
   if (allowConflicts) {
     head.push("--allow-conflicts");
   }
+  head.push("--json");
   const args = withEndOfOptions(head, [patchPath]);
   return {
     title: `Merge patch ${path.basename(patchPath)}`,
@@ -1704,11 +1761,28 @@ export function isAllowedPreviewMiss(action: PlannedQuickAction, exitCode: numbe
     return false;
   }
   // PlannedQuickAction.args are operands only. executePatchloom adds --contain.
-  // doc update and delete-where: exit 3 is a path miss (key not found), not a soft no-op.
-  return !(
+  // Exit 3 is a soft no-op for text replace (pattern not in the file).
+  // It is a real miss when an anchor or heading was not found: markdown
+  // section ops, apply-fragment, and insert-before / insert-after.
+  // Same for doc update, delete-where, append, prepend, merge, and move.
+  if (action.args[0] === "md" || action.args[0] === "apply-fragment") {
+    return false;
+  }
+  if (action.args.some((arg) => arg.startsWith("--insert-before=") || arg.startsWith("--insert-after="))) {
+    return false;
+  }
+  if (
     action.args[0] === "doc" &&
-    (action.args[1] === "update" || action.args[1] === "delete-where")
-  );
+    (action.args[1] === "update" ||
+      action.args[1] === "delete-where" ||
+      action.args[1] === "append" ||
+      action.args[1] === "prepend" ||
+      action.args[1] === "merge" ||
+      action.args[1] === "move")
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export function previewMissMessage(action: PlannedQuickAction, relativePath: string): string {
@@ -1930,88 +2004,6 @@ async function inputWorkspaceFileTarget(folder: VSCode.WorkspaceFolder): Promise
   }
 }
 
-function pathEscapesWorkspace(relativePath: string): boolean {
-  return relativePath === ".." || relativePath.startsWith(`..${path.sep}`);
-}
-
-export function resolveWorkspaceRelativePath(workspaceRoot: string, absolutePath: string): string {
-  const resolvedRoot = path.resolve(workspaceRoot);
-  const resolvedPath = path.resolve(absolutePath);
-  const relativePath = path.relative(resolvedRoot, resolvedPath);
-  if (!relativePath || pathEscapesWorkspace(relativePath) || path.isAbsolute(relativePath)) {
-    throw new Error(
-      "File path must stay inside the current workspace folder. Use a path under this folder (for example src/app.ts), or open the folder that owns the file."
-    );
-  }
-  return relativePath.split(path.sep).join("/");
-}
-
-function isResolvedPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
-  const resolvedRoot = path.resolve(workspaceRoot);
-  const resolvedPath = path.resolve(absolutePath);
-  const fold = process.platform === "win32" || process.platform === "darwin"
-    ? (value: string) => value.toLowerCase()
-    : (value: string) => value;
-  const root = fold(resolvedRoot);
-  const target = fold(resolvedPath);
-  return target === root || target.startsWith(`${root}${path.sep}`);
-}
-
-export function isPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
-  return isResolvedPathInsideWorkspace(workspaceRoot, absolutePath);
-}
-
-function isEnoent(error: unknown): boolean {
-  return typeof error === "object"
-    && error !== null
-    && "code" in error
-    && (error as { code?: unknown }).code === "ENOENT";
-}
-
-/** Real path of absolutePath, or of its nearest existing ancestor plus the missing suffix. */
-function realPathAllowingMissingSuffix(absolutePath: string): string | undefined {
-  const missing: string[] = [];
-  let current = path.resolve(absolutePath);
-  while (true) {
-    try {
-      const realAncestor = realpathSync(current);
-      if (missing.length === 0) {
-        return realAncestor;
-      }
-      return path.join(realAncestor, ...missing.slice().reverse());
-    } catch (error) {
-      if (!isEnoent(error)) {
-        return undefined;
-      }
-      const parent = path.dirname(current);
-      if (parent === current) {
-        return undefined;
-      }
-      missing.push(path.basename(current));
-      current = parent;
-    }
-  }
-}
-
-/**
- * True when the real path stays inside the workspace.
- * A missing leaf uses the nearest existing ancestor's real path plus the
- * missing suffix. Existing files that realpath outside stay rejected.
- */
-export function isRealPathInsideWorkspace(workspaceRoot: string, absolutePath: string): boolean {
-  let realRoot: string;
-  try {
-    realRoot = realpathSync(workspaceRoot);
-  } catch {
-    return false;
-  }
-  const resolved = realPathAllowingMissingSuffix(absolutePath);
-  if (resolved === undefined) {
-    return false;
-  }
-  return isResolvedPathInsideWorkspace(realRoot, resolved);
-}
-
 export interface StagedExternalPatch {
   readonly patchPath: string;
   readonly cleanup: () => Promise<void>;
@@ -2072,7 +2064,7 @@ async function ensureWorkspaceFileReady(target: WorkspaceFileTarget): Promise<bo
     return false;
   }
 
-  const openDocument = vscode.workspace.textDocuments.find((document) => sameFilePath(document.uri.fsPath, target.absolutePath));
+  const openDocument = vscode.workspace.textDocuments.find((document) => sameRealFilePath(document.uri.fsPath, target.absolutePath));
   if (openDocument?.isDirty) {
     const choice = await vscode.window.showWarningMessage(
       `${target.relativePath} has unsaved changes. Save it before running Patchloom quick actions.`,
@@ -2127,13 +2119,6 @@ async function executePatchloom(
     logCliResult(log, runtime.trace, result.exitCode, result.stdout, result.stderr);
     return result;
   }
-}
-
-function sameFilePath(left: string, right: string): boolean {
-  const normalize = (value: string) => process.platform === "win32"
-    ? path.resolve(value).toLowerCase()
-    : path.resolve(value);
-  return normalize(left) === normalize(right);
 }
 
 function asExecFailure(error: unknown): (Error & { stdout: string; stderr: string; exitCode: number }) | undefined {

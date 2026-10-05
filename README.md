@@ -59,11 +59,12 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 
 `Patchloom: Configure MCP` injects the Patchloom MCP server into your editor's config. Supports:
 
-- **VS Code** (`.vscode/mcp.json`)
+- **VS Code** (`.vscode/mcp.json`, key `servers`)
+- **Portable workspace** (`.mcp.json`, key `mcpServers`). Prefer this file for current VS Code and Copilot. The Agent Host reads it directly. The entry sets `"type": "stdio"`.
 - **Cursor** (`.cursor/mcp.json`)
 - **Windsurf** (`~/.codeium/windsurf/mcp_config.json`)
 
-When configuring, pick **Full tool inventory** (default) or **Core pack**. Core sets `PATCHLOOM_MCP_SURFACE=core` on the server entry. Existing servers in JSON or JSONC (`//` comments, trailing commas) stay in the file. A config that is not an object is left unchanged and the command reports an error.
+When configuring, pick **Full tool inventory** (default) or **Core pack**. Core sets `PATCHLOOM_MCP_SURFACE=core` on the server entry. Existing servers in JSON or JSONC (`//` comments, trailing commas) stay in the file. A config that is not an object is left unchanged and the command reports an error. If an existing file cannot be read, the command reports that error and does not replace it. A missing file is still created.
 
 CLI **0.37.0** exposes **66** MCP tools by default (including `explain_plan`, `tidy_check`, `list_files`, `apply_fragment`, `notebook_edit`, and `operation_schema`). The core pack is 12 tools on CLI 0.37+: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `operation_schema`, `server_info`. `doc` accepts `.jsonc` (comments stay on set), plus `.env`, `.ini`, and `.properties`. `doc_set` accepts `if_exists` to skip a missing file or selector. `apply_patch` accepts `apply=false` for a check-only preview. CLI `list-files` inventories ignore-aware paths the same way as MCP `list_files`. `search_files` accepts `files_without_match` (CLI 0.29+). `apply_patch` accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE (CLI 0.30+). `doc_query` can list object keys and count array or object length (CLI 0.32+). Search, replace, and tidy dests accept cwd-only globs such as `*.txt` (CLI 0.33+; use `**/*.txt` or `--glob` for nested files). Absolute paths that resolve inside the MCP workspace root are allowed; empty paths, `../`, and outside paths still reject with stable `error_kind` peels.
 
@@ -71,11 +72,11 @@ CLI **0.37.0** exposes **66** MCP tools by default (including `explain_plan`, `t
 
 The status bar shows MCP and binary readiness at a glance:
 
-- **$(plug) Patchloom MCP** when the MCP server is configured
-- **$(check) Patchloom** when the binary is ready but MCP is not yet set up
+- **$(plug) Patchloom**, with the detected version when known (`$(plug) Patchloom v0.37.0`), when an MCP config file is configured
+- **$(check) Patchloom**, with the detected version when known, when the binary is ready and MCP is not configured
 - **$(warning) Patchloom** when the binary is missing or needs an upgrade
 
-Click it to see full diagnostics, including per-editor MCP configuration status (VS Code, Cursor, Windsurf).
+Click it to see full diagnostics, including per-file MCP configuration status (VS Code, portable workspace, Cursor, Windsurf).
 
 ### Verify MCP Server
 
@@ -119,11 +120,11 @@ Click it to see full diagnostics, including per-editor MCP configuration status 
 | **Merge patch (three-way)** | Apply a stale patch using three-way merge (v0.2.0+) |
 | **Undo last change** | Restore files from the latest Patchloom backup session |
 
-Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay inside the workspace root (CLI 0.10+). Containment is relative to the effective working directory (the workspace folder). Patch apply and patch merge skip containment when the patch file may live outside the workspace.
+Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay inside the workspace root (CLI 0.10+). Containment is relative to the effective working directory (the workspace folder). Patch apply and patch merge copy a patch file that lives outside the workspace into a temporary directory inside it, then still pass `--contain`. A path inside that patch that leaves the workspace is rejected.
 
 ### Batch operations
 
-`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, JSONC `doc.set`, multi-match `doc.update`, `doc.delete_where`, multi-doc `doc.merge`, file append, directory `file.rename`, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --apply` so all changes land atomically.
+`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, JSONC `doc.set`, multi-match `doc.update`, `doc.delete_where`, multi-doc `doc.merge`, file append, directory `file.rename`, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --json --apply`. A hard error rolls the plan back. A replace that matches nothing, or a structured delete that removes nothing, is reported, other successful writes stay, and the completion message names those operations. A line whose first non-whitespace character is `#` is a comment. Blank lines and comments are not operations. A plan that contains only those lines is not applied.
 
 ### Output channel
 
@@ -143,7 +144,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | `Patchloom: Initialize Project` | Generate or diff `AGENTS.md` from `patchloom agent-rules` (mode, platform, surface full/core) |
 | `Patchloom: Configure MCP` | Inject Patchloom MCP server config (full or core tool surface) into editor config files |
 | `Patchloom: Quick Action` | Build a Patchloom CLI command from an interactive picker |
-| `Patchloom: Batch Apply` | Open a batch plan and execute all operations atomically |
+| `Patchloom: Batch Apply` | Open a batch plan, apply it, and report refused operations |
 | `Patchloom: Show Output` | Open the Patchloom output channel for CLI logs and diagnostics |
 | `Patchloom: Show Status` | Display binary readiness, version, compatibility, and workspace state |
 | `Patchloom: Verify MCP Server` | Spawn the MCP server and verify it responds to a JSON-RPC initialize request |
@@ -202,7 +203,7 @@ On CLI 0.31+, create and rename check each parent of the destination before stag
 On CLI 0.30+, selectors accept `!=`, `>`, `>=`, `<`, `<=`, and `[!key]` (for example `servers[port>8000]`). A non-numeric compare reports `error_kind: invalid_input`. Use a number on the right-hand side, or a concrete index path.
 
 **Search files without match**
-On CLI 0.29+, `search -L` / `--files-without-match` lists files that do not contain the pattern. Combining it with `--files-with-matches` or `--count` is `invalid_input`. When every scanned file contains the pattern, the CLI reports `error_kind: no_matches` and the text `no files without matches for 'PATTERN' in SCOPE` (that is not a content miss).
+On CLI 0.29+, `search -L` / `--files-without-match` lists files that do not contain the pattern. Combining it with `--files-with-matches` or `--count` is `invalid_input`. When that list is empty, the CLI exits 3 with `error_kind: no_matches` and `no files without matches for 'PATTERN' in SCOPE`. An empty folder, a glob that matches nothing, and a folder where every file contains the pattern all look the same. The Quick Action says no files lack the pattern.
 
 **YAML mapping alias stayed an alias**
 On CLI 0.31+, `doc set` on a mapping that is only `service_a: *shared` writes a merge key plus local fields (`<<: *shared` and your new keys) instead of inlining the whole object. Sequence items (`- *shared`) still expand or stay not-applied. CLI 0.32+ also keeps the merge key when you grow an inherited array, delete an inherited field, or write an empty object.
@@ -257,7 +258,7 @@ The extension's MCP server is stdio. If you bind Streamable HTTP yourself (`patc
 On CLI 0.30+, `patch apply` (and MCP `apply_patch`) accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE. Update and SEARCH matches must be unique unless you pass `--replace-all` (SEARCH/REPLACE only). The Quick Action **Apply patch (unified / Begin Patch / SEARCH-REPLACE)** builds `patch apply`. **Merge patch (three-way)** is still `patch merge` for stale unified diffs.
 
 **Batch replace shape**
-Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). Do not paste CLI form `replace OLD --new NEW path` into a batch plan; CLI 0.18+ returns a clear parse error with the PATH OLD NEW hint.
+Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). Do not paste CLI form `replace OLD --new NEW path` into a batch plan; CLI 0.18+ returns a clear parse error with the PATH OLD NEW hint. `--insert-after` is not a batch flag. The Quick Action **Insert text after match** uses it. In a batch plan that token is the new text, so the matched line is replaced. Prepend with `file.prepend PATH "text"`.
 
 **Batch doc.update / delete_where shape**
 Batch lines use `doc.update PATH SELECTOR VALUE` and `doc.delete_where PATH SELECTOR PREDICATE`. These are dotted batch ops (path, then selector, then value or predicate).
@@ -275,7 +276,7 @@ On CLI 0.22+, over-wide fuzzy matches can report `error_kind: fuzzy_span_suspici
 On CLI 0.27+, `doc set` / `doc ensure` / `doc delete` with a predicate or wildcard selector stay `error_kind: invalid_input` and may include `suggested_op`. Standalone CLI is `doc update` / `doc delete-where`; batch plans use `doc.update` / `doc.delete_where`. The extension surfaces that hint in notifications; full CLI text for search, undo, patch-merge, and batch apply is in the Output channel. Use the multi-match op (or a concrete index path such as `items.0.val`). The matching Quick Actions are **Update matching structured values** and **Delete matching array items**.
 
 **Ambiguous markdown heading**
-On CLI 0.25+, section ops that match the same heading more than once report `error_kind: ambiguous`. Make the heading unique or use a level-qualified query (for example `## Rules`).
+On CLI 0.25+, section ops that match the same heading more than once report `error_kind: ambiguous`. Make the heading unique or use a level-qualified query (for example `## Rules`). A heading that is absent is reported as not found, and the Quick Action preview shows that error.
 
 **MCP config not injected**
 Run `Patchloom: Configure MCP` and select the target editor config.

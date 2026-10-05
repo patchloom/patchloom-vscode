@@ -24,6 +24,7 @@ jobs:
     # This pattern is used successfully in patchloom and attune-io/attune.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       pull-requests: read
     outputs:

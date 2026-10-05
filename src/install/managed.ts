@@ -662,17 +662,28 @@ export async function performManagedInstall(inputs: PerformManagedInstallInputs)
       format: target.archiveFormat
     });
 
-    // cargo-dist archives extract to <triple>/patchloom, but promotion
-    // expects the binary at managed-bin/patchloom. Move it into place.
-    const extractedBinaryPath = path.join(
-      txPaths.stagingRoot,
-      `patchloom-${target.targetTriple}`,
-      managedBinaryName(platform)
-    );
-    if (await defaultFileExists(extractedBinaryPath)) {
-      await defaultEnsureDir(path.dirname(txPaths.stagedBinaryPath));
-      await defaultRenameFile(extractedBinaryPath, txPaths.stagedBinaryPath);
+    // Unix release archives nest the binary at patchloom-<triple>/patchloom.
+    // The Windows zip from the same release puts patchloom.exe at the archive root.
+    // Promotion expects managed-bin/patchloom(.exe).
+    const binaryName = managedBinaryName(platform);
+    const extractedCandidates = [
+      path.join(txPaths.stagingRoot, `patchloom-${target.targetTriple}`, binaryName),
+      path.join(txPaths.stagingRoot, binaryName)
+    ];
+    let extractedBinaryPath: string | undefined;
+    for (const candidate of extractedCandidates) {
+      if (await defaultFileExists(candidate)) {
+        extractedBinaryPath = candidate;
+        break;
+      }
     }
+    if (!extractedBinaryPath) {
+      throw new Error(
+        `Extracted archive did not contain ${binaryName}. Looked in patchloom-${target.targetTriple}/${binaryName} and ${binaryName}.`
+      );
+    }
+    await defaultEnsureDir(path.dirname(txPaths.stagedBinaryPath));
+    await defaultRenameFile(extractedBinaryPath, txPaths.stagedBinaryPath);
 
     report("installing");
     await promoteManagedInstallBinary({

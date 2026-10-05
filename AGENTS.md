@@ -35,7 +35,7 @@ src/
     initializeProject.ts Initialize Project command: generate/diff AGENTS.md
     managedInstall.ts    Managed Install commands: install, update, reinstall Patchloom binary
     quickActions.ts       Quick Action command: replace, tidy, doc set, search, create, append, prepend, doc get, doc keys, doc len, patch merge
-    batchApply.ts        Batch Apply command: atomic multi-operation plan (line-oriented, not JSON)
+    batchApply.ts        Batch Apply command: line-oriented plan; hard errors roll back; refused replaces are reported
     setupWorkspace.ts     Setup Workspace command: guided readiness walkthrough
     showStatus.ts         Show Status command: diagnostics display
     verifyMcp.ts         Verify MCP Server command: JSON-RPC initialize probe
@@ -50,19 +50,19 @@ src/
   workspace/readiness.ts Workspace readiness: environment detection, folder selection
 test/
   unit/                  Unit tests (node:test, dependency-injected, no VS Code API)
-    batchApply.test.ts   Batch template and operation count parsing (21 tests)
+    batchApply.test.ts   Batch template and operation count parsing (29 tests)
     binary.test.ts       Binary discovery, managed install, compatibility, workspace env (76 tests)
     binaryDiscovery.test.ts  Real executable discovery on PATH (13 tests)
-    initializeProject.test.ts  Status display, agents file classification, formatError (71 tests)
-    managedLifecycle.test.ts   Managed install with real file I/O (26 tests)
-    mcpConfig.test.ts    MCP config with real temp directories (16 tests)
+    initializeProject.test.ts  Status display, agents file classification, formatError (73 tests)
+    managedLifecycle.test.ts   Managed install with real file I/O (28 tests)
+    mcpConfig.test.ts    MCP config with real temp directories (23 tests)
     managedInstall.test.ts  Managed Update compares latest vs managed binary (10 tests)
     mcpRegister.test.ts  Native MCP definition helper for binary path (6 tests)
     statusRefresh.test.ts Status and MCP refresh order after input change (1 test)
     outputChannel.test.ts Output channel logging wrapper (22 tests)
     patchloomCli.test.ts Patchloom CLI integration with real binary + managed install e2e MCP (53 tests incl. e2e)
     propertyBased.test.ts  Property-based tests with fast-check (13 tests)
-    quickActions.test.ts Quick action command building, path containment, patch merge (95 tests)
+    quickActions.test.ts Quick action command building, path containment, patch merge (104 tests)
     verifyMcp.test.ts    MCP server verify and JSON-RPC response parsing (15 tests)
     downloadIntegration.test.ts  HTTP download, redirect, streaming SHA-256 (12 tests)
     packageEngines.test.ts   engines.node major meets installed vsce and ovsx floors (1 test)
@@ -133,6 +133,7 @@ All I/O-dependent functions accept an `inputs` object with injectable callbacks 
 | Target | Config file | Key |
 |--------|------------|-----|
 | VS Code workspace | `.vscode/mcp.json` | `servers` |
+| Portable workspace | `.mcp.json` | `mcpServers` |
 | Cursor workspace | `.cursor/mcp.json` | `mcpServers` |
 | Windsurf user | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
 
