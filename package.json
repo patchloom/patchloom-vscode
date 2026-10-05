@@ -260,10 +260,12 @@
     "check": "npm run test && npm run test:coverage && npm run package"
   },
   "overrides": {
-    "brace-expansion": "5.0.9",
-    "fast-uri": "3.1.7",
+    "brace-expansion": "5.0.12",
+    "fast-uri": "3.1.8",
+    "http-cache-semantics": "4.3.0",
     "js-yaml@4": "4.3.2",
     "qs": "6.16.0",
+    "secretlint": "13.0.7",
     "mocha": {
       "diff": "^8.0.3",
       "serialize-javascript": "^7.0.5"
