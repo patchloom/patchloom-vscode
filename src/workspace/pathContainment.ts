@@ -82,6 +82,26 @@ function relativeInsideRoot(root: string, absolutePath: string): string | undefi
   return relativePath.split(path.sep).join("/");
 }
 
+/**
+ * True when both paths name the same file. realpath folds macOS /var and
+ * /tmp onto /private so an open editor matches a workspace-relative path.
+ * A path that does not exist yet is compared as a resolved string.
+ */
+export function sameRealFilePath(left: string, right: string): boolean {
+  return normalizeRealFilePath(left) === normalizeRealFilePath(right);
+}
+
+function normalizeRealFilePath(value: string): string {
+  const resolved = path.resolve(value);
+  let normalized = resolved;
+  try {
+    normalized = realpathSync(resolved);
+  } catch {
+    normalized = resolved;
+  }
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+}
+
 export function resolveWorkspaceRelativePath(workspaceRoot: string, absolutePath: string): string {
   const lexical = relativeInsideRoot(workspaceRoot, absolutePath);
   if (lexical) {

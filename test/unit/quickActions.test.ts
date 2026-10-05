@@ -47,6 +47,7 @@ import {
   presentSearchOutcome,
   presentUndoSuccess,
   resolveWorkspaceRelativePath,
+  sameRealFilePath,
   retargetQuickAction,
   serializePatchloomArgs,
   withEndOfOptions,
@@ -991,6 +992,31 @@ test("formatUndoFailureMessage prefixes other failures with Patchloom undo faile
     }),
     "Patchloom undo failed: permission denied"
   );
+});
+
+test("sameRealFilePath matches files across a symlinked workspace root", async (t) => {
+  const realRoot = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-same-"));
+  const linkRoot = `${realRoot}-link`;
+  try {
+    const filePath = path.join(realRoot, "a.ts");
+    await fs.writeFile(filePath, "x");
+    const otherPath = path.join(realRoot, "b.ts");
+    await fs.writeFile(otherPath, "y");
+    try {
+      await fs.symlink(realRoot, linkRoot, "dir");
+    } catch {
+      t.skip("fs.symlink is not available on this platform");
+      return;
+    }
+
+    assert.equal(sameRealFilePath(path.join(linkRoot, "a.ts"), filePath), true);
+    assert.equal(sameRealFilePath(filePath, path.join(linkRoot, "a.ts")), true);
+    assert.equal(sameRealFilePath(path.join(linkRoot, "a.ts"), otherPath), false);
+    assert.equal(sameRealFilePath("/workspace/demo/missing.ts", "/workspace/demo/missing.ts"), true);
+  } finally {
+    await fs.rm(realRoot, { recursive: true, force: true });
+    await fs.rm(linkRoot, { force: true });
+  }
 });
 
 test("isRealPathInsideWorkspace follows symlinks and stays fail-closed", async (t) => {

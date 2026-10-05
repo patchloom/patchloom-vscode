@@ -17,13 +17,15 @@ import { formatCliOutput, formatError, formatQuickActionCliOutput, mergePatchloo
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 import {
   isRealPathInsideWorkspace,
-  resolveWorkspaceRelativePath
+  resolveWorkspaceRelativePath,
+  sameRealFilePath
 } from "../workspace/pathContainment.js";
 
 export {
   isPathInsideWorkspace,
   isRealPathInsideWorkspace,
-  resolveWorkspaceRelativePath
+  resolveWorkspaceRelativePath,
+  sameRealFilePath
 } from "../workspace/pathContainment.js";
 
 const execFileAsync = promisify(execFile);
@@ -1999,7 +2001,7 @@ async function ensureWorkspaceFileReady(target: WorkspaceFileTarget): Promise<bo
     return false;
   }
 
-  const openDocument = vscode.workspace.textDocuments.find((document) => sameFilePath(document.uri.fsPath, target.absolutePath));
+  const openDocument = vscode.workspace.textDocuments.find((document) => sameRealFilePath(document.uri.fsPath, target.absolutePath));
   if (openDocument?.isDirty) {
     const choice = await vscode.window.showWarningMessage(
       `${target.relativePath} has unsaved changes. Save it before running Patchloom quick actions.`,
@@ -2054,13 +2056,6 @@ async function executePatchloom(
     logCliResult(log, runtime.trace, result.exitCode, result.stdout, result.stderr);
     return result;
   }
-}
-
-function sameFilePath(left: string, right: string): boolean {
-  const normalize = (value: string) => process.platform === "win32"
-    ? path.resolve(value).toLowerCase()
-    : path.resolve(value);
-  return normalize(left) === normalize(right);
 }
 
 function asExecFailure(error: unknown): (Error & { stdout: string; stderr: string; exitCode: number }) | undefined {
