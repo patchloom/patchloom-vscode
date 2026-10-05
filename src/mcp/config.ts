@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { parse, type ParseError } from "jsonc-parser";
+import { applyEdits, modify, parse, type ParseError } from "jsonc-parser";
 import { configuredBinaryPathFromSetting } from "../binary/patchloom.js";
 import { isRealPathInsideWorkspace } from "../workspace/pathContainment.js";
 
@@ -93,20 +93,37 @@ export async function configureMcpTargets(inputs: McpApplyInputs): Promise<McpTa
     assertMcpConfigWriteContained(target, inputs.workspaceFolderPath);
     const content = await readFile(target.filePath);
     const original = parseJsonObject(content, target.filePath);
-    const updated = withPatchloomEntry(target.kind, original, patchloomCommand, mcpSurface);
-    const serialized = `${JSON.stringify(updated, null, 2)}\n`;
-    const previousSerialized = content === undefined ? undefined : `${JSON.stringify(original, null, 2)}\n`;
-    const changed = previousSerialized !== serialized;
+    const entry = entryForKind(target.kind, patchloomCommand, mcpSurface);
+    const key = usesMcpServersKey(target.kind) ? "mcpServers" : "servers";
+    const existingRoot = original[key];
+    const currentEntry = isPlainObject(existingRoot) ? existingRoot.patchloom : undefined;
+    const hasText = typeof content === "string" && content.trim().length > 0;
 
-    if (changed) {
-      await inputs.writeFile(target.filePath, serialized);
+    if (hasText && isPlainObject(existingRoot) && stableJson(currentEntry) === stableJson(entry)) {
+      results.push({
+        ...target,
+        exists: true,
+        configured: true,
+        changed: false
+      });
+      continue;
     }
+
+    if (hasText && existingRoot !== undefined && !isPlainObject(existingRoot)) {
+      throw new Error(`Cannot update MCP config ${target.filePath}: "${key}" must be a JSON object`);
+    }
+
+    // JSON.stringify of the parse drops comments and trailing commas.
+    const serialized = typeof content === "string" && content.trim().length > 0
+      ? applyPatchloomEntry(content, key, entry)
+      : `${JSON.stringify(withPatchloomEntry(target.kind, original, patchloomCommand, mcpSurface), null, 2)}\n`;
+    await inputs.writeFile(target.filePath, serialized);
 
     results.push({
       ...target,
       exists: content !== undefined,
       configured: true,
-      changed
+      changed: true
     });
   }
 
@@ -255,6 +272,28 @@ function objectValue(value: unknown): Record<string, unknown> {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function applyPatchloomEntry(content: string, key: string, entry: Record<string, unknown>): string {
+  const edits = modify(content, [key, "patchloom"], entry, {
+    formattingOptions: { insertSpaces: true, tabSize: 2 }
+  });
+  return applyEdits(content, edits);
+}
+
+function stableJson(value: unknown): string {
+  if (value === undefined) {
+    return "undefined";
+  }
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value) ?? "null";
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableJson(item)).join(",")}]`;
+  }
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record).sort();
+  return `{${keys.map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`).join(",")}}`;
 }
 
 function parseJsonObject(content: string | undefined, filePath: string): Record<string, unknown> {
