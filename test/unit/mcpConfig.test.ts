@@ -394,3 +394,88 @@ test("configureMcpTargets handles empty config file", async () => {
     assert.ok((written.servers as Record<string, unknown>).patchloom);
   });
 });
+
+test("configureMcpTargets does not replace a config it could not read", async () => {
+  await withTempDir(async (workspace) => {
+    const vscodeDir = path.join(workspace, ".vscode");
+    const filePath = path.join(vscodeDir, "mcp.json");
+    await fs.mkdir(filePath, { recursive: true });
+
+    let writes = 0;
+    await assert.rejects(
+      () => configureMcpTargets({
+        workspaceFolderPath: workspace,
+        homeDir: workspace,
+        includeKinds: ["vscode-workspace"],
+        patchloomPathSetting: "patchloom",
+        writeFile: async () => {
+          writes += 1;
+        }
+      }),
+      (err: unknown) => {
+        assert.equal(isEnoent(err), false);
+        return true;
+      }
+    );
+    assert.equal(writes, 0);
+
+    const inspected = await inspectMcpTargets({
+      workspaceFolderPath: workspace,
+      homeDir: workspace,
+      includeUserTarget: false
+    });
+    const vscodeTarget = inspected.find((target) => target.kind === "vscode-workspace");
+    assert.ok(vscodeTarget);
+    assert.equal(vscodeTarget.configured, false);
+  });
+});
+
+test("configureMcpTargets leaves an unreadable config file unchanged", async (t) => {
+  if (process.platform === "win32" || process.getuid?.() === 0) {
+    t.skip("chmod 0 does not deny read for this process");
+    return;
+  }
+
+  await withTempDir(async (workspace) => {
+    const vscodeDir = path.join(workspace, ".vscode");
+    await fs.mkdir(vscodeDir, { recursive: true });
+    const filePath = path.join(vscodeDir, "mcp.json");
+    const original = `${JSON.stringify({
+      servers: { other: { command: "other-server" } }
+    }, null, 2)}\n`;
+    await fs.writeFile(filePath, original, "utf8");
+    await fs.chmod(filePath, 0);
+
+    let writes = 0;
+    try {
+      await assert.rejects(
+        () => configureMcpTargets({
+          workspaceFolderPath: workspace,
+          homeDir: workspace,
+          includeKinds: ["vscode-workspace"],
+          patchloomPathSetting: "patchloom",
+          writeFile: async () => {
+            writes += 1;
+          }
+        }),
+        (err: unknown) => {
+          assert.equal(isEnoent(err), false);
+          return true;
+        }
+      );
+      assert.equal(writes, 0);
+    } finally {
+      await fs.chmod(filePath, 0o644);
+    }
+
+    const after = await fs.readFile(filePath, "utf8");
+    assert.equal(after, original);
+  });
+});
+
+function isEnoent(error: unknown): boolean {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && (error as { code?: unknown }).code === "ENOENT";
+}

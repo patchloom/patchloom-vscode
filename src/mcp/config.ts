@@ -1,3 +1,4 @@
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { parse, type ParseError } from "jsonc-parser";
 import { configuredBinaryPathFromSetting } from "../binary/patchloom.js";
@@ -66,7 +67,7 @@ export async function inspectMcpTargets(inputs: McpInspectionInputs): Promise<Mc
 }
 
 export async function configureMcpTargets(inputs: McpApplyInputs): Promise<McpTargetResult[]> {
-  const readFile = inputs.readFile ?? defaultReadFile;
+  const readFile = inputs.readFile ?? readMcpConfigText;
   const patchloomCommand = configuredBinaryPathFromSetting(inputs.patchloomPathSetting) ?? "patchloom";
   const includeKinds = inputs.includeKinds ? new Set(inputs.includeKinds) : undefined;
   const targets = resolveMcpTargets(inputs.workspaceFolderPath, inputs.homeDir, inputs.includeUserTarget)
@@ -205,9 +206,31 @@ function parseJsonObject(content: string | undefined, filePath: string): Record<
   return { ...parsed };
 }
 
+function isEnoent(error: unknown): boolean {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && (error as { code?: unknown }).code === "ENOENT";
+}
+
+/**
+ * Missing config is undefined. Any other read error throws so configure does
+ * not replace an unreadable file with a patchloom-only object.
+ */
+export async function readMcpConfigText(filePath: string): Promise<string | undefined> {
+  try {
+    return await fs.readFile(filePath, "utf8");
+  } catch (error) {
+    if (isEnoent(error)) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
 async function defaultReadFile(filePath: string): Promise<string | undefined> {
   try {
-    return await (await import("node:fs/promises")).readFile(filePath, "utf8");
+    return await fs.readFile(filePath, "utf8");
   } catch {
     return undefined;
   }

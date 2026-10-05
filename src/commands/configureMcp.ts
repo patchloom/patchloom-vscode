@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
-import { configureMcpTargets, inspectMcpTargets } from "../mcp/config.js";
+import { configureMcpTargets, inspectMcpTargets, readMcpConfigText } from "../mcp/config.js";
 import { refreshStatusBar } from "../status/statusBar.js";
 import { formatError } from "../util.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
@@ -72,13 +72,7 @@ export async function configureMcp(): Promise<void> {
       includeUserTarget: environment.supportsUserMcpConfig,
       patchloomPathSetting: binaryPath,
       mcpSurface: surfacePick.surface,
-      readFile: async (filePath) => {
-        try {
-          return await fs.readFile(filePath, "utf8");
-        } catch {
-          return undefined;
-        }
-      },
+      readFile: readMcpConfigText,
       writeFile: async (filePath, content) => {
         await fs.mkdir(path.dirname(filePath), { recursive: true });
         await fs.writeFile(filePath, content, "utf8");
