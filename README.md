@@ -120,7 +120,7 @@ Click it to see full diagnostics, including per-file MCP configuration status (V
 | **Merge patch (three-way)** | Apply a stale patch using three-way merge (v0.2.0+) |
 | **Undo last change** | Restore files from the latest Patchloom backup session |
 
-Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay inside the workspace root (CLI 0.10+). Containment is relative to the effective working directory (the workspace folder). Patch apply and patch merge skip containment when the patch file may live outside the workspace.
+Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay inside the workspace root (CLI 0.10+). Containment is relative to the effective working directory (the workspace folder). Patch apply and patch merge copy a patch file that lives outside the workspace into a temporary directory inside it, then still pass `--contain`. A path inside that patch that leaves the workspace is rejected.
 
 ### Batch operations
 
