@@ -117,6 +117,23 @@ export function presentSearchOutcome(
   return "hits";
 }
 
+/**
+ * `patch apply` and `patch merge` exit 0 when a patch writes nothing
+ * (`applied: false`). That is not a successful apply.
+ */
+export function patchCommandMadeNoChanges(stdout: string): boolean {
+  const trimmed = stdout.trim();
+  if (!trimmed.startsWith("{")) {
+    return false;
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as { applied?: unknown };
+    return parsed.applied === false;
+  } catch {
+    return false;
+  }
+}
+
 export function presentPatchMergeOutcome(
   log: PatchloomLog | undefined,
   result: { exitCode: number; stdout: string; stderr: string }
@@ -1210,6 +1227,8 @@ export async function runQuickAction(): Promise<void> {
 
           if (result.exitCode !== 0) {
             await vscode.window.showErrorMessage(`Patch apply failed: ${formatCliOutput(result)}`);
+          } else if (patchCommandMadeNoChanges(result.stdout)) {
+            await vscode.window.showWarningMessage("Patch made no changes.");
           } else {
             await vscode.window.showInformationMessage("Patch applied successfully.");
           }
@@ -1262,6 +1281,8 @@ export async function runQuickAction(): Promise<void> {
             await vscode.window.showWarningMessage("Patch merge completed with unresolved conflicts. Check the output for details.");
           } else if (outcome === "error") {
             await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
+          } else if (patchCommandMadeNoChanges(result.stdout)) {
+            await vscode.window.showWarningMessage("Patch merge made no changes.");
           } else {
             await vscode.window.showInformationMessage("Patch merged successfully.");
           }
@@ -1674,7 +1695,7 @@ export function buildMdInsertBeforeHeadingQuickAction(targetPath: string, headin
 }
 
 export function buildPatchApplyQuickAction(patchPath: string): PlannedQuickAction {
-  const args = withEndOfOptions(["patch", "apply"], [patchPath]);
+  const args = withEndOfOptions(["patch", "apply", "--json"], [patchPath]);
   return {
     title: `Apply patch ${path.basename(patchPath)}`,
     targetPath: patchPath,
@@ -1689,6 +1710,7 @@ export function buildPatchMergeQuickAction(patchPath: string, allowConflicts: bo
   if (allowConflicts) {
     head.push("--allow-conflicts");
   }
+  head.push("--json");
   const args = withEndOfOptions(head, [patchPath]);
   return {
     title: `Merge patch ${path.basename(patchPath)}`,

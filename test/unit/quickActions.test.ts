@@ -30,6 +30,7 @@ import {
   buildMdUpsertBulletQuickAction,
   buildPatchApplyQuickAction,
   buildPatchMergeQuickAction,
+  patchCommandMadeNoChanges,
   buildReplaceQuickAction,
   buildSearchQuickAction,
   buildTidyQuickAction,
@@ -881,8 +882,8 @@ test("buildPatchApplyQuickAction builds a patch apply command", () => {
   const action = buildPatchApplyQuickAction("/workspace/demo/changes.patch");
 
   assert.equal(action.title, "Apply patch changes.patch");
-  assert.deepEqual(action.targetArgIndices, [3]);
-  assert.deepEqual(action.args, ["patch", "apply", "--", "/workspace/demo/changes.patch"]);
+  assert.deepEqual(action.targetArgIndices, [4]);
+  assert.deepEqual(action.args, ["patch", "apply", "--json", "--", "/workspace/demo/changes.patch"]);
   assert.equal(action.apply, true);
 });
 
@@ -890,7 +891,7 @@ test("retargetQuickAction works with patch apply command", () => {
   const action = buildPatchApplyQuickAction("/workspace/demo/fix.patch");
   const retargeted = retargetQuickAction(action, "/tmp/preview/fix.patch");
 
-  assert.equal(retargeted.args[3], "/tmp/preview/fix.patch");
+  assert.equal(retargeted.args[4], "/tmp/preview/fix.patch");
   assert.equal(retargeted.args[0], "patch");
   assert.equal(retargeted.args[1], "apply");
   assert.equal(retargeted.apply, true);
@@ -902,8 +903,8 @@ test("buildPatchMergeQuickAction builds a patch merge command", () => {
   const action = buildPatchMergeQuickAction("/workspace/demo/changes.patch", false);
 
   assert.equal(action.title, "Merge patch changes.patch");
-  assert.deepEqual(action.targetArgIndices, [3]);
-  assert.deepEqual(action.args, ["patch", "merge", "--", "/workspace/demo/changes.patch"]);
+  assert.deepEqual(action.targetArgIndices, [4]);
+  assert.deepEqual(action.args, ["patch", "merge", "--json", "--", "/workspace/demo/changes.patch"]);
   assert.equal(action.apply, true);
 });
 
@@ -911,8 +912,8 @@ test("buildPatchMergeQuickAction includes allow-conflicts flag when enabled", ()
   const action = buildPatchMergeQuickAction("/workspace/demo/stale.diff", true);
 
   assert.equal(action.title, "Merge patch stale.diff");
-  assert.deepEqual(action.targetArgIndices, [4]);
-  assert.deepEqual(action.args, ["patch", "merge", "--allow-conflicts", "--", "/workspace/demo/stale.diff"]);
+  assert.deepEqual(action.targetArgIndices, [5]);
+  assert.deepEqual(action.args, ["patch", "merge", "--allow-conflicts", "--json", "--", "/workspace/demo/stale.diff"]);
   assert.equal(action.apply, true);
 });
 
@@ -920,9 +921,24 @@ test("retargetQuickAction works with patch merge command", () => {
   const action = buildPatchMergeQuickAction("/workspace/demo/fix.patch", false);
   const retargeted = retargetQuickAction(action, "/tmp/preview/fix.patch");
 
-  assert.equal(retargeted.args[3], "/tmp/preview/fix.patch");
+  assert.equal(retargeted.args[4], "/tmp/preview/fix.patch");
   assert.equal(retargeted.args[0], "patch");
   assert.equal(retargeted.args[1], "merge");
+});
+
+test("patchCommandMadeNoChanges is true when patch JSON says applied false", () => {
+  const stdout = JSON.stringify({ ok: true, files: [], applied: false });
+  assert.equal(patchCommandMadeNoChanges(stdout), true);
+});
+
+test("patchCommandMadeNoChanges is false when the patch applied", () => {
+  const stdout = JSON.stringify({
+    ok: true,
+    files: [{ path: "a.txt", status: "applied" }],
+    applied: true
+  });
+  assert.equal(patchCommandMadeNoChanges(stdout), false);
+  assert.equal(patchCommandMadeNoChanges("applied a.txt\n"), false);
 });
 
 // --- append Quick Action (reflecting patchloom 0.4.0+) ---
