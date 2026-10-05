@@ -201,6 +201,37 @@ test("formatBatchApplyCompletion names a refused replace instead of claiming eve
   );
 });
 
+test("formatBatchApplyCompletion warns when doc.delete removes nothing", () => {
+  const stdout = JSON.stringify({
+    ok: true,
+    status: "success",
+    applied: true,
+    files_changed: 1,
+    files_created: 0,
+    files_deleted: 0,
+    mutations: [{ path: "d.json", op: "doc.delete", changed: false, removed: 0 }]
+  });
+  const completion = formatBatchApplyCompletion(stdout, 2);
+  assert.equal(completion.warning, true);
+  assert.equal(
+    completion.message,
+    "Batch apply: 1 file(s) changed. 1 operation(s) were not applied: d.json (doc.delete changed nothing)."
+  );
+});
+
+test("formatBatchApplyCompletion does not warn when doc.delete removes a key", () => {
+  const stdout = JSON.stringify({
+    ok: true,
+    files_changed: 1,
+    files_created: 0,
+    files_deleted: 0,
+    mutations: [{ path: "d.json", op: "doc.delete", changed: true, removed: 1 }]
+  });
+  const completion = formatBatchApplyCompletion(stdout, 1);
+  assert.equal(completion.warning, false);
+  assert.equal(completion.message, "Batch apply completed: 1 file(s) changed.");
+});
+
 test("formatBatchApplyCompletion warns when a same-file replace reports match_count 0", () => {
   const stdout = JSON.stringify({
     ok: true,

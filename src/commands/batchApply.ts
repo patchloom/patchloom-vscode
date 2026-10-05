@@ -37,7 +37,7 @@ export function buildBatchTemplate(): string {
 }
 
 export const BATCH_APPLY_PROMPT =
-  "Edit the batch plan, then click Apply. A hard error rolls the plan back. A replace that matches nothing stays refused and does not undo other writes. Lines whose first non-whitespace character is # are comments and are not applied. Multi-match lines use dotted batch ops: doc.update PATH SELECTOR VALUE and doc.delete_where PATH SELECTOR PREDICATE.";
+  "Edit the batch plan, then click Apply. A hard error rolls the plan back. A replace that matches nothing, or a structured delete that removes nothing, is reported and does not undo other writes. Lines whose first non-whitespace character is # are comments and are not applied. Multi-match lines use dotted batch ops: doc.update PATH SELECTOR VALUE and doc.delete_where PATH SELECTOR PREDICATE.";
 
 /** Count operations `patchloom batch` will run. A leading BOM, blank lines, and `#` comments are ignored. */
 export function parseBatchOperationCount(plan: string): number {
@@ -63,12 +63,18 @@ export interface BatchRefusedOperation {
   readonly reason: string;
 }
 
+export interface BatchUnchangedMutation {
+  readonly path: string;
+  readonly op: string;
+}
+
 export interface BatchApplyReport {
   readonly filesChanged: number;
   readonly filesCreated: number;
   readonly filesDeleted: number;
   readonly matchCount: number | undefined;
   readonly refused: readonly BatchRefusedOperation[];
+  readonly unchanged: readonly BatchUnchangedMutation[];
 }
 
 /** Parse `patchloom batch --json` stdout. Undefined when the CLI did not return that object. */
@@ -84,6 +90,7 @@ export function parseBatchApplyReport(stdout: string): BatchApplyReport | undefi
       files_deleted?: unknown;
       match_count?: unknown;
       refused?: unknown;
+      mutations?: unknown;
     };
     if (typeof parsed.files_changed !== "number") {
       return undefined;
@@ -109,7 +116,8 @@ export function parseBatchApplyReport(stdout: string): BatchApplyReport | undefi
       filesCreated: typeof parsed.files_created === "number" ? parsed.files_created : 0,
       filesDeleted: typeof parsed.files_deleted === "number" ? parsed.files_deleted : 0,
       matchCount: typeof parsed.match_count === "number" ? parsed.match_count : undefined,
-      refused
+      refused,
+      unchanged: unchangedMutations(parsed.mutations)
     };
   } catch {
     return undefined;
@@ -123,8 +131,8 @@ export interface BatchApplyCompletion {
 
 /**
  * Exit 0 is not "every plan line was applied". CLI 0.37 keeps earlier writes
- * when another replace matches nothing, and reports that on `refused` or
- * `match_count: 0`.
+ * when another replace matches nothing (`refused` or `match_count: 0`) or
+ * when `doc.delete` removes nothing (`mutations[].changed === false`).
  */
 export function formatBatchApplyCompletion(stdout: string, operationCount: number): BatchApplyCompletion {
   const report = parseBatchApplyReport(stdout);
@@ -136,13 +144,14 @@ export function formatBatchApplyCompletion(stdout: string, operationCount: numbe
   }
 
   const tally = describeBatchFileTally(report);
-  if (report.refused.length > 0) {
-    const details = report.refused
-      .map((item) => `${item.path} (${describeRefusedReason(item.reason)})`)
-      .join(", ");
+  const missed = [
+    ...report.refused.map((item) => `${item.path} (${describeRefusedReason(item.reason)})`),
+    ...report.unchanged.map((item) => `${item.path} (${item.op} changed nothing)`)
+  ];
+  if (missed.length > 0) {
     return {
       warning: true,
-      message: `Batch apply: ${tally}. ${report.refused.length} operation(s) were not applied: ${details}.`
+      message: `Batch apply: ${tally}. ${missed.length} operation(s) were not applied: ${missed.join(", ")}.`
     };
   }
   if (report.matchCount === 0) {
@@ -169,6 +178,27 @@ function describeBatchFileTally(report: BatchApplyReport): string {
     parts.push(`${report.filesDeleted} file(s) deleted`);
   }
   return parts.length > 0 ? parts.join(", ") : "no files changed";
+}
+
+function unchangedMutations(value: unknown): BatchUnchangedMutation[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const unchanged: BatchUnchangedMutation[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const record = item as { path?: unknown; op?: unknown; changed?: unknown };
+    if (record.changed !== false || typeof record.path !== "string" || record.path.length === 0) {
+      continue;
+    }
+    unchanged.push({
+      path: record.path,
+      op: typeof record.op === "string" && record.op.length > 0 ? record.op : "operation"
+    });
+  }
+  return unchanged;
 }
 
 function describeRefusedReason(reason: string): string {

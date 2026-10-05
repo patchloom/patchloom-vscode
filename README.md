@@ -124,7 +124,7 @@ Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay insid
 
 ### Batch operations
 
-`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, JSONC `doc.set`, multi-match `doc.update`, `doc.delete_where`, multi-doc `doc.merge`, file append, directory `file.rename`, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --json --apply`. A hard error rolls the plan back. A replace that matches nothing is refused, other successful writes stay, and the completion message names those refused paths. A line whose first non-whitespace character is `#` is a comment. Blank lines and comments are not operations. A plan that contains only those lines is not applied.
+`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, JSONC `doc.set`, multi-match `doc.update`, `doc.delete_where`, multi-doc `doc.merge`, file append, directory `file.rename`, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --json --apply`. A hard error rolls the plan back. A replace that matches nothing, or a structured delete that removes nothing, is reported, other successful writes stay, and the completion message names those operations. A line whose first non-whitespace character is `#` is a comment. Blank lines and comments are not operations. A plan that contains only those lines is not applied.
 
 ### Output channel
 
