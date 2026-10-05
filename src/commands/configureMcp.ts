@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
+import { getPatchloomLog, writeUserVisibleOutput } from "../logging/outputChannel.js";
 import { configureMcpTargets, inspectMcpTargets, readMcpConfigText } from "../mcp/config.js";
 import { refreshStatusBar } from "../status/statusBar.js";
 import { formatError } from "../util.js";
@@ -79,7 +80,11 @@ export async function configureMcp(): Promise<void> {
       }
     });
   } catch (error) {
-    await vscode.window.showErrorMessage(`Failed to configure MCP: ${formatError(error)}`);
+    const message = formatError(error);
+    const log = getPatchloomLog();
+    writeUserVisibleOutput(log, message);
+    log?.show();
+    await vscode.window.showErrorMessage(`Failed to configure MCP: ${message}`);
     return;
   }
 

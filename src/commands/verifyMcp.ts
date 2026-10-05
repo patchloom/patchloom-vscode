@@ -40,6 +40,7 @@ export async function verifyMcp(): Promise<void> {
   if (result.ok) {
     await vscode.window.showInformationMessage(result.message);
   } else {
+    log?.show();
     await vscode.window.showErrorMessage(result.message);
   }
 }

@@ -566,6 +566,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action, folder.uri.fsPath);
 
         if (result.exitCode !== 0) {
+          presentCliResultInOutput(getPatchloomLog(), result);
           await vscode.window.showErrorMessage(`Patchloom create failed: ${formatCliOutput(result)}`);
           return;
         }
@@ -643,6 +644,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action, target.workspaceFolder.uri.fsPath);
 
         if (result.exitCode !== 0) {
+          presentCliResultInOutput(getPatchloomLog(), result);
           await vscode.window.showErrorMessage(`Patchloom doc get failed: ${formatCliOutput(result)}`);
           return;
         }
@@ -676,6 +678,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action, target.workspaceFolder.uri.fsPath);
 
         if (result.exitCode !== 0) {
+          presentCliResultInOutput(getPatchloomLog(), result);
           await vscode.window.showErrorMessage(`Patchloom doc keys failed: ${formatCliOutput(result)}`);
           return;
         }
@@ -709,6 +712,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action, target.workspaceFolder.uri.fsPath);
 
         if (result.exitCode !== 0) {
+          presentCliResultInOutput(getPatchloomLog(), result);
           await vscode.window.showErrorMessage(`Patchloom doc len failed: ${formatCliOutput(result)}`);
           return;
         }
@@ -1283,6 +1287,7 @@ export async function runQuickAction(): Promise<void> {
         const result = await executePatchloom(binaryPath, action, folder.uri.fsPath);
 
         if (result.exitCode !== 0) {
+          presentCliResultInOutput(getPatchloomLog(), result);
           await vscode.window.showWarningMessage(formatUndoFailureMessage(result));
           return;
         }

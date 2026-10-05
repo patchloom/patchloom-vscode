@@ -92,6 +92,7 @@ export async function installPatchloom(): Promise<void> {
       } catch (error) {
         const message = formatError(error);
         log?.log(`Managed install failed: ${message}`);
+        log?.show();
         await vscode.window.showErrorMessage(`Failed to install Patchloom: ${message}`);
       }
     }
@@ -171,6 +172,7 @@ export async function updatePatchloom(): Promise<void> {
       } catch (error) {
         const message = formatError(error);
         log?.log(`Managed update failed: ${message}`);
+        log?.show();
         await vscode.window.showErrorMessage(`Failed to update Patchloom: ${message}`);
       }
     }
@@ -225,6 +227,7 @@ export async function reinstallPatchloom(): Promise<void> {
       } catch (error) {
         const message = formatError(error);
         log?.log(`Managed reinstall failed: ${message}`);
+        log?.show();
         await vscode.window.showErrorMessage(`Failed to reinstall Patchloom: ${message}`);
       }
     }

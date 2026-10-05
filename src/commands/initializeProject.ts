@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type * as VSCode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
-import { getPatchloomLog, getPatchloomRuntimeConfig, logCliCommand, logCliResult } from "../logging/outputChannel.js";
+import { getPatchloomLog, getPatchloomRuntimeConfig, logCliCommand, logCliResult, writeUserVisibleOutput } from "../logging/outputChannel.js";
 import { formatCliOutput, formatError, mergePatchloomEnv } from "../util.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
@@ -84,7 +84,11 @@ export async function initializeProject(): Promise<void> {
       trace: runtime.trace
     });
   } catch (error) {
-    await vscode.window.showErrorMessage(`Failed to run patchloom agent-rules in ${folder.name}: ${formatError(error)}`);
+    const message = formatError(error);
+    const log = getPatchloomLog();
+    writeUserVisibleOutput(log, message);
+    log?.show();
+    await vscode.window.showErrorMessage(`Failed to run patchloom agent-rules in ${folder.name}: ${message}`);
     return;
   }
 
