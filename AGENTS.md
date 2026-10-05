@@ -133,6 +133,7 @@ All I/O-dependent functions accept an `inputs` object with injectable callbacks 
 | Target | Config file | Key |
 |--------|------------|-----|
 | VS Code workspace | `.vscode/mcp.json` | `servers` |
+| Portable workspace | `.mcp.json` | `mcpServers` |
 | Cursor workspace | `.cursor/mcp.json` | `mcpServers` |
 | Windsurf user | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
 

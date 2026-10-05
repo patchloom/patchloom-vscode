@@ -26,7 +26,7 @@ export async function configureMcp(): Promise<void> {
   const selectable = targets.map((target) => ({
     label: target.label,
     description: target.filePath,
-    detail: target.configured ? "Already configured" : target.exists ? "Config file exists" : "Config file will be created",
+    detail: targetDetail(target),
     target
   }));
 
@@ -93,4 +93,19 @@ export async function configureMcp(): Promise<void> {
 
   await refreshStatusBar();
   await vscode.window.showInformationMessage(summary || "Patchloom MCP setup completed.");
+}
+
+function targetDetail(target: { kind: string; configured: boolean; exists: boolean }): string {
+  const state = target.configured
+    ? "Already configured"
+    : target.exists
+      ? "Config file exists"
+      : "Config file will be created";
+  if (target.kind === "portable-workspace") {
+    return `${state}. Preferred for current VS Code and Copilot`;
+  }
+  if (target.kind === "vscode-workspace") {
+    return `${state}. Older VS Code location`;
+  }
+  return state;
 }

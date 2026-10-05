@@ -3,7 +3,11 @@ import * as path from "node:path";
 import { parse, type ParseError } from "jsonc-parser";
 import { configuredBinaryPathFromSetting } from "../binary/patchloom.js";
 
-export type McpTargetKind = "vscode-workspace" | "cursor-workspace" | "windsurf-user";
+export type McpTargetKind =
+  | "vscode-workspace"
+  | "portable-workspace"
+  | "cursor-workspace"
+  | "windsurf-user";
 
 export interface McpTarget {
   readonly kind: McpTargetKind;
@@ -113,6 +117,11 @@ export function resolveMcpTargets(
         filePath: path.join(workspaceFolderPath, ".vscode", "mcp.json")
       },
       {
+        kind: "portable-workspace",
+        label: "Portable workspace",
+        filePath: path.join(workspaceFolderPath, ".mcp.json")
+      },
+      {
         kind: "cursor-workspace",
         label: "Cursor workspace",
         filePath: path.join(workspaceFolderPath, ".cursor", "mcp.json")
@@ -146,7 +155,20 @@ export function buildPatchloomMcpEntry(
 }
 
 function usesMcpServersKey(kind: McpTargetKind): boolean {
-  return kind === "windsurf-user" || kind === "cursor-workspace";
+  return kind === "windsurf-user" || kind === "cursor-workspace" || kind === "portable-workspace";
+}
+
+function entryForKind(
+  kind: McpTargetKind,
+  commandPath: string,
+  mcpSurface: McpSurface
+): Record<string, unknown> {
+  const entry = buildPatchloomMcpEntry(commandPath, mcpSurface);
+  // Current VS Code marks `type` required on portable stdio servers.
+  if (kind === "portable-workspace") {
+    return { type: "stdio", ...entry };
+  }
+  return entry;
 }
 
 function withPatchloomEntry(
@@ -155,7 +177,7 @@ function withPatchloomEntry(
   commandPath: string,
   mcpSurface: McpSurface = "full"
 ): Record<string, unknown> {
-  const entry = buildPatchloomMcpEntry(commandPath, mcpSurface);
+  const entry = entryForKind(kind, commandPath, mcpSurface);
   if (usesMcpServersKey(kind)) {
     const servers = objectValue(config.mcpServers);
     return {

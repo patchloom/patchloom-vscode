@@ -59,7 +59,8 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 
 `Patchloom: Configure MCP` injects the Patchloom MCP server into your editor's config. Supports:
 
-- **VS Code** (`.vscode/mcp.json`)
+- **VS Code** (`.vscode/mcp.json`, key `servers`)
+- **Portable workspace** (`.mcp.json`, key `mcpServers`). Prefer this file for current VS Code and Copilot. The Agent Host reads it directly. The entry sets `"type": "stdio"`.
 - **Cursor** (`.cursor/mcp.json`)
 - **Windsurf** (`~/.codeium/windsurf/mcp_config.json`)
 
@@ -75,7 +76,7 @@ The status bar shows MCP and binary readiness at a glance:
 - **$(check) Patchloom** when the binary is ready but MCP is not yet set up
 - **$(warning) Patchloom** when the binary is missing or needs an upgrade
 
-Click it to see full diagnostics, including per-editor MCP configuration status (VS Code, Cursor, Windsurf).
+Click it to see full diagnostics, including per-file MCP configuration status (VS Code, portable workspace, Cursor, Windsurf).
 
 ### Verify MCP Server
 

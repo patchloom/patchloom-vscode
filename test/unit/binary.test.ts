@@ -407,7 +407,11 @@ test("describeWorkspaceEnvironment reports unverified for unknown remote names",
 test("resolveMcpTargets omits user config targets when disabled", () => {
   const targets = resolveMcpTargets("/workspace/demo", "/Users/demo", false);
 
-  assert.deepEqual(targets.map((target) => target.kind), ["vscode-workspace", "cursor-workspace"]);
+  assert.deepEqual(targets.map((target) => target.kind), [
+    "vscode-workspace",
+    "portable-workspace",
+    "cursor-workspace"
+  ]);
 });
 
 test("detectManagedInstallTarget maps supported platforms to release targets", () => {

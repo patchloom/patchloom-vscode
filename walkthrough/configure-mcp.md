@@ -12,10 +12,13 @@ for your editor. Choose the **full** tool inventory or the **core** pack
 | Editor | Config file | Key |
 |--------|-------------|-----|
 | VS Code | `.vscode/mcp.json` | `servers` |
+| Portable workspace | `.mcp.json` | `mcpServers` |
 | Cursor | `.cursor/mcp.json` | `mcpServers` |
 | Windsurf | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
 
-The command lists the editors it can configure. You pick one or more
-targets, then Full vs Core. It does not write every editor on its own.
+Prefer **Portable workspace** for current VS Code and Copilot. That file
+lives at the workspace root and sets `"type": "stdio"`. The older VS Code
+file remains available. You pick one or more targets, then Full vs Core.
+The command does not write every editor on its own.
 
 See the [MCP setup guide](https://patchloom.github.io/patchloom/getting-started/mcp-setup.html) for advanced configuration.
