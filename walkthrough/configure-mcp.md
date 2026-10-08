@@ -5,7 +5,7 @@ operations directly: search, replace, tidy, and more.
 
 Click **Configure MCP** above to set up the MCP server configuration
 for your editor. Choose the **full** tool inventory or the **core** pack
-(sets `PATCHLOOM_MCP_SURFACE=core` for a smaller 12-tool handshake on CLI 0.37+).
+(sets `PATCHLOOM_MCP_SURFACE=core` for a smaller 12-tool handshake on CLI 0.37+, verified on 0.37.1).
 
 ## Supported Editors
 

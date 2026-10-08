@@ -285,5 +285,7 @@ test("BATCH_APPLY_PROMPT names dotted doc.update and doc.delete_where shapes", (
   assert.match(BATCH_APPLY_PROMPT, /doc\.delete_where PATH SELECTOR PREDICATE/);
   assert.match(BATCH_APPLY_PROMPT, /first non-whitespace character is #/);
   assert.match(BATCH_APPLY_PROMPT, /does not undo other writes/);
+  assert.match(BATCH_APPLY_PROMPT, /format_failed/);
+  assert.match(BATCH_APPLY_PROMPT, /Undo restores it/);
   assert.equal(BATCH_APPLY_PROMPT.includes("execute all operations atomically"), false);
 });

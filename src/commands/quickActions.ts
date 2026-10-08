@@ -13,7 +13,7 @@ import {
   presentCliResultInOutput,
   type PatchloomLog
 } from "../logging/outputChannel.js";
-import { formatCliOutput, formatError, formatQuickActionCliOutput, mergePatchloomEnv } from "../util.js";
+import { formatCliOutput, formatError, formatQuickActionCliOutput, mergePatchloomEnv, PATCHLOOM_CLI_TIMEOUT_MS } from "../util.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 import {
   isRealPathInsideWorkspace,
@@ -2100,7 +2100,7 @@ async function executePatchloom(
     const { stdout, stderr } = await execFileAsync(binaryPath, finalArgs, {
       cwd,
       env,
-      timeout: 30_000,
+      timeout: PATCHLOOM_CLI_TIMEOUT_MS,
       maxBuffer: 8 * 1024 * 1024,
       windowsHide: true
     });

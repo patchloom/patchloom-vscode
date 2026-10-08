@@ -19,6 +19,7 @@ import {
   formatQuickActionCliOutput,
   isAllowedPatchloomEnvKey,
   mergePatchloomEnv,
+  PATCHLOOM_CLI_TIMEOUT_MS,
   resolvePatchloomEnvFromInspect,
   shouldLogCliCommands,
   shouldLogCliStreams
@@ -194,6 +195,28 @@ test("formatCliOutput surfaces binary kind (CLI 0.20+)", () => {
     formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
     "binary: target is a binary file: assets/logo.png"
   );
+});
+
+test("formatCliOutput surfaces format_failed and the undo hint (CLI 0.37.1)", () => {
+  const stdout = JSON.stringify({
+    ok: false,
+    error: "format command failed (false) (backup session 1_0; run `patchloom undo` to restore)",
+    error_kind: "format_failed",
+    backup_session: "1_0",
+    applied: true,
+    write_applied: true,
+    files_changed: 1,
+    files: [{ path: "a.txt" }]
+  });
+  assert.equal(
+    formatCliOutput({ exitCode: 1, stdout, stderr: "" }),
+    "format_failed: format command failed (false) (backup session 1_0; run `patchloom undo` to restore)"
+  );
+});
+
+test("CLI command timeout stays above the 30s format deadline", () => {
+  assert.ok(PATCHLOOM_CLI_TIMEOUT_MS > 30_000);
+  assert.ok(PATCHLOOM_CLI_TIMEOUT_MS <= 60_000);
 });
 
 test("formatCliOutput surfaces parse_timeout kind (CLI 0.34+)", () => {
