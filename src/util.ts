@@ -63,6 +63,14 @@ export function formatError(error: unknown): string {
 }
 
 /**
+ * Wall-clock limit for a Quick Action or Batch Apply process.
+ * The CLI format deadline defaults to 30s and starts after the write.
+ * Stay above that deadline so a hung formatter can return
+ * `error_kind: format_failed` instead of being killed first.
+ */
+export const PATCHLOOM_CLI_TIMEOUT_MS = 45_000;
+
+/**
  * Prefer machine-readable CLI JSON error envelopes (error_kind + error) when
  * present so agents and the UI surface kinds like guard_rejected (CLI 0.18+)
  * instead of a flattened multi-line dump. On CLI 0.27+, append suggested_op

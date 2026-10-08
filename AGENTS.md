@@ -35,7 +35,7 @@ src/
     initializeProject.ts Initialize Project command: generate/diff AGENTS.md
     managedInstall.ts    Managed Install commands: install, update, reinstall Patchloom binary
     quickActions.ts       Quick Action command: replace, tidy, doc set, search, create, append, prepend, doc get, doc keys, doc len, patch merge
-    batchApply.ts        Batch Apply command: line-oriented plan; hard errors roll back; refused replaces are reported
+    batchApply.ts        Batch Apply command: line-oriented plan; hard errors roll back; format_failed writes stay (Undo restores); refused replaces are reported
     setupWorkspace.ts     Setup Workspace command: guided readiness walkthrough
     showStatus.ts         Show Status command: diagnostics display
     verifyMcp.ts         Verify MCP Server command: JSON-RPC initialize probe

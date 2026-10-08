@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import type * as VSCode from "vscode";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
-import { formatCliOutput, mergePatchloomEnv } from "../util.js";
+import { formatCliOutput, mergePatchloomEnv, PATCHLOOM_CLI_TIMEOUT_MS } from "../util.js";
 import {
   getPatchloomLog,
   getPatchloomRuntimeConfig,
@@ -37,7 +37,7 @@ export function buildBatchTemplate(): string {
 }
 
 export const BATCH_APPLY_PROMPT =
-  "Edit the batch plan, then click Apply. A hard error rolls the plan back. A replace that matches nothing, or a structured delete that removes nothing, is reported and does not undo other writes. Lines whose first non-whitespace character is # are comments and are not applied. Multi-match lines use dotted batch ops: doc.update PATH SELECTOR VALUE and doc.delete_where PATH SELECTOR PREDICATE.";
+  "Edit the batch plan, then click Apply. A hard error rolls the plan back. A formatter failure (format_failed) does not: the write may already be on disk, and Undo restores it. A replace that matches nothing, or a structured delete that removes nothing, is reported and does not undo other writes. Lines whose first non-whitespace character is # are comments and are not applied. Multi-match lines use dotted batch ops: doc.update PATH SELECTOR VALUE and doc.delete_where PATH SELECTOR PREDICATE.";
 
 /** Count operations `patchloom batch` will run. A leading BOM, blank lines, and `#` comments are ignored. */
 export function parseBatchOperationCount(plan: string): number {
@@ -297,7 +297,7 @@ function executePatchloomWithStdin(
     const child = execFile(binaryPath, [...args], {
       cwd,
       env,
-      timeout: 30_000,
+      timeout: PATCHLOOM_CLI_TIMEOUT_MS,
       maxBuffer: 8 * 1024 * 1024,
       windowsHide: true
     }, (error, stdout, stderr) => {
