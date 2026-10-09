@@ -2108,42 +2108,37 @@ async function executePatchloom(
     logCliResult(log, runtime.trace, result.exitCode, result.stdout, result.stderr);
     return result;
   } catch (error) {
-    const execFailure = asExecFailure(error);
-    const result: PatchloomCommandResult = {
-      exitCode: execFailure ? execFailure.exitCode : 1,
-      stdout: execFailure ? execFailure.stdout : "",
-      stderr: execFailure
-        ? execFailure.stderr || execFailure.message
-        : formatError(error)
-    };
+    const result = cliResultFromExecError(error);
     logCliResult(log, runtime.trace, result.exitCode, result.stdout, result.stderr);
     return result;
   }
 }
 
-function asExecFailure(error: unknown): (Error & { stdout: string; stderr: string; exitCode: number }) | undefined {
+/**
+ * Node's `execFile` timeout sets `code` to null and `signal` to SIGTERM,
+ * while still filling stdout and stderr. A numeric `code` is the CLI exit.
+ */
+export function cliResultFromExecError(error: unknown): PatchloomCommandResult {
   if (!(error instanceof Error)) {
-    return undefined;
+    return { exitCode: 1, stdout: "", stderr: formatError(error) };
   }
 
-  const candidate = error as Error & { code?: number | string; stdout?: string; stderr?: string; exitCode?: number };
-  if (typeof candidate.stdout !== "string" || typeof candidate.stderr !== "string") {
-    return undefined;
-  }
-
+  const candidate = error as Error & {
+    code?: number | string | null;
+    stdout?: unknown;
+    stderr?: unknown;
+    exitCode?: number;
+  };
+  const stdout = typeof candidate.stdout === "string" ? candidate.stdout : "";
+  const stderrText = typeof candidate.stderr === "string" ? candidate.stderr : "";
   const exitCode = typeof candidate.code === "number"
     ? candidate.code
     : typeof candidate.exitCode === "number"
       ? candidate.exitCode
-      : undefined;
-  if (exitCode === undefined) {
-    return undefined;
-  }
-
+      : 1;
   return {
-    ...candidate,
-    stdout: candidate.stdout,
-    stderr: candidate.stderr,
-    exitCode
+    exitCode,
+    stdout,
+    stderr: stderrText.length > 0 ? stderrText : candidate.message
   };
 }
