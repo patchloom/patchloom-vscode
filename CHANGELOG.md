@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.1](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.9.0...patchloom-v0.9.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* align the extension with Patchloom CLI 0.37.1 ([#289](https://github.com/patchloom/patchloom-vscode/issues/289)) ([1e786af](https://github.com/patchloom/patchloom-vscode/commit/1e786af5faa8c562d3485df2d6c95fc37d448aa9))
+* correct MCP setup and command result messages ([#287](https://github.com/patchloom/patchloom-vscode/issues/287)) ([463a4fc](https://github.com/patchloom/patchloom-vscode/commit/463a4fcc3d51ab7ca980a3955b31aeb69683519b))
+* keep CLI stderr when a Quick Action times out ([#290](https://github.com/patchloom/patchloom-vscode/issues/290)) ([10c548a](https://github.com/patchloom/patchloom-vscode/commit/10c548a2b52caa3178a9d6a4f4d661a5d55ad428))
+
 ## [0.9.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.8.0...patchloom-v0.9.0) (2026-09-28)
 
 
