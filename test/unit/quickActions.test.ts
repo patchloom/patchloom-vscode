@@ -50,6 +50,7 @@ import {
   formatUndoFailureMessage,
   presentPatchMergeOutcome,
   filesWithoutMatchNoneMessage,
+  cliResultFromExecError,
   presentSearchOutcome,
   presentUndoSuccess,
   resolveWorkspaceRelativePath,
@@ -974,6 +975,31 @@ test("presentSearchOutcome exit 0 writes streams + show, returns hits", () => {
   });
   assert.equal(kind, "hits");
   assert.deepEqual(messages, ["file.ts:1:hit", "note", "SHOW"]);
+});
+
+test("cliResultFromExecError keeps CLI stderr when Node times out with code null", () => {
+  const error = Object.assign(new Error("Command failed: patchloom tidy fix\n"), {
+    code: null,
+    signal: "SIGTERM",
+    killed: true,
+    stdout: "",
+    stderr: "format_failed: timed out after 30s\n"
+  });
+  const result = cliResultFromExecError(error);
+  assert.equal(result.exitCode, 1);
+  assert.equal(result.stderr, "format_failed: timed out after 30s\n");
+  assert.equal(result.stdout, "");
+});
+
+test("cliResultFromExecError keeps a numeric CLI exit code", () => {
+  const error = Object.assign(new Error("Command failed: patchloom\n"), {
+    code: 3,
+    stdout: "",
+    stderr: "no matches\n"
+  });
+  const result = cliResultFromExecError(error);
+  assert.equal(result.exitCode, 3);
+  assert.equal(result.stderr, "no matches\n");
 });
 
 test("filesWithoutMatchNoneMessage does not claim every file contains the pattern", () => {
