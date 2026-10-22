@@ -98,8 +98,11 @@ function quoteCmdArgument(value: string): string {
     );
   }
   const escaped = value.replaceAll("%", "%%");
-  if (escaped.length === 0 || /[\s"&|<>^()]/.test(escaped)) {
-    return `"${escaped.replaceAll("\"", "\"\"")}"`;
+  // A trailing \ escapes the next character. Unquoted, that is the space
+  // before the next argument. Quoted, it escapes the closing quote.
+  if (escaped.length === 0 || /[\s"&|<>^()]/.test(escaped) || escaped.endsWith("\\")) {
+    const quoted = escaped.replaceAll("\"", "\"\"").replace(/\\+$/, (run) => run + run);
+    return `"${quoted}"`;
   }
   return escaped;
 }

@@ -26,6 +26,25 @@ export interface McpTargetResult extends McpTargetStatus {
   readonly changed: boolean;
 }
 
+/**
+ * The second-server warning has two buttons. Dismissing it is cancel, not
+ * "skip that file": Escape must not write the other selected configs.
+ * Skip drops only the VS Code workspace file. If nothing remains, cancel.
+ */
+export function mcpKindsAfterSecondServerWarning(
+  kinds: readonly string[],
+  choice: "write" | "skip" | undefined
+): readonly string[] | undefined {
+  if (choice !== "write" && choice !== "skip") {
+    return undefined;
+  }
+  if (choice === "write") {
+    return kinds;
+  }
+  const remaining = kinds.filter((kind) => kind !== "vscode-workspace");
+  return remaining.length === 0 ? undefined : remaining;
+}
+
 /** A configure stop after zero or more targets were already written. */
 export class McpConfigureError extends Error {
   readonly completed: readonly McpTargetResult[];

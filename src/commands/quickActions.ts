@@ -2457,7 +2457,12 @@ export async function stageExternalPatchInWorkspace(
     return { patchPath, cleanup: async () => {} };
   }
 
-  const tempDir = await fs.mkdtemp(path.join(workspaceRoot, ".patchloom-"));
+  // `.gitignore` ignores `.patchloom/` only. A sibling `.patchloom-*` directory
+  // shows up in source control for the whole preview, and stays if VS Code quits
+  // before cleanup.
+  const scratch = path.join(workspaceRoot, ".patchloom");
+  await fs.mkdir(scratch, { recursive: true });
+  const tempDir = await fs.mkdtemp(path.join(scratch, "qa-patch-"));
   const stagedPath = path.join(tempDir, path.basename(patchPath));
   try {
     await fs.copyFile(patchPath, stagedPath);

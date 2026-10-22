@@ -10,6 +10,7 @@ import {
   formatMcpConfigureFailureMessage,
   inspectMcpTargets,
   mcpCommandForTarget,
+  mcpKindsAfterSecondServerWarning,
   McpConfigureError,
   patchloomEntryIsCurrent,
   readPatchloomMcpCommand,
@@ -685,6 +686,14 @@ test("configureMcpTargets leaves an unreadable config file unchanged", async (t)
     const after = await fs.readFile(filePath, "utf8");
     assert.equal(after, original);
   });
+});
+
+test("dismissing the second-server warning cancels, and skip drops only VS Code", () => {
+  const kinds = ["vscode-workspace", "portable-workspace"];
+  assert.equal(mcpKindsAfterSecondServerWarning(kinds, undefined), undefined);
+  assert.deepEqual(mcpKindsAfterSecondServerWarning(kinds, "write"), kinds);
+  assert.deepEqual(mcpKindsAfterSecondServerWarning(kinds, "skip"), ["portable-workspace"]);
+  assert.equal(mcpKindsAfterSecondServerWarning(["vscode-workspace"], "skip"), undefined);
 });
 
 test("mcpCommandForTarget keeps workspace configs portable and windsurf absolute", () => {
