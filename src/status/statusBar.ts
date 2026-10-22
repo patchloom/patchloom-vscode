@@ -1,15 +1,28 @@
 import * as vscode from "vscode";
 import { patchloomNeedsUpgrade, resolvePatchloomStatus } from "../binary/patchloom.js";
-import { buildStatusDetails, preferredStatusAction } from "./details.js";
+import { decideStatusPresentation } from "./contextKeys.js";
+import { buildStatusDetails } from "./details.js";
 import { inspectWorkspaceReadiness } from "../workspace/readiness.js";
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 
 export async function refreshStatusBar(): Promise<void> {
   const config = vscode.workspace.getConfiguration("patchloom");
-  const extensionEnabled = config.get<boolean>("enable", true);
-  const statusBarEnabled = config.get<boolean>("showStatusBar", true);
-  if (!extensionEnabled || !statusBarEnabled) {
+  const status = await resolvePatchloomStatus();
+  const workspaceReadiness = await inspectWorkspaceReadiness();
+  const presentation = decideStatusPresentation({
+    extensionEnabled: config.get<boolean>("enable", true),
+    statusBarEnabled: config.get<boolean>("showStatusBar", true),
+    cliReady: status.ready,
+    managedInstallExists: status.managedInstall?.exists === true,
+    projectInitialized: workspaceReadiness?.hasAgentsFile === true
+  });
+
+  void vscode.commands.executeCommand("setContext", "patchloom.cliAvailable", presentation.context.cliAvailable);
+  void vscode.commands.executeCommand("setContext", "patchloom.managedInstallExists", presentation.context.managedInstallExists);
+  void vscode.commands.executeCommand("setContext", "patchloom.projectInitialized", presentation.context.projectInitialized);
+
+  if (!presentation.showStatusBar) {
     statusBarItem?.hide();
     return;
   }
@@ -19,21 +32,13 @@ export async function refreshStatusBar(): Promise<void> {
     statusBarItem.name = "Patchloom Status";
   }
 
-  const status = await resolvePatchloomStatus();
-  const workspaceReadiness = await inspectWorkspaceReadiness();
-  const action = preferredStatusAction(status, workspaceReadiness);
-
-  void vscode.commands.executeCommand("setContext", "patchloom.cliAvailable", status.ready);
-  void vscode.commands.executeCommand("setContext", "patchloom.managedInstallExists", status.managedInstall?.exists === true);
-  void vscode.commands.executeCommand("setContext", "patchloom.projectInitialized", workspaceReadiness?.hasAgentsFile === true);
-
   const versionSuffix = status.detectedVersion ? ` v${status.detectedVersion}` : "";
   statusBarItem.text = !status.ready || patchloomNeedsUpgrade(status)
     ? "$(warning) Patchloom"
     : workspaceReadiness?.hasMcpConfig
       ? `$(plug) Patchloom${versionSuffix}`
       : `$(check) Patchloom${versionSuffix}`;
-  statusBarItem.command = action?.command ?? "patchloom.showStatus";
+  statusBarItem.command = presentation.statusBarCommand;
   statusBarItem.tooltip = buildStatusDetails(status, workspaceReadiness);
   statusBarItem.show();
 }

@@ -13,13 +13,13 @@ import {
 import { refreshStatusBar } from "../status/statusBar.js";
 import { activeWorkspaceFolder, describeWorkspaceEnvironment } from "../workspace/readiness.js";
 
-export async function configureMcp(): Promise<void> {
+export async function configureMcp(preset?: vscode.WorkspaceFolder): Promise<boolean> {
   const binaryPath = await ensurePatchloomReadyOrNotify("Patchloom needs a working binary before MCP setup can continue.");
   if (!binaryPath) {
-    return;
+    return false;
   }
 
-  const folder = await activeWorkspaceFolder({
+  const folder = preset ?? await activeWorkspaceFolder({
     promptIfMany: true,
     placeHolder: "Select the workspace folder to configure for Patchloom MCP"
   });
@@ -39,7 +39,7 @@ export async function configureMcp(): Promise<void> {
   if (selectable.length === 0) {
     const detail = environment.note ? ` ${environment.note}` : "";
     await vscode.window.showWarningMessage(`No supported MCP config targets were found for this environment.${detail}`);
-    return;
+    return false;
   }
 
   const selections = await vscode.window.showQuickPick(selectable, {
@@ -47,7 +47,7 @@ export async function configureMcp(): Promise<void> {
     placeHolder: "Select editor config targets for Patchloom MCP setup"
   });
   if (!selections || selections.length === 0) {
-    return;
+    return false;
   }
 
   const surfacePick = await vscode.window.showQuickPick(
@@ -66,10 +66,25 @@ export async function configureMcp(): Promise<void> {
     { placeHolder: "Which MCP tool surface should the server expose?" }
   );
   if (!surfacePick) {
-    return;
+    return false;
   }
 
-  const selectedKinds = selections.map((selection) => selection.target.kind);
+  let chosen = selections;
+  if (chosen.some((selection) => selection.target.kind === "vscode-workspace")) {
+    const proceed = await vscode.window.showWarningMessage(
+      "VS Code already starts the native Patchloom MCP server. Writing .vscode/mcp.json adds a second server next to that provider.",
+      "Write file",
+      "Skip that file"
+    );
+    if (proceed !== "Write file") {
+      chosen = chosen.filter((selection) => selection.target.kind !== "vscode-workspace");
+      if (chosen.length === 0) {
+        return false;
+      }
+    }
+  }
+
+  const selectedKinds = chosen.map((selection) => selection.target.kind);
   let results;
   try {
     results = await configureMcpTargets({
@@ -93,7 +108,7 @@ export async function configureMcp(): Promise<void> {
     if (error instanceof McpConfigureError && error.completed.some((result) => result.changed)) {
       await refreshStatusBar();
     }
-    return;
+    return false;
   }
 
   const applied = results;
@@ -106,6 +121,7 @@ export async function configureMcp(): Promise<void> {
 
   await refreshStatusBar();
   await vscode.window.showInformationMessage(summary || "Patchloom MCP setup completed.");
+  return true;
 }
 
 function targetDetail(target: { kind: string; configured: boolean; exists: boolean }): string {
@@ -118,7 +134,7 @@ function targetDetail(target: { kind: string; configured: boolean; exists: boole
     return `${state}. Preferred for current VS Code and Copilot`;
   }
   if (target.kind === "vscode-workspace") {
-    return `${state}. Older VS Code location`;
+    return `${state}. Older VS Code location. This file is a second server next to the native provider`;
   }
   return state;
 }

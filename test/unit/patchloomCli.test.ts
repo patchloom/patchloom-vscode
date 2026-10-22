@@ -1021,7 +1021,7 @@ describe("patchloom CLI integration", async () => {
       const config = JSON.parse(await fs.readFile(configPath, "utf8")) as Record<string, unknown>;
       const servers = config.servers as Record<string, Record<string, unknown>>;
       assert.ok(servers.patchloom, "should have a patchloom server entry");
-      assert.equal(servers.patchloom.command, binaryPath, "command should point to real binary");
+      assert.equal(servers.patchloom.command, "patchloom", "workspace command stays portable");
       assert.deepEqual(servers.patchloom.args, ["mcp-server"], "args should be mcp-server");
 
       // Verify the config is re-readable by inspectMcpTargets

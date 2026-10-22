@@ -52,6 +52,7 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/patchloom/patchloom/rel
 
 After installation, the status bar shows `$(check) Patchloom` when the
 CLI is detected and MCP is not configured yet. It shows `$(plug) Patchloom`
-when an MCP config file is configured, and `$(warning) Patchloom` when
-the CLI is missing or too old. A detected version is appended on the
-check and plug states.
+when a workspace MCP config file is configured, and `$(warning) Patchloom`
+when the CLI is missing or too old. A detected version is appended on the
+check and plug states. Click the item to open Show Status. The full report
+is in the Output channel. Update Patchloom asks before it downloads.

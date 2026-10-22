@@ -1,8 +1,8 @@
-import { execFile } from "node:child_process";
+import { execPatchloomFile } from "./launch.js";
 import { constants as fsConstants } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { promisify } from "node:util";
+
 import {
   detectManagedInstallTarget,
   getManagedInstallRoot,
@@ -10,8 +10,6 @@ import {
   ManagedInstallStatus
 } from "../install/managed.js";
 import { formatError } from "../util.js";
-
-const execFileAsync = promisify(execFile);
 
 export const MINIMUM_SUPPORTED_PATCHLOOM_VERSION = "0.3.0";
 export const PATCHLOOM_RELEASES_URL = "https://github.com/patchloom/patchloom/releases";
@@ -441,7 +439,7 @@ async function isExecutable(binaryPath: string): Promise<boolean> {
 }
 
 async function readVersion(binaryPath: string): Promise<string | undefined> {
-  const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], {
+  const { stdout, stderr } = await execPatchloomFile(binaryPath, ["--version"], {
     timeout: 5_000,
     windowsHide: true
   });

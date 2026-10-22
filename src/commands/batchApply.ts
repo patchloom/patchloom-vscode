@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import type * as VSCode from "vscode";
+import { patchloomLaunch } from "../binary/launch.js";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import { formatCliOutput, mergePatchloomEnv, PATCHLOOM_CLI_TIMEOUT_MS } from "../util.js";
 import {
@@ -16,7 +17,7 @@ import { serializePatchloomArgs } from "./quickActions.js";
 // --insert-after is not a batch flag. The CLI stores that token as the new text.
 // doc.update / doc.delete_where are the multi-match siblings of doc.set / doc.delete
 // (CLI 0.27+ suggested_op hints this).
-export const BATCH_TEMPLATE = [
+export const BATCH_EXAMPLE_LINES = [
   "replace src/example.ts \"old text\" \"new text\"",
   "replace src/example.ts \"typo_here\" \"fixed\" --fuzzy --min-fuzzy-score 0.80",
   "file.prepend src/example.ts \"header line\"",
@@ -28,16 +29,17 @@ export const BATCH_TEMPLATE = [
   "file.append src/example.ts \"new appended line\"",
   "file.rename src/old_pkg src/new_pkg",
   "md.insert_after_section README.md \"## Config\" \"## FAQ\"",
-  "tidy.fix src/example.ts",
-  ""
-].join("\n");
+  "tidy.fix src/example.ts"
+] as const;
+
+export const BATCH_TEMPLATE = `${BATCH_EXAMPLE_LINES.map((line) => `# ${line}`).join("\n")}\n`;
 
 export function buildBatchTemplate(): string {
   return BATCH_TEMPLATE;
 }
 
 export const BATCH_APPLY_PROMPT =
-  "Edit the batch plan, then click Apply. A hard error rolls the plan back. A formatter failure (format_failed) does not: the write may already be on disk, and Undo restores it. A replace that matches nothing, or a structured delete that removes nothing, is reported and does not undo other writes. Lines whose first non-whitespace character is # are comments and are not applied. Multi-match lines use dotted batch ops: doc.update PATH SELECTOR VALUE and doc.delete_where PATH SELECTOR PREDICATE.";
+  "The template lines are comments. Remove the leading # on the lines you want, then click Dry run. A second confirmation writes the plan. A hard error rolls the plan back. A formatter failure (format_failed) does not: the write may already be on disk, and Undo restores it. A replace that matches nothing, or a structured delete that removes nothing, is reported and does not undo other writes. Lines whose first non-whitespace character is # are comments and are not applied. Multi-match lines use dotted batch ops: doc.update PATH SELECTOR VALUE and doc.delete_where PATH SELECTOR PREDICATE.";
 
 /** Count operations `patchloom batch` will run. A leading BOM, blank lines, and `#` comments are ignored. */
 export function parseBatchOperationCount(plan: string): number {
@@ -54,8 +56,13 @@ export function isEmptyBatchPlan(plan: string): boolean {
 }
 
 /** CLI argv for Batch Apply. `--json` is how a refused replace is visible on exit 0. */
-export function buildBatchApplyArgs(): string[] {
-  return serializePatchloomArgs({ args: ["batch", "--json"], apply: true, contain: true });
+export function buildBatchApplyArgs(apply = true): string[] {
+  return serializePatchloomArgs({ args: ["batch", "--json"], apply, contain: true });
+}
+
+/** Dry run: same plan, without `--apply`. */
+export function buildBatchDryRunArgs(): string[] {
+  return buildBatchApplyArgs(false);
 }
 
 export interface BatchRefusedOperation {
@@ -239,9 +246,9 @@ export async function batchApply(): Promise<void> {
 
   const choice = await vscode.window.showInformationMessage(
     BATCH_APPLY_PROMPT,
-    "Apply"
+    "Dry run"
   );
-  if (choice !== "Apply") {
+  if (choice !== "Dry run") {
     return;
   }
 
@@ -256,7 +263,27 @@ export async function batchApply(): Promise<void> {
   const log = getPatchloomLog();
   const runtime = await getPatchloomRuntimeConfig();
   const env = mergePatchloomEnv(process.env, runtime.extraEnv);
-  const args = buildBatchApplyArgs();
+  const dryArgs = buildBatchDryRunArgs();
+  logCliCommand(log, runtime.trace, binaryPath, dryArgs, folder.uri.fsPath);
+  const dryRun = await executePatchloomWithStdin(binaryPath, dryArgs, folder.uri.fsPath, plan, env);
+  logCliResult(log, runtime.trace, dryRun.exitCode, dryRun.stdout, dryRun.stderr);
+  presentCliResultInOutput(log, dryRun);
+  if (dryRun.exitCode !== 0) {
+    await vscode.window.showErrorMessage(
+      `Batch dry run failed: ${formatCliOutput(dryRun)}`
+    );
+    return;
+  }
+
+  const write = await vscode.window.showInformationMessage(
+    "Dry run finished. The plan has not been written. Apply it now?",
+    "Apply"
+  );
+  if (write !== "Apply") {
+    return;
+  }
+
+  const args = buildBatchApplyArgs(true);
   logCliCommand(log, runtime.trace, binaryPath, args, folder.uri.fsPath);
 
   const result = await executePatchloomWithStdin(binaryPath, args, folder.uri.fsPath, plan, env);
@@ -294,12 +321,25 @@ function executePatchloomWithStdin(
   env: NodeJS.ProcessEnv
 ): Promise<BatchCommandResult> {
   return new Promise((resolve) => {
-    const child = execFile(binaryPath, [...args], {
+    let launch: ReturnType<typeof patchloomLaunch>;
+    try {
+      launch = patchloomLaunch(binaryPath, args);
+    } catch (error) {
+      resolve({
+        exitCode: 1,
+        stdout: "",
+        stderr: error instanceof Error ? error.message : String(error)
+      });
+      return;
+    }
+    const child = execFile(launch.file, launch.args, {
       cwd,
       env,
       timeout: PATCHLOOM_CLI_TIMEOUT_MS,
       maxBuffer: 8 * 1024 * 1024,
-      windowsHide: true
+      windowsHide: true,
+      shell: launch.shell,
+      windowsVerbatimArguments: launch.windowsVerbatimArguments
     }, (error, stdout, stderr) => {
       if (error) {
         resolve({

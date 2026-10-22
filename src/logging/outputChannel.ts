@@ -3,6 +3,7 @@ import { resolvePatchloomEnvFromInspect, shouldLogCliCommands, shouldLogCliStrea
 export interface PatchloomRuntimeConfig {
   readonly extraEnv: Record<string, string> | undefined;
   readonly trace: string;
+  readonly mcpSurface: "full" | "core";
 }
 
 export async function getPatchloomRuntimeConfig(): Promise<PatchloomRuntimeConfig> {
@@ -15,7 +16,8 @@ export async function getPatchloomRuntimeConfig(): Promise<PatchloomRuntimeConfi
   );
   return {
     extraEnv: asStringEnv(envSource),
-    trace: config.get<string>("trace.server", "off") ?? "off"
+    trace: config.get<string>("trace.server", "off") ?? "off",
+    mcpSurface: config.get<string>("mcpSurface") === "core" ? "core" : "full"
   };
 }
 

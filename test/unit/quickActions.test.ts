@@ -35,8 +35,19 @@ import {
   buildSearchQuickAction,
   buildTidyQuickAction,
   buildUndoQuickAction,
+  contentFromScratch,
+  emptyClipboardPatchMessage,
   isAllowedPreviewMiss,
+  PATCHLOOM_PREVIEW_SCHEME,
+  parseFilesWithoutMatchLines,
+  parseSearchHitLines,
+  previewBodyForId,
+  newBackupSessionNames,
+  previewCwd,
   previewMissMessage,
+  previewWorkspaceFile,
+  rememberPreviewBody,
+  seedFromSelection,
   DOC_SET_SELECTOR_PROMPT,
   DOC_SET_SELECTOR_PLACEHOLDER,
   DOC_UPDATE_SELECTOR_PROMPT,
@@ -290,9 +301,14 @@ test("previewMissMessage explains delete-where predicate vs array path", () => {
   assert.doesNotMatch(message, /No changes to preview/);
 });
 
-test("previewMissMessage keeps replace-style no-changes copy", () => {
+test("previewMissMessage distinguishes a missing pattern from an unchanged file", () => {
   const action = buildReplaceQuickAction("/workspace/demo/README.md", "old", "new");
-  assert.equal(previewMissMessage(action, "README.md"), "No changes to preview for README.md.");
+  assert.equal(previewMissMessage(action, "README.md", "pattern-not-found"), "Pattern not found in README.md.");
+  assert.equal(previewMissMessage(action, "README.md", "unchanged"), "Command made no edit to README.md.");
+  const tidy = buildTidyQuickAction("/workspace/demo/README.md", ["ensure-final-newline"]);
+  assert.equal(previewMissMessage(tidy, "README.md", "pattern-not-found"), "Command made no edit to README.md.");
+  const deleteWhere = buildDocDeleteWhereQuickAction("/workspace/demo/data.json", "items", "name=stale");
+  assert.match(previewMissMessage(deleteWhere, "data.json", "unchanged"), /No items matched that predicate/);
 });
 
 test("retargetQuickAction swaps only the target path arguments", () => {
@@ -1206,6 +1222,51 @@ test("stageExternalPatchInWorkspace leaves an inside patch in place", async () =
   } finally {
     await fs.rm(workspaceRoot, { recursive: true, force: true });
   }
+});
+
+test("preview file stays under the workspace and the cwd is that workspace", () => {
+  const workspaceRoot = path.join("/workspace", "demo");
+  const location = previewWorkspaceFile(workspaceRoot, "src/app.ts", "abc");
+  assert.equal(previewCwd(workspaceRoot), workspaceRoot);
+  assert.ok(location.filePath.startsWith(path.join(workspaceRoot, ".patchloom")));
+  assert.equal(location.filePath.includes(`${path.sep}tmp${path.sep}`), false);
+  assert.equal(path.basename(location.filePath), "app.ts");
+  assert.deepEqual(newBackupSessionNames(["old"], ["old", "1792_preview"]), ["1792_preview"]);
+  assert.deepEqual(newBackupSessionNames([], []), []);
+});
+
+test("seedFromSelection keeps the first line and scratch text keeps newlines", () => {
+  assert.equal(seedFromSelection("anchor line\nsecond"), "anchor line");
+  assert.equal(seedFromSelection(undefined), "");
+  assert.equal(contentFromScratch("one\r\ntwo\n"), "one\ntwo\n");
+});
+
+test("search hit parser opens path:line and files-without-match at line 1", () => {
+  assert.deepEqual(parseSearchHitLines("src/app.ts:12:TODO\nC:\\work\\app.ts:4:hit\n"), [
+    { path: "src/app.ts", line: 12 },
+    { path: "C:\\work\\app.ts", line: 4 }
+  ]);
+  assert.deepEqual(parseFilesWithoutMatchLines("src/clean.ts\n\n"), [
+    { path: "src/clean.ts", line: 1 }
+  ]);
+});
+
+test("undo args cover latest, session, and path", () => {
+  assert.deepEqual(buildUndoQuickAction("/workspace/demo").args, ["undo"]);
+  assert.deepEqual(buildUndoQuickAction("/workspace/demo", { kind: "session", sessionId: "abc" }).args, [
+    "undo", "--session", "abc"
+  ]);
+  assert.deepEqual(buildUndoQuickAction("/workspace/demo", { kind: "path", relativePath: "src/app.ts" }).args, [
+    "undo", "--path", "src/app.ts"
+  ]);
+});
+
+test("empty clipboard patch text is an error and preview documents use patchloom-preview", () => {
+  assert.equal(emptyClipboardPatchMessage("  "), "The clipboard has no patch text.");
+  assert.equal(emptyClipboardPatchMessage("diff --git a/x b/x\n"), undefined);
+  const id = rememberPreviewBody("preview body\n");
+  assert.equal(previewBodyForId(id), "preview body\n");
+  assert.equal(PATCHLOOM_PREVIEW_SCHEME, "patchloom-preview");
 });
 
 test("stageExternalPatchInWorkspace copies a workspace symlink to an outside patch", async (t) => {

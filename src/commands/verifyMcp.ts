@@ -1,11 +1,41 @@
 import { spawn } from "node:child_process";
+import { patchloomLaunch } from "../binary/launch.js";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import { getPatchloomLog, getPatchloomRuntimeConfig, logCliCommand } from "../logging/outputChannel.js";
+import { inspectMcpTargets, readMcpConfigText, readPatchloomMcpCommand } from "../mcp/config.js";
 import { mergePatchloomEnv } from "../util.js";
+import { activeWorkspaceFolder } from "../workspace/readiness.js";
+
+export function selectVerifyMcpCommand(configuredCommand: string | undefined, fallbackBinary: string): string {
+  const trimmed = configuredCommand?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : fallbackBinary;
+}
+
+const VERIFY_MCP_KIND_ORDER = ["portable-workspace", "cursor-workspace", "vscode-workspace"] as const;
+
+/** Portable workspace wins over the older VS Code file when both name a command. */
+export function preferredVerifyMcpCommand(
+  entries: readonly { readonly kind: string; readonly command?: string }[]
+): string | undefined {
+  for (const kind of VERIFY_MCP_KIND_ORDER) {
+    const command = entries.find((entry) => entry.kind === kind)?.command?.trim();
+    if (command) {
+      return command;
+    }
+  }
+  return undefined;
+}
+
+export function verifyMcpWorkingDirectory(workspacePath: string | undefined): string | undefined {
+  const trimmed = workspacePath?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : undefined;
+}
 
 export interface VerifyMcpInputs {
   readonly binaryPath: string;
-  readonly spawnProcess?: typeof spawnMcpServer;
+  readonly configuredCommand?: string;
+  readonly cwd?: string;
+  readonly spawnProcess?: (command: string, cwd?: string) => Promise<VerifyMcpResult>;
 }
 
 export interface VerifyMcpResult {
@@ -22,6 +52,27 @@ export async function verifyMcp(): Promise<void> {
     return;
   }
 
+  const folderCount = vscode.workspace.workspaceFolders?.length ?? 0;
+  const folder = await activeWorkspaceFolder({
+    promptIfMany: true,
+    placeHolder: "Select the workspace folder whose MCP server to verify"
+  });
+  if (!folder && folderCount > 1) {
+    return;
+  }
+  const targets = await inspectMcpTargets({
+    workspaceFolderPath: folder?.uri.fsPath,
+    includeUserTarget: false
+  });
+  const entries = [];
+  for (const target of targets) {
+    entries.push({
+      kind: target.kind,
+      command: readPatchloomMcpCommand(target.kind, await readMcpConfigText(target.filePath))
+    });
+  }
+  const configuredCommand = preferredVerifyMcpCommand(entries);
+
   const result = await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
@@ -30,7 +81,11 @@ export async function verifyMcp(): Promise<void> {
     },
     async (progress) => {
       progress.report({ message: "Verifying MCP server..." });
-      return verifyMcpServer({ binaryPath });
+      return verifyMcpServer({
+        binaryPath,
+        configuredCommand,
+        cwd: verifyMcpWorkingDirectory(folder?.uri.fsPath)
+      });
     }
   );
 
@@ -47,8 +102,9 @@ export async function verifyMcp(): Promise<void> {
 
 export async function verifyMcpServer(inputs: VerifyMcpInputs): Promise<VerifyMcpResult> {
   const spawnFn = inputs.spawnProcess ?? spawnMcpServer;
+  const command = selectVerifyMcpCommand(inputs.configuredCommand, inputs.binaryPath);
   try {
-    return await spawnFn(inputs.binaryPath);
+    return await spawnFn(command, inputs.cwd);
   } catch (error) {
     return {
       ok: false,
@@ -57,16 +113,20 @@ export async function verifyMcpServer(inputs: VerifyMcpInputs): Promise<VerifyMc
   }
 }
 
-async function spawnMcpServer(binaryPath: string): Promise<VerifyMcpResult> {
+async function spawnMcpServer(binaryPath: string, cwd?: string): Promise<VerifyMcpResult> {
   const runtime = await getPatchloomRuntimeConfig();
   const env = mergePatchloomEnv(process.env, runtime.extraEnv);
-  logCliCommand(getPatchloomLog(), runtime.trace, binaryPath, ["mcp-server"], process.cwd());
+  const launch = patchloomLaunch(binaryPath, ["mcp-server"]);
+  logCliCommand(getPatchloomLog(), runtime.trace, launch.file, launch.args, cwd ?? process.cwd());
 
   return new Promise((resolve) => {
-    const child = spawn(binaryPath, ["mcp-server"], {
+    const child = spawn(launch.file, launch.args, {
+      cwd,
       stdio: ["pipe", "pipe", "pipe"],
       timeout: 10_000,
       windowsHide: true,
+      shell: launch.shell,
+      windowsVerbatimArguments: launch.windowsVerbatimArguments,
       env
     });
 

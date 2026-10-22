@@ -1,32 +1,30 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import type * as VSCode from "vscode";
+import { execPatchloomFile } from "../binary/launch.js";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import { getPatchloomLog, getPatchloomRuntimeConfig, logCliCommand, logCliResult, writeUserVisibleOutput } from "../logging/outputChannel.js";
 import { formatCliOutput, formatError, mergePatchloomEnv } from "../util.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
 
-const execFileAsync = promisify(execFile);
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 export type AgentsFileState = "missing" | "up_to_date" | "different";
 
-export async function initializeProject(): Promise<void> {
+export async function initializeProject(preset?: VSCode.WorkspaceFolder): Promise<boolean> {
   const vscode = await import("vscode");
   const { refreshStatusBar } = await import("../status/statusBar.js");
-  const folder = await activeWorkspaceFolder({
+  const folder = preset ?? await activeWorkspaceFolder({
     promptIfMany: true,
     placeHolder: "Select the workspace folder to initialize for Patchloom"
   });
   if (!folder) {
     await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom: Initialize Project.");
-    return;
+    return false;
   }
 
   const binaryPath = await ensurePatchloomReadyOrNotify("Upgrade Patchloom before initializing this workspace.");
   if (!binaryPath) {
-    return;
+    return false;
   }
 
   const modePick = await vscode.window.showQuickPick(
@@ -38,7 +36,7 @@ export async function initializeProject(): Promise<void> {
     { placeHolder: "Which agent-rules integration mode?" }
   );
   if (!modePick) {
-    return;
+    return false;
   }
 
   const platformPick = await vscode.window.showQuickPick(
@@ -50,7 +48,7 @@ export async function initializeProject(): Promise<void> {
     { placeHolder: "Which platform for shell examples?" }
   );
   if (!platformPick) {
-    return;
+    return false;
   }
 
   const surfacePick = await vscode.window.showQuickPick(
@@ -69,7 +67,7 @@ export async function initializeProject(): Promise<void> {
     { placeHolder: "Which agent-rules surface?" }
   );
   if (!surfacePick) {
-    return;
+    return false;
   }
 
   const runtime = await getPatchloomRuntimeConfig();
@@ -89,12 +87,12 @@ export async function initializeProject(): Promise<void> {
     writeUserVisibleOutput(log, message);
     log?.show();
     await vscode.window.showErrorMessage(`Failed to run patchloom agent-rules in ${folder.name}: ${message}`);
-    return;
+    return false;
   }
 
   if (!rules.trim()) {
     await vscode.window.showErrorMessage("patchloom agent-rules returned no output. Verify the CLI is working by running `patchloom agent-rules` in a terminal.");
-    return;
+    return false;
   }
 
   const agentsUri = vscode.Uri.joinPath(folder.uri, "AGENTS.md");
@@ -105,7 +103,7 @@ export async function initializeProject(): Promise<void> {
     state = classifyAgentsFile(existingContent, rules);
   } catch (error) {
     await vscode.window.showErrorMessage(`Could not read AGENTS.md: ${formatError(error)}`);
-    return;
+    return false;
   }
 
   if (state === "missing") {
@@ -114,7 +112,7 @@ export async function initializeProject(): Promise<void> {
     await vscode.window.showTextDocument(doc, { preview: false });
     await vscode.window.showInformationMessage(`Created AGENTS.md in ${folder.name}.`);
     await refreshStatusBar();
-    return;
+    return true;
   }
 
   if (state === "up_to_date") {
@@ -122,7 +120,7 @@ export async function initializeProject(): Promise<void> {
     await vscode.window.showTextDocument(doc, { preview: false });
     await vscode.window.showInformationMessage(`AGENTS.md in ${folder.name} is already up to date.`);
     await refreshStatusBar();
-    return;
+    return true;
   }
 
   const generatedDoc = await vscode.workspace.openTextDocument({
@@ -137,6 +135,7 @@ export async function initializeProject(): Promise<void> {
   );
   await vscode.window.showWarningMessage("AGENTS.md already exists and differs. Opened a diff against newly generated rules.");
   await refreshStatusBar();
+  return true;
 }
 
 export function classifyAgentsFile(existingContent: string | undefined, generatedRules: string): AgentsFileState {
@@ -185,6 +184,8 @@ export interface GenerateAgentRulesDeps {
       maxBuffer?: number;
       windowsHide?: boolean;
       env?: NodeJS.ProcessEnv;
+      shell?: boolean;
+      windowsVerbatimArguments?: boolean;
     }
   ) => Promise<{ stdout: string; stderr: string }>;
   readonly extraEnv?: Record<string, string>;
@@ -203,7 +204,7 @@ export async function generateAgentRules(
   const env = mergePatchloomEnv(deps.processEnv ?? process.env, deps.extraEnv);
   const trace = deps.trace ?? "off";
   logCliCommand(log, trace, binaryPath, args, cwd);
-  const run = deps.execFile ?? execFileAsync;
+  const run = deps.execFile ?? execPatchloomFile;
   try {
     const { stdout, stderr } = await run(binaryPath, args, {
       cwd,

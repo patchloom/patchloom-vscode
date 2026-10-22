@@ -103,7 +103,7 @@ export async function inspectMcpTargets(inputs: McpInspectionInputs): Promise<Mc
 
 export async function configureMcpTargets(inputs: McpApplyInputs): Promise<McpTargetResult[]> {
   const readFile = inputs.readFile ?? readMcpConfigText;
-  const patchloomCommand = configuredBinaryPathFromSetting(inputs.patchloomPathSetting) ?? "patchloom";
+  const resolvedCommand = configuredBinaryPathFromSetting(inputs.patchloomPathSetting) ?? "patchloom";
   const includeKinds = inputs.includeKinds ? new Set(inputs.includeKinds) : undefined;
   const targets = resolveMcpTargets(inputs.workspaceFolderPath, inputs.homeDir, inputs.includeUserTarget)
     .filter((target) => !includeKinds || includeKinds.has(target.kind));
@@ -115,7 +115,11 @@ export async function configureMcpTargets(inputs: McpApplyInputs): Promise<McpTa
       assertMcpConfigWriteContained(target, inputs.workspaceFolderPath);
       const content = await readFile(target.filePath);
       const original = parseJsonObject(content, target.filePath);
-      const entry = entryForKind(target.kind, patchloomCommand, mcpSurface);
+      const entry = entryForKind(
+        target.kind,
+        mcpCommandForTarget(target.kind, resolvedCommand),
+        mcpSurface
+      );
       const key = usesMcpServersKey(target.kind) ? "mcpServers" : "servers";
       const existingRoot = original[key];
       const currentEntry = isPlainObject(existingRoot) ? existingRoot.patchloom : undefined;
@@ -138,7 +142,7 @@ export async function configureMcpTargets(inputs: McpApplyInputs): Promise<McpTa
       // JSON.stringify of the parse drops comments and trailing commas.
       const serialized = typeof content === "string" && content.trim().length > 0
         ? applyPatchloomEntry(content, key, entry)
-        : `${JSON.stringify(withPatchloomEntry(target.kind, original, patchloomCommand, mcpSurface), null, 2)}\n`;
+        : `${JSON.stringify(withPatchloomEntry(target.kind, original, mcpCommandForTarget(target.kind, resolvedCommand), mcpSurface), null, 2)}\n`;
       await inputs.writeFile(target.filePath, serialized);
 
       results.push({
@@ -195,6 +199,53 @@ export function resolveMcpTargets(
   }
 
   return targets;
+}
+
+/**
+ * Workspace files store `command: "patchloom"` so the config is portable.
+ * Windsurf's user file may keep the resolved binary path.
+ * An absolute path whose basename is `patchloom` is not the portable command.
+ */
+export function mcpCommandForTarget(kind: McpTargetKind, resolvedPath: string | undefined): string {
+  if (kind === "windsurf-user") {
+    const trimmed = resolvedPath?.trim() ?? "";
+    return trimmed.length > 0 ? trimmed : "patchloom";
+  }
+  return "patchloom";
+}
+
+/** Workspace entries are current only when command is exactly `patchloom`. */
+export function patchloomEntryIsCurrent(kind: McpTargetKind, entry: unknown): boolean {
+  if (!isPlainObject(entry)) {
+    return false;
+  }
+  const command = entry.command;
+  if (typeof command !== "string" || command.trim().length === 0) {
+    return false;
+  }
+  if (kind === "windsurf-user") {
+    return true;
+  }
+  return command === "patchloom";
+}
+
+export function readPatchloomMcpCommand(kind: McpTargetKind, content: string | undefined): string | undefined {
+  if (!content || !content.trim()) {
+    return undefined;
+  }
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = parseJsonObject(content, "mcp.json");
+  } catch {
+    return undefined;
+  }
+  const key = usesMcpServersKey(kind) ? "mcpServers" : "servers";
+  const root = parsed[key];
+  if (!isPlainObject(root) || !isPlainObject(root.patchloom)) {
+    return undefined;
+  }
+  const command = root.patchloom.command;
+  return typeof command === "string" && command.trim().length > 0 ? command : undefined;
 }
 
 export function buildPatchloomMcpEntry(
@@ -290,7 +341,7 @@ function withPatchloomEntry(
 function hasPatchloomEntry(kind: McpTargetKind, config: Record<string, unknown>): boolean {
   const key = usesMcpServersKey(kind) ? "mcpServers" : "servers";
   const root = objectValue(config[key]);
-  return typeof root.patchloom === "object" && root.patchloom !== null;
+  return patchloomEntryIsCurrent(kind, root.patchloom);
 }
 
 function objectValue(value: unknown): Record<string, unknown> {

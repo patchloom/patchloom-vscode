@@ -28,13 +28,13 @@ Or search for **Patchloom** in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+
 1. Install the [Patchloom CLI](https://github.com/patchloom/patchloom) (or run **Patchloom: Install Patchloom** from the command palette; recommended: tracks GitHub Releases with checksum verification)
    ```sh
    brew install patchloom/tap/patchloom          # macOS / Linux (Homebrew)
-   npm install -g patchloom                      # npm (Node.js)
+   npm install -g patchloom                      # npm (Node.js; on Windows this is a patchloom.cmd shim)
    curl -LsSf https://github.com/patchloom/patchloom/releases/latest/download/patchloom-installer.sh | sh  # shell script
    cargo install patchloom                        # from source
    scoop bucket add patchloom https://github.com/patchloom/scoop-bucket
    scoop install patchloom                        # Windows (Scoop; preferred PATH channel)
    ```
-   On Windows, prefer the extension managed installer or Scoop. Avoid winget and Chocolatey for install or upgrade: both lag GitHub Releases and often leave you on an old CLI.
+   On Windows, prefer the extension managed installer or Scoop. `npm install -g patchloom` is supported: it puts `patchloom.cmd` on `PATH`, and the extension launches that shim through `cmd.exe`. If Show Status says `spawn EINVAL`, the extension build is one that does not launch `.cmd` shims. Avoid winget and Chocolatey for install or upgrade: both lag GitHub Releases and often leave you on an old CLI. The extension activates when the window finishes starting, including in a folder that has no `AGENTS.md` yet. Hiding the status bar does not hide the command palette entries.
 2. Open a project and run **Patchloom: Setup Workspace**
 
 <p align="center">
@@ -49,7 +49,7 @@ The extension finds the CLI automatically. If it's not on `PATH`, point `patchlo
 
 ### One-click workspace setup
 
-Run `Patchloom: Setup Workspace` to walk through everything your project needs: binary detection, `AGENTS.md` generation, and MCP server configuration.
+Run `Patchloom: Setup Workspace` to walk through everything your project needs: binary detection, `AGENTS.md` generation, and MCP server configuration. In a multi-root window it asks for the folder once and uses that folder for both steps. Skipping a step still ends with a summary of what was already present, what ran, and what was skipped.
 
 ### Agent rules generation
 
@@ -64,7 +64,7 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 - **Cursor** (`.cursor/mcp.json`)
 - **Windsurf** (`~/.codeium/windsurf/mcp_config.json`)
 
-When configuring, pick **Full tool inventory** (default) or **Core pack**. Core sets `PATCHLOOM_MCP_SURFACE=core` on the server entry. Existing servers in JSON or JSONC (`//` comments, trailing commas) stay in the file. A config that is not an object is left unchanged and the command reports an error. If an existing file cannot be read, the command reports that error and does not replace it. A missing file is still created.
+When configuring, pick **Full tool inventory** (default) or **Core pack**. Core sets `PATCHLOOM_MCP_SURFACE=core` on the server entry. Workspace files (VS Code, portable, and Cursor) store `command` as `patchloom`, not a machine path. A stale absolute path is rewritten. The Windsurf user file may still store the resolved binary path. VS Code also starts a native Patchloom server. Writing `.vscode/mcp.json` adds a second server next to that provider, and the command asks before it writes that file. The native server follows the `patchloom.mcpSurface` setting (`full` or `core`). Existing servers in JSON or JSONC (`//` comments, trailing commas) stay in the file. A config that is not an object is left unchanged and the command reports an error. If an existing file cannot be read, the command reports that error and does not replace it. A missing file is still created.
 
 CLI **0.37.5** exposes **66** MCP tools by default (including `explain_plan`, `tidy_check`, `list_files`, `apply_fragment`, `notebook_edit`, and `operation_schema`). The core pack is 12 tools on CLI 0.37+: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `operation_schema`, `server_info`. `doc` accepts `.jsonc` (comments stay on set), plus `.env`, `.ini`, and `.properties`. `doc_set` accepts `if_exists` to skip a missing file or selector. `apply_patch` accepts `apply=false` for a check-only preview. CLI `list-files` inventories ignore-aware paths the same way as MCP `list_files`. `search_files` accepts `files_without_match` (CLI 0.29+). `apply_patch` accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE (CLI 0.30+). `doc_query` can list object keys and count array or object length (CLI 0.32+). Search, replace, and tidy dests accept cwd-only globs such as `*.txt` (CLI 0.33+; use `**/*.txt` or `--glob` for nested files). Absolute paths that resolve inside the MCP workspace root are allowed; empty paths, `../`, and outside paths still reject with stable `error_kind` peels.
 
@@ -76,11 +76,11 @@ The status bar shows MCP and binary readiness at a glance:
 - **$(check) Patchloom**, with the detected version when known, when the binary is ready and MCP is not configured
 - **$(warning) Patchloom** when the binary is missing or needs an upgrade
 
-Click it to see full diagnostics, including per-file MCP configuration status (VS Code, portable workspace, Cursor, Windsurf).
+Click it to run **Show Status**. That command writes the full report to the Output channel and shows one short line, plus a button when a fix is available. Install does not download until you pick that button. The plug icon means a workspace MCP file is configured. A Windsurf user file alone does not turn on the plug icon, but Show Status still lists it. Saving `AGENTS.md`, `.mcp.json`, `.vscode/mcp.json`, or `.cursor/mcp.json`, focusing the window, or running **Refresh Status** updates the item.
 
 ### Verify MCP Server
 
-`Patchloom: Verify MCP Server` spawns `patchloom mcp-server`, sends a JSON-RPC `initialize` handshake, and confirms the server responds correctly. Reports the server name and version on success, or a diagnostic error on failure.
+`Patchloom: Verify MCP Server` runs in the workspace folder. If a workspace MCP file names a command, that command is the one probed. With no config file, it probes the resolved CLI. It sends a JSON-RPC `initialize` handshake and reports the server name and version on success, or a diagnostic error on failure. A bad configured command fails the check.
 
 ### Quick actions
 
@@ -118,13 +118,15 @@ Click it to see full diagnostics, including per-file MCP configuration status (V
 | **Replace markdown section** | Replace content under a markdown heading |
 | **Apply patch (unified / Begin Patch / SEARCH-REPLACE)** | Apply a unified diff, Codex Begin Patch, or Aider SEARCH/REPLACE (`patch apply`, CLI 0.30+) |
 | **Merge patch (three-way)** | Apply a stale patch using three-way merge (v0.2.0+) |
-| **Undo last change** | Restore files from the latest Patchloom backup session |
+| **Undo last change** | Restore the latest backup, one session id, or one workspace path |
 
-Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay inside the workspace root (CLI 0.10+). Containment is relative to the effective working directory (the workspace folder). Patch apply and patch merge copy a patch file that lives outside the workspace into a temporary directory inside it, then still pass `--contain`. A path inside that patch that leaves the workspace is rejected.
+Content fields open a scratch file so newlines stay newlines. Pattern and anchor fields start with the current selection when it is a single line. Preview copies the file under the workspace and runs the CLI with the workspace as its working directory, so `.patchloom.toml` format commands and EditorConfig match Apply. The preview copy is removed afterward. The diff uses a `patchloom-preview` document, which is not an untitled buffer and is not saved. A preview that finds no pattern says so. A command that exits cleanly and changes nothing says the command made no edit. Search still writes its text to the Output channel, and then offers the hits in a list that opens the file at the matching line. Files without a match open at line 1.
+
+Workspace Quick Actions and Batch Apply pass `--contain` so CLI paths stay inside the workspace root (CLI 0.10+). Containment is relative to the effective working directory (the workspace folder). Patch apply and patch merge ask for a file or the clipboard, stage that text inside the workspace, show a dry run, and write only after a second confirmation. An empty clipboard is an error and does not write. Cancel leaves the files unchanged. A path inside that patch that leaves the workspace is rejected.
 
 ### Batch operations
 
-`Patchloom: Batch Apply` opens a line-oriented plan template where you can compose multiple operations (replace, fuzzy replace, `doc.set`, JSONC `doc.set`, multi-match `doc.update`, `doc.delete_where`, multi-doc `doc.merge`, file append, directory `file.rename`, markdown section inserts, tidy). The extension pipes the plan to `patchloom batch --json --apply`. A hard error rolls the plan back. A formatter failure (`format_failed`) does not: that write may already be on disk, and Undo restores it. A replace that matches nothing, or a structured delete that removes nothing, is reported, other successful writes stay, and the completion message names those operations. A line whose first non-whitespace character is `#` is a comment. Blank lines and comments are not operations. A plan that contains only those lines is not applied.
+`Patchloom: Batch Apply` opens a line-oriented plan whose example lines are comments, including replace, fuzzy replace, `doc.set`, JSONC `doc.set`, multi-match `doc.update`, `doc.delete_where`, multi-doc `doc.merge`, file append, directory `file.rename`, markdown section inserts, and tidy. Remove the leading `#` on the lines you want. Apply first runs the plan without `--apply` and shows that result. A second confirmation writes it. A hard error rolls the plan back. A formatter failure (`format_failed`) does not: that write may already be on disk, and Undo restores it. A replace that matches nothing, or a structured delete that removes nothing, is reported, other successful writes stay, and the completion message names those operations. A line whose first non-whitespace character is `#` is a comment. Blank lines and comments are not operations. A plan that contains only those lines is not applied.
 
 ### Output channel
 
@@ -146,10 +148,11 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | `Patchloom: Quick Action` | Build a Patchloom CLI command from an interactive picker |
 | `Patchloom: Batch Apply` | Open a batch plan, apply it, and report refused operations |
 | `Patchloom: Show Output` | Open the Patchloom output channel for CLI logs and diagnostics |
-| `Patchloom: Show Status` | Display binary readiness, version, compatibility, and workspace state |
-| `Patchloom: Verify MCP Server` | Spawn the MCP server and verify it responds to a JSON-RPC initialize request |
+| `Patchloom: Show Status` | Write the full readiness report to the Output channel and show one short line |
+| `Patchloom: Refresh Status` | Re-check the CLI and workspace files and update the status bar |
+| `Patchloom: Verify MCP Server` | Probe the configured MCP command, or the resolved CLI, with a JSON-RPC initialize request |
 | `Patchloom: Install Patchloom` | Download and install the Patchloom CLI with checksum verification |
-| `Patchloom: Update Patchloom` | Update a managed Patchloom install to the latest release |
+| `Patchloom: Update Patchloom` | Check for a managed update, ask before download, then install |
 | `Patchloom: Reinstall Patchloom` | Re-download and reinstall the managed Patchloom binary |
 | `Patchloom: Open Settings` | Jump to Patchloom extension settings |
 | `Patchloom: Open Documentation` | Open the Patchloom documentation site in a browser |
@@ -160,8 +163,9 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `patchloom.path` | `""` | Absolute path to the Patchloom binary. When empty, the extension searches `PATH` and then the managed install location. |
-| `patchloom.showStatusBar` | `true` | Show a status bar item reporting whether Patchloom is available. |
-| `patchloom.enable` | `true` | Enable the extension. When disabled, the status bar is hidden and background checks are skipped. |
+| `patchloom.showStatusBar` | `true` | Show the status bar item. Hiding it does not hide command palette entries. Click runs Show Status. |
+| `patchloom.enable` | `true` | Enable the extension. When disabled, the status bar is hidden and automatic update checks are skipped. Command palette entries stay available. |
+| `patchloom.mcpSurface` | `"full"` | Tool pack for the native MCP server (`full` or `core`). |
 | `patchloom.trace.server` | `"off"` | Diagnostic CLI trace level (`off`, `messages`, `verbose`). User-facing search, undo, patch-merge, and batch-apply streams always go to Output. |
 | `patchloom.env` | `{}` | Extra `PATCHLOOM_*` variables for the CLI (for example `{"PATCHLOOM_LOG": "debug"}`). Workspace values apply only in a trusted folder. |
 | `patchloom.managedInstall.autoUpdate` | `true` | Automatically check for CLI updates on activation. |

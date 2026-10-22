@@ -3,15 +3,27 @@ import test from "node:test";
 import {
   BATCH_APPLY_PROMPT,
   buildBatchApplyArgs,
+  buildBatchDryRunArgs,
   buildBatchTemplate,
   formatBatchApplyCompletion,
   isEmptyBatchPlan,
   parseBatchOperationCount
 } from "../../src/commands/batchApply.js";
 
+function exampleLines(): string[] {
+  return buildBatchTemplate()
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => line.startsWith("# ") ? line.slice(2) : line);
+}
+
 test("buildBatchTemplate returns line-oriented format with twelve operations", () => {
   const template = buildBatchTemplate();
-  const lines = template.split("\n").filter((line) => line.trim().length > 0);
+  const commented = template.split("\n").filter((line) => line.trim().length > 0);
+  assert.ok(commented.every((line) => line.startsWith("# ")), "opened template lines are comments");
+  assert.equal(isEmptyBatchPlan(template), true);
+  assert.equal(parseBatchOperationCount(exampleLines().join("\n")), 12);
+  const lines = exampleLines();
 
   assert.equal(lines.length, 12);
   assert.ok(lines[0].startsWith("replace "), "first line should be a replace operation");
@@ -86,35 +98,35 @@ test("isEmptyBatchPlan is false when at least one operation is present", () => {
 // --- #34: snapshot-style template tests ---
 
 test("buildBatchTemplate replace line has file and quoted arguments", () => {
-  const lines = buildBatchTemplate().split("\n");
+  const lines = exampleLines();
   const replaceLine = lines.find((l) => l.startsWith("replace "));
   assert.ok(replaceLine, "template should contain a replace line");
   assert.match(replaceLine, /replace \S+ ".+" ".+"/, "replace should have file and two quoted args");
 });
 
 test("buildBatchTemplate doc.set line has file, selector, and quoted value", () => {
-  const lines = buildBatchTemplate().split("\n");
+  const lines = exampleLines();
   const docSetLine = lines.find((l) => l.startsWith("doc.set "));
   assert.ok(docSetLine, "template should contain a doc.set line");
   assert.match(docSetLine, /doc\.set \S+ \S+ ".+"/, "doc.set should have file, selector, and quoted value");
 });
 
 test("buildBatchTemplate tidy.fix line has a file path", () => {
-  const lines = buildBatchTemplate().split("\n");
+  const lines = exampleLines();
   const tidyLine = lines.find((l) => l.startsWith("tidy.fix "));
   assert.ok(tidyLine, "template should contain a tidy.fix line");
   assert.match(tidyLine, /tidy\.fix \S+/, "tidy.fix should have a file path");
 });
 
 test("buildBatchTemplate file.append line has file and quoted content", () => {
-  const lines = buildBatchTemplate().split("\n");
+  const lines = exampleLines();
   const appendLine = lines.find((l) => l.startsWith("file.append "));
   assert.ok(appendLine, "template should contain a file.append line");
   assert.match(appendLine, /file\.append \S+ ".+"/, "file.append should have file and quoted content");
 });
 
 test("buildBatchTemplate includes fuzzy replace and md.insert_after_section examples", () => {
-  const lines = buildBatchTemplate().split("\n");
+  const lines = exampleLines();
   const fuzzyLine = lines.find((l) => l.includes("--fuzzy"));
   const sectionLine = lines.find((l) => l.startsWith("md.insert_after_section "));
   assert.ok(fuzzyLine, "template should contain a fuzzy replace example");
@@ -128,7 +140,7 @@ test("buildBatchTemplate includes fuzzy replace and md.insert_after_section exam
 });
 
 test("buildBatchTemplate doc.merge line uses path selector value (CLI 0.16 multi-doc)", () => {
-  const lines = buildBatchTemplate().split("\n");
+  const lines = exampleLines();
   const mergeLine = lines.find((l) => l.startsWith("doc.merge "));
   assert.ok(mergeLine, "template should contain a doc.merge line");
   assert.match(
@@ -140,14 +152,14 @@ test("buildBatchTemplate doc.merge line uses path selector value (CLI 0.16 multi
 });
 
 test("buildBatchTemplate uses file.prepend instead of a batch --insert-after token", () => {
-  const lines = buildBatchTemplate().split("\n");
+  const lines = exampleLines();
   const prependLine = lines.find((line) => line.startsWith("file.prepend "));
   assert.equal(prependLine, "file.prepend src/example.ts \"header line\"");
   assert.equal(lines.some((line) => line.includes("--insert-after")), false);
 });
 
 test("buildBatchTemplate includes JSONC doc.set and directory file.rename (CLI 0.35+)", () => {
-  const lines = buildBatchTemplate().split("\n");
+  const lines = exampleLines();
   const jsoncLine = lines.find((l) => l.includes("tsconfig.jsonc"));
   const renameLine = lines.find((l) => l.startsWith("file.rename "));
   assert.ok(jsoncLine, "template should contain a JSONC doc.set example");
@@ -157,7 +169,7 @@ test("buildBatchTemplate includes JSONC doc.set and directory file.rename (CLI 0
 });
 
 test("buildBatchTemplate includes doc.update multi-match example (CLI 0.27+ suggested_op sibling)", () => {
-  const lines = buildBatchTemplate().split("\n");
+  const lines = exampleLines();
   const updateLine = lines.find((l) => l.startsWith("doc.update "));
   assert.ok(updateLine, "template should contain a doc.update line");
   assert.match(
@@ -169,7 +181,7 @@ test("buildBatchTemplate includes doc.update multi-match example (CLI 0.27+ sugg
 });
 
 test("buildBatchTemplate includes doc.delete_where multi-match example (CLI 0.27+ suggested_op sibling)", () => {
-  const lines = buildBatchTemplate().split("\n");
+  const lines = exampleLines();
   const deleteWhereLine = lines.find((l) => l.startsWith("doc.delete_where "));
   assert.ok(deleteWhereLine, "template should contain a doc.delete_where line");
   assert.match(
@@ -181,6 +193,8 @@ test("buildBatchTemplate includes doc.delete_where multi-match example (CLI 0.27
 
 test("buildBatchApplyArgs prefixes global --contain before batch --json --apply", () => {
   assert.deepEqual(buildBatchApplyArgs(), ["--contain", "batch", "--json", "--apply"]);
+  assert.deepEqual(buildBatchDryRunArgs(), ["--contain", "batch", "--json"]);
+  assert.deepEqual(buildBatchApplyArgs(false), ["--contain", "batch", "--json"]);
 });
 
 test("formatBatchApplyCompletion names a refused replace instead of claiming every line applied", () => {
