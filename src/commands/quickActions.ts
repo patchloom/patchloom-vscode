@@ -18,7 +18,7 @@ import {
   resolveWorkspaceRelativePath,
   sameRealFilePath
 } from "../workspace/pathContainment.js";
-import { dryRunFollowUp } from "./previewExit.js";
+import { dryRunFollowUp, previewSnapshotStillCurrent } from "./previewExit.js";
 
 export {
   isPathInsideWorkspace,
@@ -2218,6 +2218,12 @@ async function previewAndMaybeApply(
   }
   const originalDocument = await vscode.workspace.openTextDocument(target.uri);
   const originalContent = await fs.readFile(target.absolutePath, "utf8");
+  if (!previewSnapshotStillCurrent(originalContent, originalDocument.getText(), originalContent)) {
+    await vscode.window.showWarningMessage(
+      `Save unsaved edits to ${target.relativePath} before previewing. The preview reads the file on disk.`
+    );
+    return;
+  }
   let preview: VSCode.TextDocument | undefined;
   try {
     const built = await buildPreviewDocument(
@@ -2254,6 +2260,13 @@ async function previewAndMaybeApply(
     "Apply Changes"
   );
   if (choice !== "Apply Changes") {
+    return;
+  }
+  const diskNow = await fs.readFile(target.absolutePath, "utf8");
+  if (!previewSnapshotStillCurrent(originalContent, originalDocument.getText(), diskNow)) {
+    await vscode.window.showWarningMessage(
+      `${target.relativePath} changed after the preview. Preview again before applying.`
+    );
     return;
   }
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dryRunFollowUp, previewDryRunMayContinue } from "../../src/commands/previewExit.js";
+import { dryRunFollowUp, previewDryRunMayContinue, previewSnapshotStillCurrent } from "../../src/commands/previewExit.js";
 
 const batchWouldWrite = `{
   "ok": true,
@@ -57,6 +57,12 @@ test("preview dry run stops on failures and on exit 2 that is not a pending writ
   assert.equal(previewDryRunMayContinue({ exitCode: 2, stdout: "would change note.txt" }), false);
   assert.equal(previewDryRunMayContinue({ exitCode: 2, stdout: "{not json" }), false);
   assert.equal(previewDryRunMayContinue({ exitCode: 1, stdout: batchWouldWrite }), false);
+});
+
+test("preview apply stops when the buffer or disk no longer matches the snapshot", () => {
+  assert.equal(previewSnapshotStillCurrent("hello\n", "hello\r\n", "hello\n"), true);
+  assert.equal(previewSnapshotStillCurrent("hello\n", "hello!\n", "hello\n"), false);
+  assert.equal(previewSnapshotStillCurrent("hello\n", "hello\n", "hello!\n"), false);
 });
 
 test("dry run follow-up offers apply only when the preview would write or change nothing", () => {
