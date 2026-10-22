@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.2](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.9.1...patchloom-v0.9.2) (2026-10-22)
+
+
+### Bug Fixes
+
+* align the extension with Patchloom CLI 0.37.5 ([#296](https://github.com/patchloom/patchloom-vscode/issues/296)) ([7ca1b8e](https://github.com/patchloom/patchloom-vscode/commit/7ca1b8e803561b8d34aa3ca1b7929d195233cd57))
+* make palette, preview, and MCP setup match the CLI ([#317](https://github.com/patchloom/patchloom-vscode/issues/317)) ([303909a](https://github.com/patchloom/patchloom-vscode/commit/303909a6ba37216f63604021ab4a0af2d7e9432d))
+* stage outside patches under the gitignored directory ([#318](https://github.com/patchloom/patchloom-vscode/issues/318)) ([2c80211](https://github.com/patchloom/patchloom-vscode/commit/2c80211ae327bdecfd49e7046a23da8c687ce0f9))
+* stop Batch Apply when the plan changes after the dry run ([#319](https://github.com/patchloom/patchloom-vscode/issues/319)) ([7eb4906](https://github.com/patchloom/patchloom-vscode/commit/7eb4906183cf0a3151e0efe2a9a38c3f8faafc8e))
+
 ## [0.9.1](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.9.0...patchloom-v0.9.1) (2026-10-09)
 
 
