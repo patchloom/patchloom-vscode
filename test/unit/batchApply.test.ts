@@ -6,6 +6,7 @@ import {
   buildBatchDryRunArgs,
   buildBatchTemplate,
   formatBatchApplyCompletion,
+  batchPlanMatchesDryRun,
   isEmptyBatchPlan,
   parseBatchOperationCount
 } from "../../src/commands/batchApply.js";
@@ -16,6 +17,12 @@ function exampleLines(): string[] {
     .filter((line) => line.trim().length > 0)
     .map((line) => line.startsWith("# ") ? line.slice(2) : line);
 }
+
+test("batch apply requires the open plan to match the dry run", () => {
+  const plan = "replace README.md \"old\" \"new\"\n";
+  assert.equal(batchPlanMatchesDryRun(plan, plan), true);
+  assert.equal(batchPlanMatchesDryRun(plan, `${plan}tidy\n`), false);
+});
 
 test("buildBatchTemplate returns line-oriented format with twelve operations", () => {
   const template = buildBatchTemplate();

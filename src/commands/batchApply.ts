@@ -56,6 +56,11 @@ export function isEmptyBatchPlan(plan: string): boolean {
   return parseBatchOperationCount(plan) === 0;
 }
 
+/** Apply must write the text the dry run saw, not a later edit of the open plan. */
+export function batchPlanMatchesDryRun(dryRunPlan: string, currentPlan: string): boolean {
+  return dryRunPlan === currentPlan;
+}
+
 /** CLI argv for Batch Apply. `--json` is how a refused replace is visible on exit 0. */
 export function buildBatchApplyArgs(apply = true): string[] {
   return serializePatchloomArgs({ args: ["batch", "--json"], apply, contain: true });
@@ -281,6 +286,12 @@ export async function batchApply(): Promise<void> {
     "Apply"
   );
   if (write !== "Apply") {
+    return;
+  }
+  if (!batchPlanMatchesDryRun(plan, doc.getText())) {
+    await vscode.window.showWarningMessage(
+      "The batch plan changed after the dry run. Run Dry run again before applying."
+    );
     return;
   }
 
