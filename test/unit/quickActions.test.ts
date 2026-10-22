@@ -1066,6 +1066,17 @@ test("presentPatchMergeOutcome exit 0 writes streams + show, returns ok", () => 
   assert.deepEqual(messages, ["merged 2 hunks", "SHOW"]);
 });
 
+test("presentPatchMergeOutcome exit 2 stays an error so an applied merge is not treated as success", () => {
+  const { log, messages } = fakeLog();
+  const kind = presentPatchMergeOutcome(log, {
+    exitCode: 2,
+    stdout: '{"ok":true,"applied":false}',
+    stderr: ""
+  });
+  assert.equal(kind, "error");
+  assert.deepEqual(messages, ['{"ok":true,"applied":false}', "SHOW"]);
+});
+
 test("presentPatchMergeOutcome exit 1 writes streams + show, returns error", () => {
   const { log, messages } = fakeLog();
   const kind = presentPatchMergeOutcome(log, {

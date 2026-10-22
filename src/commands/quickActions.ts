@@ -18,6 +18,7 @@ import {
   resolveWorkspaceRelativePath,
   sameRealFilePath
 } from "../workspace/pathContainment.js";
+import { previewDryRunMayContinue } from "./previewExit.js";
 
 export {
   isPathInsideWorkspace,
@@ -512,7 +513,7 @@ async function previewThenApplyPatch(
 ): Promise<void> {
   const dry = await executePatchloom(binaryPath, { ...action, apply: false }, workspaceRoot);
   const log = getPatchloomLog();
-  if (noun === "merge") {
+  if (noun === "merge" && !previewDryRunMayContinue(dry)) {
     const outcome = presentPatchMergeOutcome(log, dry);
     if (outcome === "error") {
       await vscode.window.showErrorMessage(`Patch merge preview failed: ${formatCliOutput(dry)}`);
@@ -523,7 +524,7 @@ async function previewThenApplyPatch(
     }
   } else {
     presentCliResultInOutput(log, dry);
-    if (dry.exitCode !== 0) {
+    if (!previewDryRunMayContinue(dry)) {
       await vscode.window.showErrorMessage(`Patch apply preview failed: ${formatCliOutput(dry)}`);
       return;
     }

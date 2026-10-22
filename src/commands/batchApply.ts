@@ -11,6 +11,7 @@ import {
   presentCliResultInOutput
 } from "../logging/outputChannel.js";
 import { activeWorkspaceFolder } from "../workspace/readiness.js";
+import { previewDryRunMayContinue } from "./previewExit.js";
 import { serializePatchloomArgs } from "./quickActions.js";
 
 // Batch replace is PATH OLD NEW (not CLI `replace OLD --new NEW path`). See CLI 0.18+ batch --help.
@@ -268,7 +269,7 @@ export async function batchApply(): Promise<void> {
   const dryRun = await executePatchloomWithStdin(binaryPath, dryArgs, folder.uri.fsPath, plan, env);
   logCliResult(log, runtime.trace, dryRun.exitCode, dryRun.stdout, dryRun.stderr);
   presentCliResultInOutput(log, dryRun);
-  if (dryRun.exitCode !== 0) {
+  if (!previewDryRunMayContinue(dryRun)) {
     await vscode.window.showErrorMessage(
       `Batch dry run failed: ${formatCliOutput(dryRun)}`
     );
