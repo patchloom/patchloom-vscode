@@ -12,8 +12,11 @@ import { clearPatchloomStatusInflight } from "./binary/patchloom.js";
 import { setManagedInstallRoot } from "./install/managed.js";
 import { createPatchloomLog, getPatchloomLog, setPatchloomLog } from "./logging/outputChannel.js";
 import { refreshMcpServerBinary, registerMcpServerProviderWithBinary } from "./mcp/register.js";
+import { createPreviewContentProvider, PATCHLOOM_PREVIEW_SCHEME } from "./commands/quickActions.js";
+import { shouldRunBackgroundChecks } from "./status/contextKeys.js";
 import { refreshAfterPatchloomInputChange } from "./status/refreshAfterInputChange.js";
 import { disposeStatusBar, refreshStatusBar } from "./status/statusBar.js";
+import { isWorkspaceReadinessPath } from "./workspace/readiness.js";
 
 export function activate(context: vscode.ExtensionContext): void {
   setManagedInstallRoot(context.globalStorageUri.fsPath);
@@ -31,6 +34,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("patchloom.openPatchloomSettings", openPatchloomSettings),
     vscode.commands.registerCommand("patchloom.openPatchloomReleases", openPatchloomReleases),
     vscode.commands.registerCommand("patchloom.showStatus", showStatus),
+    vscode.commands.registerCommand("patchloom.refreshStatus", () => refreshStatusBar()),
     vscode.commands.registerCommand("patchloom.installBinary", installPatchloom),
     vscode.commands.registerCommand("patchloom.updateBinary", updatePatchloom),
     vscode.commands.registerCommand("patchloom.reinstallBinary", reinstallPatchloom),
@@ -59,11 +63,40 @@ export function activate(context: vscode.ExtensionContext): void {
         refreshStatusBar,
         refreshMcpServerBinary
       );
+    }),
+    vscode.workspace.registerTextDocumentContentProvider(
+      PATCHLOOM_PREVIEW_SCHEME,
+      createPreviewContentProvider()
+    ),
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      if (isWorkspaceReadinessPath(document.uri.fsPath)) {
+        void refreshStatusBar();
+      }
+    }),
+    vscode.window.onDidChangeWindowState((state) => {
+      if (state.focused) {
+        void refreshStatusBar();
+      }
     })
   );
 
+  const refreshFromWatcher = (uri: vscode.Uri): void => {
+    if (isWorkspaceReadinessPath(uri.fsPath)) {
+      void refreshStatusBar();
+    }
+  };
+  for (const pattern of ["**/AGENTS.md", "**/.mcp.json", "**/.vscode/mcp.json", "**/.cursor/mcp.json"]) {
+    const readinessWatcher = vscode.workspace.createFileSystemWatcher(pattern);
+    readinessWatcher.onDidCreate(refreshFromWatcher);
+    readinessWatcher.onDidChange(refreshFromWatcher);
+    readinessWatcher.onDidDelete(refreshFromWatcher);
+    context.subscriptions.push(readinessWatcher);
+  }
+
   void refreshStatusBar();
-  void checkForUpdates();
+  if (shouldRunBackgroundChecks(vscode.workspace.getConfiguration("patchloom").get<boolean>("enable", true))) {
+    void checkForUpdates();
+  }
   void registerMcpServerProviderWithBinary(context);
 }
 

@@ -49,7 +49,12 @@ import {
   verifyManagedInstallArchiveChecksum
 } from "../../src/install/managed.js";
 import { resolveMcpTargets } from "../../src/mcp/config.js";
-import { defaultWorkspaceFolderIndex, describeWorkspaceEnvironment } from "../../src/workspace/readiness.js";
+import {
+  defaultWorkspaceFolderIndex,
+  describeWorkspaceEnvironment,
+  isWorkspaceReadinessPath,
+  workspaceHasConfiguredMcp
+} from "../../src/workspace/readiness.js";
 
 test("resolvePatchloomStatusWithInputs prefers patchloom.path over PATH", async () => {
   const status = await resolvePatchloomStatusWithInputs({
@@ -338,6 +343,21 @@ test("preferredBinaryRemediationAction is undefined when ready and supported", (
 
 // Note: ensurePatchloomReadyOrNotify UI branches call vscode.window.show* which is
 // not unit-testable in pure node. Remediation selection is covered above.
+
+test("workspace MCP readiness ignores the Windsurf user file", () => {
+  assert.equal(workspaceHasConfiguredMcp([
+    { kind: "windsurf-user", configured: true },
+    { kind: "vscode-workspace", configured: false }
+  ]), false);
+  assert.equal(workspaceHasConfiguredMcp([
+    { kind: "portable-workspace", configured: true }
+  ]), true);
+  assert.equal(isWorkspaceReadinessPath("/work/AGENTS.md"), true);
+  assert.equal(isWorkspaceReadinessPath("/work/.mcp.json"), true);
+  assert.equal(isWorkspaceReadinessPath("/work/.vscode/mcp.json"), true);
+  assert.equal(isWorkspaceReadinessPath("/work/.cursor/mcp.json"), true);
+  assert.equal(isWorkspaceReadinessPath("/home/.codeium/windsurf/mcp_config.json"), false);
+});
 
 test("defaultWorkspaceFolderIndex prefers active folders and only auto-selects single roots", () => {
   assert.equal(defaultWorkspaceFolderIndex(3, 2), 2);

@@ -43,6 +43,17 @@ export function buildStatusDetails(status: PatchloomStatus, workspaceReadiness?:
   ].filter((line): line is string => Boolean(line)).join("\n");
 }
 
+/** One line for the notification. The full report stays in the Output channel. */
+export function statusNotificationSummary(ready: boolean, needsUpgrade: boolean): string {
+  if (!ready) {
+    return "Patchloom is not ready. The full report is in the Output channel.";
+  }
+  if (needsUpgrade) {
+    return "Patchloom CLI is older than this extension expects. The full report is in the Output channel.";
+  }
+  return "Patchloom is ready. The full report is in the Output channel.";
+}
+
 export function preferredStatusAction(status: PatchloomStatus, workspaceReadiness?: WorkspaceReadiness): SetupAction | undefined {
   // Missing or outdated CLI: shared remediation (managed install preferred).
   if (!status.ready || patchloomNeedsUpgrade(status)) {

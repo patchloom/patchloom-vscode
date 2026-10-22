@@ -9,7 +9,10 @@ import {
   configureMcpTargets,
   formatMcpConfigureFailureMessage,
   inspectMcpTargets,
+  mcpCommandForTarget,
   McpConfigureError,
+  patchloomEntryIsCurrent,
+  readPatchloomMcpCommand,
   resolveMcpTargets
 } from "../../src/mcp/config.js";
 
@@ -61,7 +64,7 @@ test("configureMcpTargets writes VS Code mcp.json to a real temp workspace", asy
     const servers = written.servers as Record<string, unknown>;
     assert.ok(servers.patchloom);
     const entry = servers.patchloom as Record<string, unknown>;
-    assert.equal(entry.command, "/usr/local/bin/patchloom");
+    assert.equal(entry.command, "patchloom");
     assert.deepEqual(entry.args, ["mcp-server"]);
     assert.equal(entry.env, undefined, "full surface should not inject env");
   });
@@ -294,7 +297,7 @@ test("configureMcpTargets writes portable .mcp.json with mcpServers and stdio ty
     assert.equal(servers.other.command, "other-server");
     assert.deepEqual(servers.patchloom, {
       type: "stdio",
-      command: "/opt/patchloom",
+      command: "patchloom",
       args: ["mcp-server"],
       env: { PATCHLOOM_MCP_SURFACE: "core" }
     });
@@ -681,6 +684,63 @@ test("configureMcpTargets leaves an unreadable config file unchanged", async (t)
 
     const after = await fs.readFile(filePath, "utf8");
     assert.equal(after, original);
+  });
+});
+
+test("mcpCommandForTarget keeps workspace configs portable and windsurf absolute", () => {
+  assert.equal(mcpCommandForTarget("vscode-workspace", "/usr/local/bin/patchloom"), "patchloom");
+  assert.equal(mcpCommandForTarget("portable-workspace", "/opt/patchloom"), "patchloom");
+  assert.equal(mcpCommandForTarget("cursor-workspace", "/opt/patchloom"), "patchloom");
+  assert.equal(mcpCommandForTarget("windsurf-user", "/opt/patchloom"), "/opt/patchloom");
+  assert.equal(patchloomEntryIsCurrent("vscode-workspace", { command: "patchloom" }), true);
+  assert.equal(patchloomEntryIsCurrent("vscode-workspace", { command: "/usr/bin/patchloom" }), false);
+  assert.equal(patchloomEntryIsCurrent("windsurf-user", { command: "/opt/patchloom" }), true);
+  assert.equal(patchloomEntryIsCurrent("windsurf-user", { command: "" }), false);
+});
+
+test("configureMcpTargets rewrites a stale workspace command and keeps a windsurf path", async () => {
+  await withTempDir(async (workspace) => {
+    const vscodeDir = path.join(workspace, ".vscode");
+    await fs.mkdir(vscodeDir, { recursive: true });
+    const filePath = path.join(vscodeDir, "mcp.json");
+    await fs.writeFile(
+      filePath,
+      JSON.stringify({ servers: { patchloom: { command: "/old/patchloom", args: ["mcp-server"] } } }),
+      "utf8"
+    );
+    const readFile = async (targetPath: string) => {
+      try { return await fs.readFile(targetPath, "utf8"); } catch { return undefined; }
+    };
+    const writeFile = async (targetPath: string, content: string) => {
+      await fs.mkdir(path.dirname(targetPath), { recursive: true });
+      await fs.writeFile(targetPath, content, "utf8");
+    };
+
+    const before = await inspectMcpTargets({ workspaceFolderPath: workspace, homeDir: workspace, readFile });
+    assert.equal(before.find((target) => target.kind === "vscode-workspace")?.configured, false);
+
+    const results = await configureMcpTargets({
+      workspaceFolderPath: workspace,
+      homeDir: workspace,
+      includeKinds: ["vscode-workspace", "windsurf-user"],
+      patchloomPathSetting: "/opt/patchloom",
+      readFile,
+      writeFile
+    });
+    assert.equal(results.find((result) => result.kind === "vscode-workspace")?.changed, true);
+    assert.equal(results.find((result) => result.kind === "windsurf-user")?.changed, true);
+
+    const vscodeWritten = await readJson(filePath);
+    const servers = vscodeWritten.servers as Record<string, { command?: string }>;
+    assert.equal(servers.patchloom?.command, "patchloom");
+
+    const windsurf = await readJson(path.join(workspace, ".codeium", "windsurf", "mcp_config.json"));
+    const mcpServers = windsurf.mcpServers as Record<string, { command?: string }>;
+    assert.equal(mcpServers.patchloom?.command, "/opt/patchloom");
+    assert.equal(
+      readPatchloomMcpCommand("vscode-workspace", await fs.readFile(filePath, "utf8")),
+      "patchloom"
+    );
   });
 });
 

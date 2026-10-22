@@ -1,6 +1,5 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import * as vscode from "vscode";
+import { execPatchloomFile } from "../binary/launch.js";
 import { resolvePatchloomStatus, PATCHLOOM_RELEASES_URL, clearPatchloomStatusInflight } from "../binary/patchloom.js";
 import { decideManagedUpdate, resolveManagedBinaryVersion } from "../binary/managedUpdate.js";
 import {
@@ -14,8 +13,7 @@ import { getPatchloomLog } from "../logging/outputChannel.js";
 import { refreshMcpServerBinary } from "../mcp/register.js";
 import { refreshStatusBar } from "../status/statusBar.js";
 import { formatError } from "../util.js";
-
-const execFileAsync = promisify(execFile);
+import { runCheckedInstall } from "./managedUpdateFlow.js";
 
 const MANAGED_INSTALL_UNAVAILABLE =
   "Managed install is not available: extension storage path is not set.";
@@ -27,7 +25,7 @@ const PROGRESS_OPTIONS: vscode.ProgressOptions = {
 };
 
 async function readManagedBinaryVersionText(binaryPath: string): Promise<string | undefined> {
-  const { stdout, stderr } = await execFileAsync(binaryPath, ["--version"], {
+  const { stdout, stderr } = await execPatchloomFile(binaryPath, ["--version"], {
     timeout: 5_000,
     windowsHide: true
   });
@@ -116,44 +114,40 @@ export async function updatePatchloom(): Promise<void> {
 
   const log = getPatchloomLog();
 
-  await vscode.window.withProgress(
-    PROGRESS_OPTIONS,
-    async (progress) => {
-      try {
+  try {
+    await runCheckedInstall({
+      check: () => vscode.window.withProgress(PROGRESS_OPTIONS, async (progress) => {
         progress.report({ message: "Checking for updates..." });
         const latestVersion = await fetchLatestReleaseVersion();
-
         const status = await resolvePatchloomStatus();
         const managedVersion = await resolveManagedBinaryVersion(status, readManagedBinaryVersionText);
-        const decision = decideManagedUpdate(latestVersion, managedVersion);
+        return { latestVersion, decision: decideManagedUpdate(latestVersion, managedVersion) };
+      }),
+      confirm: async ({ latestVersion, decision }) => {
         if (decision.kind === "current") {
           await vscode.window.showInformationMessage(
             `Managed Patchloom ${decision.version} is already up to date.`
           );
-          return;
+          return false;
         }
 
         const upgradeLabel = decision.from
           ? `${decision.from} to ${decision.to}`
           : decision.to;
-
         const choice = await vscode.window.showInformationMessage(
           `Managed Patchloom ${upgradeLabel} is available. Install now?`,
           "Install",
           "View Release"
         );
-
         if (choice === "View Release") {
           await vscode.env.openExternal(
             vscode.Uri.parse(`${PATCHLOOM_RELEASES_URL}/tag/patchloom-v${latestVersion}`)
           );
-          return;
+          return false;
         }
-
-        if (choice !== "Install") {
-          return;
-        }
-
+        return choice === "Install";
+      },
+      install: ({ latestVersion }) => vscode.window.withProgress(PROGRESS_OPTIONS, async (progress) => {
         const result = await performManagedInstall({
           installRoot,
           version: latestVersion,
@@ -161,7 +155,6 @@ export async function updatePatchloom(): Promise<void> {
             progress.report({ message: stageLabel(stage) });
           }
         });
-
         log?.log(`Managed update complete: Patchloom ${result.version} at ${result.binaryPath}`);
         clearPatchloomStatusInflight();
         await refreshStatusBar();
@@ -169,14 +162,14 @@ export async function updatePatchloom(): Promise<void> {
         await vscode.window.showInformationMessage(
           `Patchloom updated to ${result.version}.`
         );
-      } catch (error) {
-        const message = formatError(error);
-        log?.log(`Managed update failed: ${message}`);
-        log?.show();
-        await vscode.window.showErrorMessage(`Failed to update Patchloom: ${message}`);
-      }
-    }
-  );
+      })
+    });
+  } catch (error) {
+    const message = formatError(error);
+    log?.log(`Managed update failed: ${message}`);
+    log?.show();
+    await vscode.window.showErrorMessage(`Failed to update Patchloom: ${message}`);
+  }
 }
 
 export async function reinstallPatchloom(): Promise<void> {

@@ -1,6 +1,9 @@
 import * as vscode from "vscode";
 import { ensurePatchloomReadyOrNotify, PATCHLOOM_DOCS_URL, PATCHLOOM_RELEASES_URL } from "../binary/patchloom.js";
-import { describeWorkspaceEnvironment, inspectWorkspaceReadiness } from "../workspace/readiness.js";
+import { formatSetupSummary, type SetupStepState } from "./setupSummary.js";
+import { activeWorkspaceFolder, describeWorkspaceEnvironment, inspectWorkspaceReadiness } from "../workspace/readiness.js";
+
+export { formatSetupSummary, type SetupStepState } from "./setupSummary.js";
 
 export async function setupWorkspace(): Promise<void> {
   const binaryPath = await ensurePatchloomReadyOrNotify("Patchloom needs a working binary before workspace setup can continue.");
@@ -8,46 +11,56 @@ export async function setupWorkspace(): Promise<void> {
     return;
   }
 
-  const readiness = await inspectWorkspaceReadiness({
+  const folder = await activeWorkspaceFolder({
     promptIfMany: true,
     placeHolder: "Select the workspace folder to inspect for Patchloom setup"
   });
+  if (!folder) {
+    await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom: Setup Workspace.");
+    return;
+  }
 
+  const readiness = await inspectWorkspaceReadiness({ folder });
   if (!readiness.hasWorkspace) {
     await vscode.window.showWarningMessage("Open a workspace folder before running Patchloom: Setup Workspace.");
     return;
   }
 
-  if (readiness.hasAgentsFile === false) {
+  const agentsMissing = readiness.hasAgentsFile === false;
+  let agents: SetupStepState = agentsMissing ? "skipped" : "present";
+  if (agentsMissing) {
     const choice = await vscode.window.showInformationMessage(
       "Step 1/2: AGENTS.md is missing for this workspace. Create it now from patchloom agent-rules?",
       "Initialize Project",
       "Skip"
     );
     if (choice === "Initialize Project") {
-      await vscode.commands.executeCommand("patchloom.initializeProject");
+      const wrote = await vscode.commands.executeCommand("patchloom.initializeProject", folder);
+      if (wrote === true) {
+        agents = "ran";
+      }
     }
   }
 
+  let mcp: SetupStepState = readiness.hasMcpConfig === false ? "skipped" : "present";
   if (readiness.hasMcpConfig === false) {
     const choice = await vscode.window.showInformationMessage(
-      `${readiness.hasAgentsFile === false ? "Step 2/2: " : ""}Patchloom MCP config is missing. Configure supported editors now?`,
+      `${agentsMissing ? "Step 2/2: " : ""}Patchloom MCP config is missing. Configure supported editors now?`,
       "Configure MCP",
       "Skip"
     );
     if (choice === "Configure MCP") {
-      await vscode.commands.executeCommand("patchloom.configureMcp");
+      const wrote = await vscode.commands.executeCommand("patchloom.configureMcp", folder);
+      if (wrote === true) {
+        mcp = "ran";
+      }
     }
   }
 
-  if (readiness.hasAgentsFile !== false && readiness.hasMcpConfig !== false) {
-    const environment = describeWorkspaceEnvironment(vscode.env.remoteName);
-    const environmentSuffix = environment.note ? ` ${environment.note}` : "";
-    const workspaceTarget = readiness.workspaceName ? ` for ${readiness.workspaceName}` : "";
-    await vscode.window.showInformationMessage(
-      `Patchloom workspace setup looks good${workspaceTarget}. Binary, AGENTS.md, and MCP config are already in place.${environmentSuffix}`
-    );
-  }
+  const environment = describeWorkspaceEnvironment(vscode.env.remoteName);
+  await vscode.window.showInformationMessage(
+    formatSetupSummary(readiness.workspaceName, agents, mcp, environment.note)
+  );
 }
 
 export async function openPatchloomSettings(): Promise<void> {

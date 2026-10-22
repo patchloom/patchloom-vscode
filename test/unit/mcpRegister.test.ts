@@ -16,6 +16,19 @@ class FakeStdio {
   ) {}
 }
 
+test("mcpServerDefinitionsForBinary launches a Windows cmd shim through cmd.exe", () => {
+  const defs = mcpServerDefinitionsForBinary(
+    "C:\\npm\\patchloom.cmd",
+    undefined,
+    "full",
+    "win32",
+    "C:\\Windows\\System32\\cmd.exe"
+  );
+  assert.equal(defs[0]?.command, "C:\\Windows\\System32\\cmd.exe");
+  assert.deepEqual(defs[0]?.args.slice(0, 3), ["/d", "/s", "/c"]);
+  assert.equal(defs[0]?.args[3], "C:\\npm\\patchloom.cmd mcp-server");
+});
+
 test("mcpServerDefinitionsForBinary returns empty when binary is undefined", () => {
   assert.deepEqual(mcpServerDefinitionsForBinary(undefined), []);
 });
@@ -29,6 +42,21 @@ test("mcpServerDefinitionsForBinary returns one stdio definition for a path", ()
     args: ["mcp-server"],
     env: {}
   });
+});
+
+test("mcpServerDefinitionsForBinary follows the core pack setting", () => {
+  const defs = mcpServerDefinitionsForBinary("/opt/patchloom", {
+    PATCHLOOM_LOG: "debug",
+    PATH: "/tmp/evil"
+  }, "core");
+  assert.deepEqual(defs[0]?.env, {
+    PATCHLOOM_LOG: "debug",
+    PATCHLOOM_MCP_SURFACE: "core"
+  });
+  const full = mcpServerDefinitionsForBinary("/opt/patchloom", {
+    PATCHLOOM_MCP_SURFACE: "core"
+  }, "full");
+  assert.deepEqual(full[0]?.env, {});
 });
 
 test("mcpServerDefinitionsForBinary includes filtered PATCHLOOM env", () => {

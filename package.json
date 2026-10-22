@@ -41,6 +41,7 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
+    "onStartupFinished",
     "workspaceContains:**/AGENTS.md",
     "workspaceContains:**/.patchloom.toml"
   ],
@@ -79,6 +80,11 @@
       {
         "command": "patchloom.showStatus",
         "title": "Show Status",
+        "category": "Patchloom"
+      },
+      {
+        "command": "patchloom.refreshStatus",
+        "title": "Refresh Status",
         "category": "Patchloom"
       },
       {
@@ -207,12 +213,21 @@
         "patchloom.showStatusBar": {
           "type": "boolean",
           "default": true,
-          "description": "Show a status bar item reporting whether Patchloom is available for the current workspace."
+          "markdownDescription": "Show the status bar item. Hiding it does not hide command palette entries. The extension still detects the CLI so those entries can appear. Click the item to open Show Status."
         },
         "patchloom.enable": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Enable the Patchloom extension. When disabled, the status bar is hidden and background checks are skipped. Commands remain available for manual invocation."
+          "markdownDescription": "Enable the Patchloom extension. When disabled, the status bar is hidden and automatic update checks are skipped. Command palette entries stay available. The extension still detects the CLI so those entries can appear."
+        },
+        "patchloom.mcpSurface": {
+          "type": "string",
+          "default": "full",
+          "enum": [
+            "full",
+            "core"
+          ],
+          "markdownDescription": "Tool pack for the native Patchloom MCP server that VS Code starts. `core` sets `PATCHLOOM_MCP_SURFACE=core`. `full` is the default inventory. A `patchloom` entry written into `.vscode/mcp.json` is a second server next to this one. Change this setting, then run Refresh Status, to update the native server."
         },
         "patchloom.trace.server": {
           "type": "string",

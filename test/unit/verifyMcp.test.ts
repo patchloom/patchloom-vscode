@@ -1,7 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseInitializeResponse, verifyMcpServer } from "../../src/commands/verifyMcp.js";
-import { buildStatusDetails } from "../../src/status/details.js";
+import { parseInitializeResponse, preferredVerifyMcpCommand, selectVerifyMcpCommand, verifyMcpServer, verifyMcpWorkingDirectory } from "../../src/commands/verifyMcp.js";
+import { buildStatusDetails, statusNotificationSummary } from "../../src/status/details.js";
+
+test("selectVerifyMcpCommand prefers a configured command and otherwise the resolved CLI", () => {
+  assert.equal(selectVerifyMcpCommand("bad-command", "/opt/patchloom"), "bad-command");
+  assert.equal(selectVerifyMcpCommand("  ", "/opt/patchloom"), "/opt/patchloom");
+  assert.equal(selectVerifyMcpCommand(undefined, "/opt/patchloom"), "/opt/patchloom");
+  assert.equal(verifyMcpWorkingDirectory("/workspace/demo"), "/workspace/demo");
+  assert.equal(verifyMcpWorkingDirectory("  "), undefined);
+  assert.equal(preferredVerifyMcpCommand([
+    { kind: "vscode-workspace", command: "stale" },
+    { kind: "portable-workspace", command: "patchloom" }
+  ]), "patchloom");
+  assert.equal(preferredVerifyMcpCommand([
+    { kind: "vscode-workspace", command: "from-vscode" }
+  ]), "from-vscode");
+});
+
+test("statusNotificationSummary is one line and names the Output channel", () => {
+  assert.match(statusNotificationSummary(false, false), /not ready/);
+  assert.match(statusNotificationSummary(false, false), /Output channel/);
+  assert.match(statusNotificationSummary(true, true), /older/);
+  assert.match(statusNotificationSummary(true, false), /ready/);
+  assert.equal(statusNotificationSummary(true, false).includes("\n"), false);
+});
 
 // --- parseInitializeResponse ---
 

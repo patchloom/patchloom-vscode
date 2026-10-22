@@ -1,9 +1,7 @@
-import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
-import * as os from "node:os";
 import * as path from "node:path";
-import { promisify } from "node:util";
 import type * as VSCode from "vscode";
+import { execPatchloomFile } from "../binary/launch.js";
 import { ensurePatchloomReadyOrNotify } from "../binary/patchloom.js";
 import {
   getPatchloomLog,
@@ -20,6 +18,7 @@ import {
   resolveWorkspaceRelativePath,
   sameRealFilePath
 } from "../workspace/pathContainment.js";
+import { dryRunFollowUp } from "./previewExit.js";
 
 export {
   isPathInsideWorkspace,
@@ -28,7 +27,6 @@ export {
   sameRealFilePath
 } from "../workspace/pathContainment.js";
 
-const execFileAsync = promisify(execFile);
 const STRUCTURED_FILE_EXTENSIONS = new Set([
   ".json",
   ".jsonc",
@@ -100,6 +98,177 @@ export function withEndOfOptions(head: readonly string[], operands: readonly str
 /** `--flag=value` so clap does not treat `--` / `-n` as options. */
 export function withOption(flag: string, value: string): string {
   return `${flag}=${value}`;
+}
+
+export const PATCHLOOM_PREVIEW_SCHEME = "patchloom-preview";
+
+const previewBodies = new Map<string, string>();
+let previewSequence = 0;
+
+export function rememberPreviewBody(body: string): string {
+  previewSequence += 1;
+  const id = String(previewSequence);
+  previewBodies.set(id, body);
+  return id;
+}
+
+export function previewBodyForId(id: string): string {
+  return previewBodies.get(id) ?? "";
+}
+
+export function createPreviewContentProvider(): VSCode.TextDocumentContentProvider {
+  return {
+    provideTextDocumentContent(uri: VSCode.Uri): string {
+      return previewBodyForId(uri.path.replace(/^\//, ""));
+    }
+  };
+}
+
+/** First line of the editor selection, used to seed pattern and anchor fields. */
+export function seedFromSelection(selection: string | undefined): string {
+  if (!selection) {
+    return "";
+  }
+  return selection.split(/\r?\n/, 1)[0] ?? "";
+}
+
+/** Scratch-file text. Real newlines stay newlines. */
+export function contentFromScratch(text: string): string {
+  return text.replace(/\r\n/g, "\n");
+}
+
+export function previewWorkspaceFile(
+  workspaceRoot: string,
+  baseName: string,
+  nonce: string
+): { readonly directory: string; readonly filePath: string } {
+  const directory = path.join(workspaceRoot, ".patchloom", `qa-preview-${nonce}`);
+  return {
+    directory,
+    filePath: path.join(directory, path.basename(baseName))
+  };
+}
+
+/** Preview runs with this cwd so workspace format config and EditorConfig apply. */
+export function previewCwd(workspaceRoot: string): string {
+  return workspaceRoot;
+}
+
+/** Backup directory names that appeared while a preview was running. */
+export function newBackupSessionNames(before: readonly string[], after: readonly string[]): string[] {
+  const known = new Set(before);
+  return after.filter((name) => name.length > 0 && !known.has(name));
+}
+
+function isEnoent(error: unknown): boolean {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && (error as { code?: unknown }).code === "ENOENT";
+}
+
+async function backupSessionNames(workspaceRoot: string): Promise<string[] | undefined> {
+  try {
+    return await fs.readdir(path.join(workspaceRoot, ".patchloom", "backups"));
+  } catch (error) {
+    if (isEnoent(error)) {
+      return [];
+    }
+    return undefined;
+  }
+}
+
+async function removePreviewBackupSessions(
+  workspaceRoot: string,
+  before: readonly string[] | undefined,
+  nonce: string
+): Promise<void> {
+  if (!before) {
+    return;
+  }
+  const after = await backupSessionNames(workspaceRoot);
+  if (!after) {
+    return;
+  }
+  for (const name of newBackupSessionNames(before, after)) {
+    const sessionDir = path.join(workspaceRoot, ".patchloom", "backups", name);
+    let manifest = "";
+    try {
+      manifest = await fs.readFile(path.join(sessionDir, "manifest.json"), "utf8");
+    } catch (error) {
+      if (!isEnoent(error)) {
+        continue;
+      }
+    }
+    if (!manifest.includes(`qa-preview-${nonce}`)) {
+      continue;
+    }
+    try {
+      await fs.rm(sessionDir, { recursive: true, force: true });
+    } catch {
+      // A locked session must not hide a preview that already succeeded.
+    }
+  }
+}
+
+export interface SearchHitLocation {
+  readonly path: string;
+  readonly line: number;
+}
+
+/** `path:line:` hits. A Windows drive letter is not treated as the line number. */
+export function parseSearchHitLines(stdout: string): SearchHitLocation[] {
+  const hits: SearchHitLocation[] = [];
+  for (const raw of stdout.split(/\r?\n/)) {
+    if (raw.trim().length === 0) {
+      continue;
+    }
+    const match = /^(.*?):(\d+):/.exec(raw);
+    if (!match || match[1].length === 0) {
+      continue;
+    }
+    const line = Number(match[2]);
+    if (!Number.isInteger(line) || line < 1) {
+      continue;
+    }
+    hits.push({ path: match[1], line });
+  }
+  return hits;
+}
+
+/** One path per line. Opening a hit uses line 1. */
+export function parseFilesWithoutMatchLines(stdout: string): SearchHitLocation[] {
+  const hits: SearchHitLocation[] = [];
+  for (const raw of stdout.split(/\r?\n/)) {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0 || trimmed.startsWith("{")) {
+      continue;
+    }
+    hits.push({ path: trimmed, line: 1 });
+  }
+  return hits;
+}
+
+export type UndoSelection =
+  | { readonly kind: "latest" }
+  | { readonly kind: "session"; readonly sessionId: string }
+  | { readonly kind: "path"; readonly relativePath: string };
+
+export function buildUndoArgs(selection: UndoSelection = { kind: "latest" }): string[] {
+  if (selection.kind === "session") {
+    return ["undo", "--session", selection.sessionId];
+  }
+  if (selection.kind === "path") {
+    return ["undo", "--path", selection.relativePath];
+  }
+  return ["undo"];
+}
+
+export function emptyClipboardPatchMessage(text: string): string | undefined {
+  if (text.trim().length === 0) {
+    return "The clipboard has no patch text.";
+  }
+  return undefined;
 }
 
 export function presentSearchOutcome(
@@ -190,6 +359,214 @@ interface PatchloomCommandResult {
   readonly stderr: string;
 }
 
+function activeSelectionSeed(vscode: typeof VSCode): string | undefined {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || editor.selection.isEmpty) {
+    return undefined;
+  }
+  const seed = seedFromSelection(editor.document.getText(editor.selection));
+  return seed.length > 0 ? seed : undefined;
+}
+
+async function promptScratchText(
+  vscode: typeof VSCode,
+  workspaceRoot: string,
+  prompt: string,
+  required: boolean
+): Promise<string | undefined> {
+  const nonce = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const directory = path.join(workspaceRoot, ".patchloom", `qa-input-${nonce}`);
+  const filePath = path.join(directory, "content.txt");
+  await fs.mkdir(directory, { recursive: true });
+  await fs.writeFile(filePath, "", "utf8");
+  try {
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+    await vscode.window.showTextDocument(document, { preview: false });
+    const choice = await vscode.window.showInformationMessage(
+      `${prompt} Edit the scratch file (newlines are kept), then continue.`,
+      "Use this text"
+    );
+    if (choice !== "Use this text") {
+      return undefined;
+    }
+    if (document.isDirty && !(await document.save())) {
+      return undefined;
+    }
+    const text = contentFromScratch(document.getText());
+    if (required && text.length === 0) {
+      await vscode.window.showWarningMessage("Content is required.");
+      return undefined;
+    }
+    return text;
+  } finally {
+    try {
+      await fs.rm(directory, { recursive: true, force: true });
+    } catch {
+      // The confirmed text is already captured. A locked scratch file must not drop it.
+    }
+  }
+}
+
+async function openSearchHit(
+  vscode: typeof VSCode,
+  workspaceRoot: string,
+  hit: SearchHitLocation
+): Promise<void> {
+  const absolutePath = path.resolve(workspaceRoot, hit.path);
+  if (!isRealPathInsideWorkspace(workspaceRoot, absolutePath)) {
+    await vscode.window.showWarningMessage(`Refusing to open ${hit.path}: it is outside the workspace.`);
+    return;
+  }
+  const document = await vscode.workspace.openTextDocument(vscode.Uri.file(absolutePath));
+  const line = Math.max(0, hit.line - 1);
+  await vscode.window.showTextDocument(document, {
+    preview: false,
+    selection: new vscode.Range(line, 0, line, 0)
+  });
+}
+
+async function pickSearchHit(
+  vscode: typeof VSCode,
+  workspaceRoot: string,
+  hits: readonly SearchHitLocation[],
+  placeHolder: string
+): Promise<void> {
+  if (hits.length === 0) {
+    return;
+  }
+  const selection = await vscode.window.showQuickPick(
+    hits.map((hit, index) => ({
+      label: hit.path,
+      description: `line ${hit.line}`,
+      hit,
+      index
+    })),
+    { placeHolder }
+  );
+  if (!selection) {
+    return;
+  }
+  await openSearchHit(vscode, workspaceRoot, selection.hit);
+}
+
+async function stageClipboardPatch(workspaceRoot: string, text: string): Promise<StagedExternalPatch> {
+  const nonce = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const directory = path.join(workspaceRoot, ".patchloom", `qa-patch-${nonce}`);
+  await fs.mkdir(directory, { recursive: true });
+  const patchPath = path.join(directory, "clipboard.patch");
+  try {
+    await fs.writeFile(patchPath, text, "utf8");
+  } catch (error) {
+    await fs.rm(directory, { recursive: true, force: true });
+    throw error;
+  }
+  return {
+    patchPath,
+    cleanup: async () => {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
+  };
+}
+
+async function choosePatchSource(
+  vscode: typeof VSCode,
+  folder: VSCode.WorkspaceFolder
+): Promise<StagedExternalPatch | undefined> {
+  const source = await vscode.window.showQuickPick(
+    [
+      { label: "File", description: "Choose a patch file", source: "file" as const },
+      { label: "Clipboard", description: "Use the patch text on the clipboard", source: "clipboard" as const }
+    ],
+    { placeHolder: "Where is the patch?" }
+  );
+  if (!source) {
+    return undefined;
+  }
+  if (source.source === "clipboard") {
+    const text = await vscode.env.clipboard.readText();
+    const empty = emptyClipboardPatchMessage(text);
+    if (empty) {
+      await vscode.window.showErrorMessage(empty);
+      return undefined;
+    }
+    return stageClipboardPatch(folder.uri.fsPath, text);
+  }
+
+  const patchUri = await vscode.window.showOpenDialog({
+    canSelectMany: false,
+    defaultUri: folder.uri,
+    filters: { "Patch files": ["patch", "diff"], "All files": ["*"] },
+    openLabel: "Select Patch"
+  });
+  if (!patchUri || patchUri.length === 0) {
+    return undefined;
+  }
+  return stageExternalPatchInWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
+}
+
+async function previewThenApplyPatch(
+  vscode: typeof VSCode,
+  binaryPath: string,
+  workspaceRoot: string,
+  action: PlannedQuickAction,
+  noun: "apply" | "merge"
+): Promise<void> {
+  const dry = await executePatchloom(binaryPath, { ...action, apply: false }, workspaceRoot);
+  const log = getPatchloomLog();
+  const followUp = dryRunFollowUp(noun, dry);
+  if (noun === "merge" && followUp !== "apply") {
+    presentPatchMergeOutcome(log, dry);
+  } else {
+    presentCliResultInOutput(log, dry);
+  }
+  if (followUp === "conflicts") {
+    await vscode.window.showWarningMessage(
+      "Patch merge found unresolved conflicts. Nothing was written. Run Merge patch again and choose Allow conflict markers to write them."
+    );
+    return;
+  }
+  if (followUp === "stop") {
+    const label = noun === "merge" ? "Patch merge preview failed" : "Patch apply preview failed";
+    await vscode.window.showErrorMessage(`${label}: ${formatCliOutput(dry)}`);
+    return;
+  }
+
+  const choice = await vscode.window.showInformationMessage(
+    "Patch preview finished. Nothing has been written. Apply it now?",
+    "Apply"
+  );
+  if (choice !== "Apply") {
+    return;
+  }
+
+  const result = await executePatchloom(binaryPath, { ...action, apply: true }, workspaceRoot);
+  if (noun === "merge") {
+    const outcome = presentPatchMergeOutcome(log, result);
+    if (outcome === "conflicts") {
+      const message = patchCommandMadeNoChanges(result.stdout)
+        ? "Patch merge found unresolved conflicts. Nothing was written."
+        : "Patch merge completed with unresolved conflicts. Check the output for details.";
+      await vscode.window.showWarningMessage(message);
+    } else if (outcome === "error") {
+      await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
+    } else if (patchCommandMadeNoChanges(result.stdout)) {
+      await vscode.window.showWarningMessage("Patch merge made no changes.");
+    } else {
+      await vscode.window.showInformationMessage("Patch merged successfully.");
+    }
+    return;
+  }
+
+  presentCliResultInOutput(log, result);
+  if (result.exitCode !== 0) {
+    await vscode.window.showErrorMessage(`Patch apply failed: ${formatCliOutput(result)}`);
+  } else if (patchCommandMadeNoChanges(result.stdout)) {
+    await vscode.window.showWarningMessage("Patch made no changes.");
+  } else {
+    await vscode.window.showInformationMessage("Patch applied successfully.");
+  }
+}
+
 export async function runQuickAction(): Promise<void> {
   const vscode = await import("vscode");
   const binaryPath = await ensurePatchloomReadyOrNotify("Upgrade Patchloom before running quick actions.");
@@ -211,16 +588,19 @@ export async function runQuickAction(): Promise<void> {
         const from = await vscode.window.showInputBox({
           prompt: "Text to find",
           placeHolder: "old_name",
+          value: activeSelectionSeed(vscode),
           validateInput: (value) => value.length > 0 ? undefined : "Search text is required."
         });
         if (from === undefined) {
           return;
         }
 
-        const to = await vscode.window.showInputBox({
-          prompt: "Replacement text",
-          placeHolder: "new_name"
-        });
+        const to = await promptScratchText(
+          vscode,
+          target.workspaceFolder.uri.fsPath,
+          "Replacement text",
+          false
+        );
         if (to === undefined) {
           return;
         }
@@ -241,16 +621,19 @@ export async function runQuickAction(): Promise<void> {
         const pattern = await vscode.window.showInputBox({
           prompt: "Text to match (anchor for the insert)",
           placeHolder: "existing_line_or_token",
+          value: activeSelectionSeed(vscode),
           validateInput: (value) => value.length > 0 ? undefined : "Match text is required."
         });
         if (pattern === undefined) {
           return;
         }
 
-        const content = await vscode.window.showInputBox({
-          prompt: "Text to insert after each match",
-          placeHolder: "new_line_or_token"
-        });
+        const content = await promptScratchText(
+          vscode,
+          target.workspaceFolder.uri.fsPath,
+          "Text to insert after each match",
+          false
+        );
         if (content === undefined) {
           return;
         }
@@ -275,16 +658,19 @@ export async function runQuickAction(): Promise<void> {
         const pattern = await vscode.window.showInputBox({
           prompt: "Text to match (anchor for the insert)",
           placeHolder: "existing_line_or_token",
+          value: activeSelectionSeed(vscode),
           validateInput: (value) => value.length > 0 ? undefined : "Match text is required."
         });
         if (pattern === undefined) {
           return;
         }
 
-        const content = await vscode.window.showInputBox({
-          prompt: "Text to insert before each match",
-          placeHolder: "new_line_or_token"
-        });
+        const content = await promptScratchText(
+          vscode,
+          target.workspaceFolder.uri.fsPath,
+          "Text to insert before each match",
+          false
+        );
         if (content === undefined) {
           return;
         }
@@ -332,16 +718,19 @@ export async function runQuickAction(): Promise<void> {
         const anchor = await vscode.window.showInputBox({
           prompt: "Unique anchor text (exactly one match required by default)",
           placeHolder: placementPick.placement === "old" ? "span to replace" : "fn foo() {",
+          value: activeSelectionSeed(vscode),
           validateInput: (value) => value.length > 0 ? undefined : "Anchor text is required."
         });
         if (anchor === undefined) {
           return;
         }
 
-        const fragment = await vscode.window.showInputBox({
-          prompt: "Fragment text (Morph-style // ... existing code ... markers are stripped)",
-          placeHolder: "  let x = 1;"
-        });
+        const fragment = await promptScratchText(
+          vscode,
+          target.workspaceFolder.uri.fsPath,
+          "Fragment text (Morph-style // ... existing code ... markers are stripped)",
+          false
+        );
         if (fragment === undefined) {
           return;
         }
@@ -415,12 +804,7 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const value = await vscode.window.showInputBox({
-          prompt: "Value",
-          placeHolder: "true, 42, hello, or {\"key\":\"value\"}",
-          value: "",
-          validateInput: (input) => input.length > 0 ? undefined : "Value is required."
-        });
+        const value = await promptScratchText(vscode, target.workspaceFolder.uri.fsPath, "Value", true);
         if (value === undefined) {
           return;
         }
@@ -447,12 +831,7 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const value = await vscode.window.showInputBox({
-          prompt: "Value",
-          placeHolder: "true, 42, hello, or {\"key\":\"value\"}",
-          value: "",
-          validateInput: (input) => input.length > 0 ? undefined : "Value is required."
-        });
+        const value = await promptScratchText(vscode, target.workspaceFolder.uri.fsPath, "Value", true);
         if (value === undefined) {
           return;
         }
@@ -481,6 +860,7 @@ export async function runQuickAction(): Promise<void> {
         const pattern = await vscode.window.showInputBox({
           prompt: "Search pattern",
           placeHolder: "TODO|FIXME",
+          value: activeSelectionSeed(vscode),
           validateInput: (value) => value.length > 0 ? undefined : "Pattern is required."
         });
         if (pattern === undefined) {
@@ -506,6 +886,12 @@ export async function runQuickAction(): Promise<void> {
           await vscode.window.showErrorMessage(`Patchloom search failed: ${formatCliOutput(result)}`);
         } else {
           await vscode.window.showInformationMessage("Search results displayed in the Patchloom output channel.");
+          await pickSearchHit(
+            vscode,
+            folder.uri.fsPath,
+            parseSearchHitLines(result.stdout),
+            "Open a search hit"
+          );
         }
       }
     },
@@ -526,6 +912,7 @@ export async function runQuickAction(): Promise<void> {
         const pattern = await vscode.window.showInputBox({
           prompt: "Pattern that listed files must not contain",
           placeHolder: "TODO|FIXME",
+          value: activeSelectionSeed(vscode),
           validateInput: (value) => value.length > 0 ? undefined : "Pattern is required."
         });
         if (pattern === undefined) {
@@ -554,6 +941,12 @@ export async function runQuickAction(): Promise<void> {
         } else {
           await vscode.window.showInformationMessage(
             "Files without matches are listed in the Patchloom output channel."
+          );
+          await pickSearchHit(
+            vscode,
+            folder.uri.fsPath,
+            parseFilesWithoutMatchLines(result.stdout),
+            "Open a file without a match"
           );
         }
       }
@@ -590,10 +983,12 @@ export async function runQuickAction(): Promise<void> {
         }
 
         // Empty content is allowed; CLI requires --content or --stdin and --apply to write.
-        const content = await vscode.window.showInputBox({
-          prompt: "Initial file content (leave empty for an empty file)",
-          placeHolder: "// new file"
-        });
+        const content = await promptScratchText(
+          vscode,
+          folder.uri.fsPath,
+          "Initial file content (leave empty for an empty file)",
+          false
+        );
         if (content === undefined) {
           return;
         }
@@ -623,11 +1018,12 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const content = await vscode.window.showInputBox({
-          prompt: "Content to append",
-          placeHolder: "new line of text",
-          validateInput: (value) => value.length > 0 ? undefined : "Content is required."
-        });
+        const content = await promptScratchText(
+          vscode,
+          target.workspaceFolder.uri.fsPath,
+          "Content to append",
+          true
+        );
         if (content === undefined) {
           return;
         }
@@ -645,11 +1041,12 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const content = await vscode.window.showInputBox({
-          prompt: "Content to prepend",
-          placeHolder: "// header comment",
-          validateInput: (value) => value.length > 0 ? undefined : "Content is required."
-        });
+        const content = await promptScratchText(
+          vscode,
+          target.workspaceFolder.uri.fsPath,
+          "Content to prepend",
+          true
+        );
         if (content === undefined) {
           return;
         }
@@ -834,11 +1231,12 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const value = await vscode.window.showInputBox({
-          prompt: "Partial JSON object to merge",
-          placeHolder: '{"debug": true, "logLevel": "verbose"}',
-          validateInput: (input) => input.length > 0 ? undefined : "Value is required."
-        });
+        const value = await promptScratchText(
+          vscode,
+          target.workspaceFolder.uri.fsPath,
+          "Partial JSON object to merge",
+          true
+        );
         if (value === undefined) {
           return;
         }
@@ -869,11 +1267,7 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const value = await vscode.window.showInputBox({
-          prompt: "Value to append",
-          placeHolder: '"new-item"',
-          validateInput: (input) => input.length > 0 ? undefined : "Value is required."
-        });
+        const value = await promptScratchText(vscode, target.workspaceFolder.uri.fsPath, "Value to append", true);
         if (value === undefined) {
           return;
         }
@@ -900,11 +1294,7 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const value = await vscode.window.showInputBox({
-          prompt: "Value to prepend",
-          placeHolder: '"new-item"',
-          validateInput: (input) => input.length > 0 ? undefined : "Value is required."
-        });
+        const value = await promptScratchText(vscode, target.workspaceFolder.uri.fsPath, "Value to prepend", true);
         if (value === undefined) {
           return;
         }
@@ -931,11 +1321,12 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const value = await vscode.window.showInputBox({
-          prompt: "Default value (set only if missing)",
-          placeHolder: "8080",
-          validateInput: (input) => input.length > 0 ? undefined : "Value is required."
-        });
+        const value = await promptScratchText(
+          vscode,
+          target.workspaceFolder.uri.fsPath,
+          "Default value (set only if missing)",
+          true
+        );
         if (value === undefined) {
           return;
         }
@@ -1000,11 +1391,7 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const content = await vscode.window.showInputBox({
-          prompt: "Content to insert",
-          placeHolder: "New paragraph text",
-          validateInput: (value) => value.length > 0 ? undefined : "Content is required."
-        });
+        const content = await promptScratchText(vscode, target.workspaceFolder.uri.fsPath, "Content to insert", true);
         if (content === undefined) {
           return;
         }
@@ -1038,11 +1425,12 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const content = await vscode.window.showInputBox({
-          prompt: "Sibling content to insert after the section body",
-          placeHolder: "## FAQ\n\nCommon questions.",
-          validateInput: (value) => value.length > 0 ? undefined : "Content is required."
-        });
+        const content = await promptScratchText(
+          vscode,
+          target.workspaceFolder.uri.fsPath,
+          "Sibling content to insert after the section body",
+          true
+        );
         if (content === undefined) {
           return;
         }
@@ -1076,11 +1464,7 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const content = await vscode.window.showInputBox({
-          prompt: "Content to insert",
-          placeHolder: "New section text",
-          validateInput: (value) => value.length > 0 ? undefined : "Content is required."
-        });
+        const content = await promptScratchText(vscode, target.workspaceFolder.uri.fsPath, "Content to insert", true);
         if (content === undefined) {
           return;
         }
@@ -1114,11 +1498,12 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const row = await vscode.window.showInputBox({
-          prompt: "Table row to append (pipe-delimited)",
-          placeHolder: "| /users | List users | GET |",
-          validateInput: (value) => value.length > 0 ? undefined : "Row is required."
-        });
+        const row = await promptScratchText(
+          vscode,
+          target.workspaceFolder.uri.fsPath,
+          "Table row to append (pipe-delimited)",
+          true
+        );
         if (row === undefined) {
           return;
         }
@@ -1152,11 +1537,12 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const bullet = await vscode.window.showInputBox({
-          prompt: "Bullet text (without leading dash)",
-          placeHolder: "Run make check before committing",
-          validateInput: (value) => value.length > 0 ? undefined : "Bullet text is required."
-        });
+        const bullet = await promptScratchText(
+          vscode,
+          target.workspaceFolder.uri.fsPath,
+          "Bullet text (without leading dash)",
+          true
+        );
         if (bullet === undefined) {
           return;
         }
@@ -1190,11 +1576,7 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const content = await vscode.window.showInputBox({
-          prompt: "New section content",
-          placeHolder: "- New feature added",
-          validateInput: (value) => value.length > 0 ? undefined : "Content is required."
-        });
+        const content = await promptScratchText(vscode, target.workspaceFolder.uri.fsPath, "New section content", true);
         if (content === undefined) {
           return;
         }
@@ -1216,31 +1598,13 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const patchUri = await vscode.window.showOpenDialog({
-          canSelectMany: false,
-          defaultUri: folder.uri,
-          filters: { "Patch files": ["patch", "diff"], "All files": ["*"] },
-          openLabel: "Select Patch"
-        });
-        if (!patchUri || patchUri.length === 0) {
+        const staged = await choosePatchSource(vscode, folder);
+        if (!staged) {
           return;
         }
-
-        const action = buildPatchApplyQuickAction(patchUri[0].fsPath);
-        const staged = await stageExternalPatchInWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
         try {
-          const planned = retargetQuickAction(action, staged.patchPath);
-          const result = await executePatchloom(binaryPath, planned, folder.uri.fsPath);
-          const log = getPatchloomLog();
-          presentCliResultInOutput(log, result);
-
-          if (result.exitCode !== 0) {
-            await vscode.window.showErrorMessage(`Patch apply failed: ${formatCliOutput(result)}`);
-          } else if (patchCommandMadeNoChanges(result.stdout)) {
-            await vscode.window.showWarningMessage("Patch made no changes.");
-          } else {
-            await vscode.window.showInformationMessage("Patch applied successfully.");
-          }
+          const action = buildPatchApplyQuickAction(staged.patchPath);
+          await previewThenApplyPatch(vscode, binaryPath, folder.uri.fsPath, action, "apply");
         } finally {
           await staged.cleanup();
         }
@@ -1260,13 +1624,8 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const patchUri = await vscode.window.showOpenDialog({
-          canSelectMany: false,
-          defaultUri: folder.uri,
-          filters: { "Patch files": ["patch", "diff"], "All files": ["*"] },
-          openLabel: "Select Patch"
-        });
-        if (!patchUri || patchUri.length === 0) {
+        const staged = await choosePatchSource(vscode, folder);
+        if (!staged) {
           return;
         }
 
@@ -1275,26 +1634,13 @@ export async function runQuickAction(): Promise<void> {
           { label: "Allow conflict markers", description: "Write <<<<<<< / >>>>>>> markers into files", allow: true }
         ], { placeHolder: "How should unresolved conflicts be handled?" });
         if (!allowConflicts) {
+          await staged.cleanup();
           return;
         }
 
-        const action = buildPatchMergeQuickAction(patchUri[0].fsPath, allowConflicts.allow);
-        const staged = await stageExternalPatchInWorkspace(folder.uri.fsPath, patchUri[0].fsPath);
         try {
-          const planned = retargetQuickAction(action, staged.patchPath);
-          const result = await executePatchloom(binaryPath, planned, folder.uri.fsPath);
-          const log = getPatchloomLog();
-          const outcome = presentPatchMergeOutcome(log, result);
-
-          if (outcome === "conflicts") {
-            await vscode.window.showWarningMessage("Patch merge completed with unresolved conflicts. Check the output for details.");
-          } else if (outcome === "error") {
-            await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
-          } else if (patchCommandMadeNoChanges(result.stdout)) {
-            await vscode.window.showWarningMessage("Patch merge made no changes.");
-          } else {
-            await vscode.window.showInformationMessage("Patch merged successfully.");
-          }
+          const action = buildPatchMergeQuickAction(staged.patchPath, allowConflicts.allow);
+          await previewThenApplyPatch(vscode, binaryPath, folder.uri.fsPath, action, "merge");
         } finally {
           await staged.cleanup();
         }
@@ -1314,8 +1660,45 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
+        const targetPick = await vscode.window.showQuickPick(
+          [
+            { label: "Latest backup", description: "Default", picked: true, selection: { kind: "latest" as const } },
+            { label: "Backup session", description: "undo --session ID", selection: { kind: "session" as const } },
+            { label: "One path", description: "undo --path REL", selection: { kind: "path" as const } }
+          ],
+          { placeHolder: "Which backup should undo restore?" }
+        );
+        if (!targetPick) {
+          return;
+        }
+
+        let undoSelection: UndoSelection = { kind: "latest" };
+        if (targetPick.selection.kind === "session") {
+          const sessionId = await vscode.window.showInputBox({
+            prompt: "Backup session id",
+            placeHolder: "session id from patchloom undo --list",
+            validateInput: (value) => value.trim().length > 0 ? undefined : "Session id is required."
+          });
+          if (sessionId === undefined) {
+            return;
+          }
+          undoSelection = { kind: "session", sessionId: sessionId.trim() };
+        } else if (targetPick.selection.kind === "path") {
+          const relativePath = await vscode.window.showInputBox({
+            prompt: "Workspace-relative path to restore",
+            placeHolder: "src/app.ts",
+            validateInput: (value) => value.trim().length > 0 ? undefined : "Path is required."
+          });
+          if (relativePath === undefined) {
+            return;
+          }
+          undoSelection = { kind: "path", relativePath: relativePath.trim() };
+        }
+
         const confirm = await vscode.window.showWarningMessage(
-          "Undo the last patchloom edit? This restores files from backup.",
+          undoSelection.kind === "latest"
+            ? "Undo the last patchloom edit? This restores files from backup."
+            : `Undo ${undoSelection.kind === "session" ? `session ${undoSelection.sessionId}` : undoSelection.relativePath}? This restores files from backup.`,
           { modal: true },
           "Undo"
         );
@@ -1323,7 +1706,7 @@ export async function runQuickAction(): Promise<void> {
           return;
         }
 
-        const action = buildUndoQuickAction(folder.uri.fsPath);
+        const action = buildUndoQuickAction(folder.uri.fsPath, undoSelection);
         const result = await executePatchloom(binaryPath, action, folder.uri.fsPath);
 
         if (result.exitCode !== 0) {
@@ -1730,12 +2113,20 @@ export function buildPatchMergeQuickAction(patchPath: string, allowConflicts: bo
   };
 }
 
-export function buildUndoQuickAction(workspacePath: string): PlannedQuickAction {
+export function buildUndoQuickAction(
+  workspacePath: string,
+  selection: UndoSelection = { kind: "latest" }
+): PlannedQuickAction {
+  const title = selection.kind === "session"
+    ? `Undo session ${selection.sessionId}`
+    : selection.kind === "path"
+      ? `Undo ${selection.relativePath}`
+      : "Undo last patchloom change";
   return {
-    title: "Undo last patchloom change",
+    title,
     targetPath: workspacePath,
     targetArgIndices: [],
-    args: ["undo"],
+    args: buildUndoArgs(selection),
     apply: true
   };
 }
@@ -1785,11 +2176,22 @@ export function isAllowedPreviewMiss(action: PlannedQuickAction, exitCode: numbe
   return true;
 }
 
-export function previewMissMessage(action: PlannedQuickAction, relativePath: string): string {
+export type PreviewMissReason = "pattern-not-found" | "unchanged";
+
+export function previewMissMessage(
+  action: PlannedQuickAction,
+  relativePath: string,
+  reason: PreviewMissReason = "pattern-not-found"
+): string {
   if (action.args[0] === "doc" && action.args[1] === "delete-where") {
     return `No items matched that predicate in ${relativePath}. Check the array path (for example items) versus the key=value predicate (for example name=stale).`;
   }
-  return `No changes to preview for ${relativePath}.`;
+  const patternSearch = action.args[0] === "replace"
+    || action.args.some((arg) => arg.startsWith("--insert-before=") || arg.startsWith("--insert-after="));
+  if (reason === "pattern-not-found" && patternSearch) {
+    return `Pattern not found in ${relativePath}.`;
+  }
+  return `Command made no edit to ${relativePath}.`;
 }
 
 export function retargetQuickAction(action: PlannedQuickAction, nextTargetPath: string): PlannedQuickAction {
@@ -1818,16 +2220,25 @@ async function previewAndMaybeApply(
   const originalContent = await fs.readFile(target.absolutePath, "utf8");
   let preview: VSCode.TextDocument | undefined;
   try {
-    preview = await buildPreviewDocument(binaryPath, action, originalContent, originalDocument.languageId);
+    const built = await buildPreviewDocument(
+      binaryPath,
+      action,
+      originalContent,
+      originalDocument.languageId,
+      target.workspaceFolder.uri.fsPath
+    );
+    if (built.kind === "miss") {
+      await vscode.window.showInformationMessage(
+        previewMissMessage(action, target.relativePath, built.reason)
+      );
+      return;
+    }
+    preview = built.document;
   } catch (error) {
     getPatchloomLog()?.show();
     await vscode.window.showErrorMessage(
       `Patchloom failed while previewing changes to ${target.relativePath}: ${formatError(error)}`
     );
-    return;
-  }
-  if (!preview) {
-    await vscode.window.showInformationMessage(previewMissMessage(action, target.relativePath));
     return;
   }
 
@@ -1870,32 +2281,58 @@ async function buildPreviewDocument(
   binaryPath: string,
   action: PlannedQuickAction,
   originalContent: string,
-  languageId: string
-): Promise<VSCode.TextDocument | undefined> {
+  languageId: string,
+  workspaceRoot: string
+): Promise<
+  | { readonly kind: "document"; readonly document: VSCode.TextDocument }
+  | { readonly kind: "miss"; readonly reason: PreviewMissReason }
+> {
   const vscode = await import("vscode");
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "patchloom-preview-"));
-  const tempPath = path.join(tempDir, path.basename(action.targetPath));
+  const nonce = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const location = previewWorkspaceFile(workspaceRoot, action.targetPath, nonce);
+  const cwd = previewCwd(workspaceRoot);
+  const backupsBefore = await backupSessionNames(workspaceRoot);
 
   try {
-    await fs.writeFile(tempPath, originalContent, "utf8");
-    const previewAction = retargetQuickAction(action, tempPath);
-    const result = await executePatchloom(binaryPath, { args: previewAction.args, apply: true }, tempDir);
+    await fs.mkdir(location.directory, { recursive: true });
+    await fs.writeFile(location.filePath, originalContent, "utf8");
+    const previewAction = retargetQuickAction(action, location.filePath);
+    const result = await executePatchloom(binaryPath, { args: previewAction.args, apply: true }, cwd);
     if (result.exitCode !== 0 && !isAllowedPreviewMiss(action, result.exitCode)) {
       presentCliResultInOutput(getPatchloomLog(), result);
       throw new Error(formatQuickActionCliOutput(result));
     }
 
-    const previewContent = await fs.readFile(tempPath, "utf8");
+    const previewContent = await fs.readFile(location.filePath, "utf8");
+    if (result.exitCode === 3 && isAllowedPreviewMiss(action, result.exitCode)) {
+      return { kind: "miss", reason: "pattern-not-found" };
+    }
     if (previewContent === originalContent) {
-      return undefined;
+      return { kind: "miss", reason: "unchanged" };
     }
 
-    return vscode.workspace.openTextDocument({
-      language: languageId,
-      content: previewContent
-    });
+    const id = rememberPreviewBody(previewContent);
+    const uri = vscode.Uri.from({ scheme: PATCHLOOM_PREVIEW_SCHEME, path: `/${id}` });
+    const document = await vscode.workspace.openTextDocument(uri);
+    if (languageId.length > 0) {
+      try {
+        await vscode.languages.setTextDocumentLanguage(document, languageId);
+      } catch {
+        // The preview body is already stored. A missing language id should not drop it.
+      }
+    }
+    return { kind: "document", document };
   } finally {
-    await fs.rm(tempDir, { recursive: true, force: true });
+    try {
+      await fs.rm(location.directory, { recursive: true, force: true });
+    } catch {
+      // The preview body is already stored.
+    }
+    try {
+      await removePreviewBackupSessions(workspaceRoot, backupsBefore, nonce);
+    } catch {
+      // Leave sessions we could not prove belong to this preview.
+    }
   }
 }
 
@@ -2097,7 +2534,7 @@ async function executePatchloom(
   logCliCommand(log, runtime.trace, binaryPath, finalArgs, cwd);
 
   try {
-    const { stdout, stderr } = await execFileAsync(binaryPath, finalArgs, {
+    const { stdout, stderr } = await execPatchloomFile(binaryPath, finalArgs, {
       cwd,
       env,
       timeout: PATCHLOOM_CLI_TIMEOUT_MS,

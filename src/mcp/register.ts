@@ -1,4 +1,5 @@
 import type * as VSCode from "vscode";
+import { patchloomLaunch } from "../binary/launch.js";
 import { resolvePatchloomStatus } from "../binary/patchloom.js";
 import { getPatchloomLog, getPatchloomRuntimeConfig } from "../logging/outputChannel.js";
 import { isAllowedPatchloomEnvKey } from "../util.js";
@@ -27,17 +28,27 @@ function patchloomOnlyEnv(extra: Record<string, string> | undefined): Record<str
 /** Pure helper for native MCP definitions (no vscode). Empty when binary unknown. */
 export function mcpServerDefinitionsForBinary(
   binaryPath: string | undefined,
-  env?: Record<string, string>
+  env?: Record<string, string>,
+  surface?: "full" | "core",
+  platform: NodeJS.Platform = process.platform,
+  comSpec?: string
 ): readonly McpServerBinaryDescriptor[] {
   if (!binaryPath) {
     return [];
   }
+  const filtered = patchloomOnlyEnv(env);
+  if (surface === "core") {
+    filtered.PATCHLOOM_MCP_SURFACE = "core";
+  } else if (surface === "full") {
+    delete filtered.PATCHLOOM_MCP_SURFACE;
+  }
+  const launch = patchloomLaunch(binaryPath, ["mcp-server"], platform, comSpec, false);
   return [
     {
       label: "Patchloom MCP",
-      command: binaryPath,
-      args: ["mcp-server"],
-      env: patchloomOnlyEnv(env)
+      command: launch.file,
+      args: launch.args,
+      env: filtered
     }
   ];
 }
@@ -127,7 +138,11 @@ export async function registerMcpServerProviderWithBinary(context: VSCode.Extens
         const runtime = await getPatchloomRuntimeConfig();
         const workspaceCwd = vscode.workspace.workspaceFolders?.[0]?.uri;
         const definitions: unknown[] = [];
-        for (const descriptor of mcpServerDefinitionsForBinary(resolvedBinaryPath, runtime.extraEnv)) {
+        for (const descriptor of mcpServerDefinitionsForBinary(
+          resolvedBinaryPath,
+          runtime.extraEnv,
+          runtime.mcpSurface
+        )) {
           const definition = createMcpStdioServerDefinition(Ctor, descriptor, workspaceCwd);
           if (definition !== undefined) {
             definitions.push(definition);

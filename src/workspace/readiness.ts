@@ -46,7 +46,7 @@ export async function inspectWorkspaceReadiness(options: WorkspaceReadinessOptio
     });
     return {
       hasWorkspace: false,
-      hasMcpConfig: targets.some((target) => target.configured),
+      hasMcpConfig: workspaceHasConfiguredMcp(targets),
       mcpTargets: targets,
       workspaceCount,
       environmentLabel: environment.label,
@@ -64,7 +64,7 @@ export async function inspectWorkspaceReadiness(options: WorkspaceReadinessOptio
     workspaceName: folder.name,
     hasWorkspace: true,
     hasAgentsFile: await fileExists(vscode.Uri.joinPath(folder.uri, "AGENTS.md")),
-    hasMcpConfig: targets.some((target) => target.configured),
+    hasMcpConfig: workspaceHasConfiguredMcp(targets),
     mcpTargets: targets,
     workspaceCount,
     environmentLabel: environment.label,
@@ -122,6 +122,26 @@ export function describeWorkspaceEnvironment(remoteName?: string): WorkspaceEnvi
         supportsUserMcpConfig: false
       };
   }
+}
+
+/** Plug icon and Setup Workspace ignore the Windsurf user file. Show Status still lists it. */
+export function workspaceHasConfiguredMcp(
+  targets: readonly { readonly kind: string; readonly configured: boolean }[]
+): boolean {
+  return targets.some((target) => target.kind !== "windsurf-user" && target.configured);
+}
+
+/**
+ * Files whose save should refresh the status bar.
+ * Windsurf's user config is outside the workspace and is not included.
+ */
+export function isWorkspaceReadinessPath(filePath: string): boolean {
+  const normalized = filePath.replaceAll("\\", "/");
+  const base = normalized.slice(normalized.lastIndexOf("/") + 1);
+  if (base === "AGENTS.md" || base === ".mcp.json") {
+    return true;
+  }
+  return normalized.endsWith("/.vscode/mcp.json") || normalized.endsWith("/.cursor/mcp.json");
 }
 
 export function defaultWorkspaceFolderIndex(workspaceCount: number, activeWorkspaceIndex?: number): number | undefined {

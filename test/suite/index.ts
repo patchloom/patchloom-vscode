@@ -11,6 +11,7 @@ const EXPECTED_COMMANDS = [
   "patchloom.openPatchloomSettings",
   "patchloom.openPatchloomReleases",
   "patchloom.showStatus",
+  "patchloom.refreshStatus",
   "patchloom.installBinary",
   "patchloom.updateBinary",
   "patchloom.reinstallBinary",
@@ -65,6 +66,8 @@ export async function run(): Promise<void> {
 
   // Activation events include content-based triggers
   const activationEvents = packageJson.activationEvents as string[];
+  assert.ok(activationEvents.includes("onStartupFinished"),
+    "should activate when the workbench has finished starting");
   assert.ok(activationEvents.includes("workspaceContains:**/AGENTS.md"),
     "should activate on AGENTS.md presence");
   assert.ok(activationEvents.includes("workspaceContains:**/.patchloom.toml"),
@@ -90,6 +93,7 @@ export async function run(): Promise<void> {
 
   // New settings contributed
   assert.ok(properties["patchloom.enable"], "should contribute patchloom.enable setting");
+  assert.ok(properties["patchloom.mcpSurface"], "should contribute patchloom.mcpSurface setting");
   assert.ok(properties["patchloom.trace.server"], "should contribute patchloom.trace.server setting");
   assert.ok(properties["patchloom.env"], "should contribute patchloom.env setting");
   assert.ok(properties["patchloom.managedInstall.autoUpdate"], "should contribute patchloom.managedInstall.autoUpdate setting");
