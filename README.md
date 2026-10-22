@@ -34,7 +34,7 @@ Or search for **Patchloom** in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+
    scoop bucket add patchloom https://github.com/patchloom/scoop-bucket
    scoop install patchloom                        # Windows (Scoop; preferred PATH channel)
    ```
-   On Windows, prefer the extension managed installer or Scoop. `npm install -g patchloom` is supported: it puts `patchloom.cmd` on `PATH`, and the extension launches that shim through `cmd.exe`. If Show Status says `spawn EINVAL`, the extension build is one that does not launch `.cmd` shims. Avoid winget and Chocolatey for install or upgrade: both lag GitHub Releases and often leave you on an old CLI. The extension activates when the window finishes starting, including in a folder that has no `AGENTS.md` yet. Hiding the status bar does not hide the command palette entries.
+   On Windows, prefer the extension managed installer or Scoop. `npm install -g patchloom` is supported: it puts `patchloom.cmd` on `PATH`, and the extension launches that shim through `cmd.exe`. A path that ends in a backslash is quoted so `cmd.exe` does not swallow the next argument. If Show Status says `spawn EINVAL`, the extension build is one that does not launch `.cmd` shims. Avoid winget and Chocolatey for install or upgrade: both lag GitHub Releases and often leave you on an old CLI. The extension activates when the window finishes starting, including in a folder that has no `AGENTS.md` yet. Hiding the status bar does not hide the command palette entries.
 2. Open a project and run **Patchloom: Setup Workspace**
 
 <p align="center">

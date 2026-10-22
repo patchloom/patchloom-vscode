@@ -42,6 +42,8 @@ test("patchloomLaunch runs cmd and bat shims through ComSpec without shell", () 
   const inner = spaced.args[3]?.slice(1, -1) ?? "";
   assert.match(inner, /^"C:\\Users\\Ada Lovelace\\npm\\patchloom.cmd"/);
 
+  const trailingSlash = patchloomLaunch("C:\\npm\\patchloom.cmd", ["C:\\work\\"], "win32", "cmd.exe");
+  assert.match(trailingSlash.args[3] ?? "", /"C:\\work\\\\"/);
   const percent = patchloomLaunch("C:\\npm\\patchloom.cmd", ["--new=%PATH%"], "win32", "cmd.exe");
   assert.match(percent.args[3] ?? "", /%%PATH%%/);
   assert.throws(
