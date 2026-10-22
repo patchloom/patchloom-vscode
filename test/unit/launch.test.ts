@@ -27,7 +27,8 @@ test("patchloomLaunch runs cmd and bat shims through ComSpec without shell", () 
   }
 
   const fallback = patchloomLaunch("C:\\npm\\patchloom.cmd", ["mcp-server"], "win32", "  ");
-  assert.equal(fallback.file, "cmd.exe");
+  const comSpecFromEnv = process.env.ComSpec?.trim();
+  assert.equal(fallback.file, comSpecFromEnv && comSpecFromEnv.length > 0 ? comSpecFromEnv : "cmd.exe");
   assert.equal(fallback.shell, false);
 
   const spaced = patchloomLaunch(
