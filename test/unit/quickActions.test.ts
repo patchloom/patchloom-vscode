@@ -1210,6 +1210,7 @@ test("stageExternalPatchInWorkspace copies an outside patch into the workspace",
     try {
       assert.notEqual(staged.patchPath, outsidePatch);
       assert.equal(isPathInsideWorkspace(workspaceRoot, staged.patchPath), true);
+      assert.ok(staged.patchPath.startsWith(path.join(workspaceRoot, ".patchloom") + path.sep));
       assert.equal(await fs.readFile(staged.patchPath, "utf8"), "diff --git a/x b/x\n");
     } finally {
       await staged.cleanup();
