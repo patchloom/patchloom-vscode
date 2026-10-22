@@ -7,6 +7,7 @@ import {
   configureMcpTargets,
   formatMcpConfigureFailureMessage,
   inspectMcpTargets,
+  mcpKindsAfterSecondServerWarning,
   McpConfigureError,
   readMcpConfigText
 } from "../mcp/config.js";
@@ -76,12 +77,15 @@ export async function configureMcp(preset?: vscode.WorkspaceFolder): Promise<boo
       "Write file",
       "Skip that file"
     );
-    if (proceed !== "Write file") {
-      chosen = chosen.filter((selection) => selection.target.kind !== "vscode-workspace");
-      if (chosen.length === 0) {
-        return false;
-      }
+    const choice = proceed === "Write file" ? "write" : proceed === "Skip that file" ? "skip" : undefined;
+    const remaining = mcpKindsAfterSecondServerWarning(
+      chosen.map((selection) => selection.target.kind),
+      choice
+    );
+    if (!remaining) {
+      return false;
     }
+    chosen = chosen.filter((selection) => remaining.includes(selection.target.kind));
   }
 
   const selectedKinds = chosen.map((selection) => selection.target.kind);
