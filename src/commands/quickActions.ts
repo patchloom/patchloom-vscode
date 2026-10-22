@@ -18,7 +18,7 @@ import {
   resolveWorkspaceRelativePath,
   sameRealFilePath
 } from "../workspace/pathContainment.js";
-import { previewDryRunMayContinue } from "./previewExit.js";
+import { dryRunFollowUp } from "./previewExit.js";
 
 export {
   isPathInsideWorkspace,
@@ -513,21 +513,22 @@ async function previewThenApplyPatch(
 ): Promise<void> {
   const dry = await executePatchloom(binaryPath, { ...action, apply: false }, workspaceRoot);
   const log = getPatchloomLog();
-  if (noun === "merge" && !previewDryRunMayContinue(dry)) {
-    const outcome = presentPatchMergeOutcome(log, dry);
-    if (outcome === "error") {
-      await vscode.window.showErrorMessage(`Patch merge preview failed: ${formatCliOutput(dry)}`);
-      return;
-    }
-    if (outcome === "conflicts") {
-      await vscode.window.showWarningMessage("Patch merge preview found unresolved conflicts. Nothing has been written.");
-    }
+  const followUp = dryRunFollowUp(noun, dry);
+  if (noun === "merge" && followUp !== "apply") {
+    presentPatchMergeOutcome(log, dry);
   } else {
     presentCliResultInOutput(log, dry);
-    if (!previewDryRunMayContinue(dry)) {
-      await vscode.window.showErrorMessage(`Patch apply preview failed: ${formatCliOutput(dry)}`);
-      return;
-    }
+  }
+  if (followUp === "conflicts") {
+    await vscode.window.showWarningMessage(
+      "Patch merge found unresolved conflicts. Nothing was written. Run Merge patch again and choose Allow conflict markers to write them."
+    );
+    return;
+  }
+  if (followUp === "stop") {
+    const label = noun === "merge" ? "Patch merge preview failed" : "Patch apply preview failed";
+    await vscode.window.showErrorMessage(`${label}: ${formatCliOutput(dry)}`);
+    return;
   }
 
   const choice = await vscode.window.showInformationMessage(
@@ -542,7 +543,10 @@ async function previewThenApplyPatch(
   if (noun === "merge") {
     const outcome = presentPatchMergeOutcome(log, result);
     if (outcome === "conflicts") {
-      await vscode.window.showWarningMessage("Patch merge completed with unresolved conflicts. Check the output for details.");
+      const message = patchCommandMadeNoChanges(result.stdout)
+        ? "Patch merge found unresolved conflicts. Nothing was written."
+        : "Patch merge completed with unresolved conflicts. Check the output for details.";
+      await vscode.window.showWarningMessage(message);
     } else if (outcome === "error") {
       await vscode.window.showErrorMessage(`Patch merge failed: ${formatCliOutput(result)}`);
     } else if (patchCommandMadeNoChanges(result.stdout)) {

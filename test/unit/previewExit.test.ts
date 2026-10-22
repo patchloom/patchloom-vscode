@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { previewDryRunMayContinue } from "../../src/commands/previewExit.js";
+import { dryRunFollowUp, previewDryRunMayContinue } from "../../src/commands/previewExit.js";
 
 const batchWouldWrite = `{
   "ok": true,
@@ -57,4 +57,16 @@ test("preview dry run stops on failures and on exit 2 that is not a pending writ
   assert.equal(previewDryRunMayContinue({ exitCode: 2, stdout: "would change note.txt" }), false);
   assert.equal(previewDryRunMayContinue({ exitCode: 2, stdout: "{not json" }), false);
   assert.equal(previewDryRunMayContinue({ exitCode: 1, stdout: batchWouldWrite }), false);
+});
+
+test("dry run follow-up offers apply only when the preview would write or change nothing", () => {
+  const wouldWrite = { exitCode: 2, stdout: patchWouldWrite };
+  const conflict = { exitCode: 8, stdout: '{"ok":false,"error_kind":"conflicts","applied":false}' };
+  assert.equal(dryRunFollowUp("apply", wouldWrite), "apply");
+  assert.equal(dryRunFollowUp("merge", wouldWrite), "apply");
+  assert.equal(dryRunFollowUp("merge", { exitCode: 0, stdout: '{"ok":true,"applied":false}' }), "apply");
+  assert.equal(dryRunFollowUp("merge", conflict), "conflicts");
+  assert.equal(dryRunFollowUp("apply", conflict), "stop");
+  assert.equal(dryRunFollowUp("merge", { exitCode: 4, stdout: '{"ok":false,"applied":false}' }), "stop");
+  assert.equal(dryRunFollowUp("apply", { exitCode: 5, stdout: '{"ok":false,"applied":false}' }), "stop");
 });

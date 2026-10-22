@@ -17,6 +17,25 @@ export function previewDryRunMayContinue(result: {
   return report !== undefined && report.ok === true && report.applied !== true;
 }
 
+export type DryRunFollowUp = "apply" | "stop" | "conflicts";
+
+/**
+ * Exit 8 is a merge conflict. `--apply` exits 8 again and does not write.
+ * `--allow-conflicts` previews as exit 2, so that choice still reaches Apply.
+ */
+export function dryRunFollowUp(
+  noun: "apply" | "merge",
+  result: { readonly exitCode: number; readonly stdout: string }
+): DryRunFollowUp {
+  if (previewDryRunMayContinue(result)) {
+    return "apply";
+  }
+  if (noun === "merge" && result.exitCode === 8) {
+    return "conflicts";
+  }
+  return "stop";
+}
+
 function parsePreviewObject(stdout: string): { ok?: unknown; applied?: unknown } | undefined {
   const trimmed = stdout.trim();
   if (!trimmed.startsWith("{")) {
