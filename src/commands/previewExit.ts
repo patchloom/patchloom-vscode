@@ -17,6 +17,19 @@ export function previewDryRunMayContinue(result: {
   return report !== undefined && report.ok === true && report.applied !== true;
 }
 
+function samePreviewText(left: string, right: string): boolean {
+  return left.replace(/\r\n/g, "\n") === right.replace(/\r\n/g, "\n");
+}
+
+/** The preview was built from one snapshot. A dirty buffer or a later disk edit is a different file. */
+export function previewSnapshotStillCurrent(
+  snapshot: string,
+  bufferText: string,
+  diskText: string
+): boolean {
+  return samePreviewText(bufferText, snapshot) && samePreviewText(diskText, snapshot);
+}
+
 export type DryRunFollowUp = "apply" | "stop" | "conflicts";
 
 /**
