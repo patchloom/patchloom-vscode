@@ -268,6 +268,17 @@ export function detectManagedInstallTarget(
   return undefined;
 }
 
+export function unsupportedManagedInstallNotice(
+  platform: string,
+  arch: string
+): { message: string; actionTitle: string; actionCommand: string } {
+  return {
+    message: `Managed install is not supported on this platform (${platform}/${arch}). Set patchloom.path to a Patchloom binary you already have.`,
+    actionTitle: "Open Settings",
+    actionCommand: "patchloom.openPatchloomSettings"
+  };
+}
+
 const MUSL_ARCH_MAP: Partial<Record<NodeJS.Architecture, string>> = {
   x64: "x86_64",
   arm64: "aarch64"

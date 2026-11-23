@@ -512,6 +512,21 @@ test("buildStatusDetails includes workspace readiness context", () => {
   assert.match(details, /AGENTS\.md: missing/);
 });
 
+test("buildStatusDetails opens with the upgrade warning when the CLI is unsupported", () => {
+  const details = buildStatusDetails({
+    ready: true,
+    source: "path",
+    message: "Using Patchloom from PATH.",
+    binaryPath: "/usr/local/bin/patchloom",
+    version: "patchloom 0.0.9",
+    compatibility: "unsupported"
+  });
+
+  const firstLine = details.split("\n")[0];
+  assert.equal(firstLine, "Patchloom CLI is older than this extension expects.");
+  assert.notEqual(firstLine, "Patchloom is ready.");
+});
+
 test("preferredStatusAction points missing binary users to settings", () => {
   const action = preferredStatusAction(
     {
