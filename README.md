@@ -66,13 +66,13 @@ Run `Patchloom: Setup Workspace` to walk through everything your project needs: 
 
 When configuring, pick **Full tool inventory** (default) or **Core pack**. Core sets `PATCHLOOM_MCP_SURFACE=core` on the server entry. Workspace files (VS Code, portable, and Cursor) store `command` as `patchloom`, not a machine path. A stale absolute path is rewritten. The Windsurf user file may still store the resolved binary path. VS Code also starts a native Patchloom server. Writing `.vscode/mcp.json` adds a second server next to that provider, and the command asks before it writes that file. Skip that file continues with the other selected configs. Dismissing the question cancels the command and writes nothing. The native server follows the `patchloom.mcpSurface` setting (`full` or `core`). Existing servers in JSON or JSONC (`//` comments, trailing commas) stay in the file. A config that is not an object is left unchanged and the command reports an error. If an existing file cannot be read, the command reports that error and does not replace it. A missing file is still created.
 
-CLI **0.37.5** exposes **66** MCP tools by default (including `explain_plan`, `tidy_check`, `list_files`, `apply_fragment`, `notebook_edit`, and `operation_schema`). The core pack is 12 tools on CLI 0.37+: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `operation_schema`, `server_info`. `doc` accepts `.jsonc` (comments stay on set), plus `.env`, `.ini`, and `.properties`. `doc_set` accepts `if_exists` to skip a missing file or selector. `apply_patch` accepts `apply=false` for a check-only preview. CLI `list-files` inventories ignore-aware paths the same way as MCP `list_files`. `search_files` accepts `files_without_match` (CLI 0.29+). `apply_patch` accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE (CLI 0.30+). `doc_query` can list object keys and count array or object length (CLI 0.32+). Search, replace, and tidy dests accept cwd-only globs such as `*.txt` (CLI 0.33+; use `**/*.txt` or `--glob` for nested files). Absolute paths that resolve inside the MCP workspace root are allowed; empty paths, `../`, and outside paths still reject with stable `error_kind` peels.
+CLI **0.37.10** exposes **66** MCP tools by default (including `explain_plan`, `tidy_check`, `list_files`, `apply_fragment`, `notebook_edit`, and `operation_schema`). The core pack is 12 tools on CLI 0.37+: `read_file`, `search_files`, `list_files`, `replace_text`, `batch_replace`, `doc_get`, `doc_set`, `doc_query`, `md_replace_section`, `execute_plan`, `operation_schema`, `server_info`. `doc` accepts `.jsonc` (comments stay on set), plus `.env`, `.ini`, and `.properties`. `doc_set` accepts `if_exists` to skip a missing file or selector. `apply_patch` accepts `apply=false` for a check-only preview. CLI `list-files` inventories ignore-aware paths the same way as MCP `list_files`. `search_files` accepts `files_without_match` (CLI 0.29+). `apply_patch` accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE (CLI 0.30+). `doc_query` can list object keys and count array or object length (CLI 0.32+). Search, replace, and tidy dests accept cwd-only globs such as `*.txt` (CLI 0.33+; use `**/*.txt` or `--glob` for nested files). Absolute paths that resolve inside the MCP workspace root are allowed. On CLI 0.37.8+, a `../` that resolves back inside that root is allowed. A `../` that leaves the workspace is still rejected. Empty paths and outside paths still reject with stable `error_kind` peels.
 
 ### Status bar
 
 The status bar shows MCP and binary readiness at a glance:
 
-- **$(plug) Patchloom**, with the detected version when known (`$(plug) Patchloom v0.37.5`), when an MCP config file is configured
+- **$(plug) Patchloom**, with the detected version when known (`$(plug) Patchloom v0.37.10`), when an MCP config file is configured
 - **$(check) Patchloom**, with the detected version when known, when the binary is ready and MCP is not configured
 - **$(warning) Patchloom** when the binary is missing or needs an upgrade
 
@@ -186,7 +186,7 @@ The extension detects outdated CLI builds and warns with upgrade guidance. It re
 Set `patchloom.path` in settings, or add the CLI to your `PATH`.
 
 **CLI compatibility warning / upgrade path**
-The extension requires Patchloom **0.3.0** or newer; **0.37.5** is recommended. Which fix to use depends on how the CLI was resolved (status shows Source):
+The extension requires Patchloom **0.3.0** or newer; **0.37.10** is recommended. Which fix to use depends on how the CLI was resolved (status shows Source):
 
 1. **Source: managed install** → **Patchloom: Update Patchloom** (checksum-verified GitHub release into extension storage)
 2. **Source: PATH** → upgrade that install in place (**Scoop** `scoop update patchloom` on Windows; Homebrew / npm / cargo / the official installer elsewhere). Managed Install will not override a PATH binary.
@@ -195,13 +195,16 @@ The extension requires Patchloom **0.3.0** or newer; **0.37.5** is recommended. 
 Do **not** rely on winget or Chocolatey to stay current. Those community packages lag moderation and Microsoft publish, so upgrades often stay stuck on older CLI versions.
 
 **Path rejected by workspace guard**
-Quick Actions and Batch Apply pass `--contain` so paths stay inside the open workspace folder. On CLI 0.18+, sandbox escapes report `error_kind: guard_rejected` (not a generic `invalid_input`). Keep targets under the workspace root, or open the folder that owns the files.
+Quick Actions and Batch Apply pass `--contain` so paths stay inside the open workspace folder. On CLI 0.18+, sandbox escapes report `error_kind: guard_rejected` (not a generic `invalid_input`). On CLI 0.37.8+, a `../` that resolves back inside the workspace is allowed (`sub/../sub/a.txt` reads the file). MCP `read_file` does the same. A path that resolves outside is still rejected. Keep targets under the workspace root, or open the folder that owns the files.
 
 **Empty or blank path**
 On CLI 0.28+, empty, whitespace-only, or format-character-only paths fail early with `error_kind: invalid_input` and message `path must not be empty` (they no longer look like workspace-root failures). Prefer a real relative or workspace-absolute path.
 
 **Create or rename parent is not a directory**
 On CLI 0.31+, create and rename check each parent of the destination before staging. A parent that is a regular file (or a dangling / file symlink) reports `error_kind: invalid_input` and `parent path is not a directory`. Create the missing directory first, or pick a destination whose parents are directories.
+
+**Append and prepend through a symlink**
+On CLI 0.37.6+, **Append to file** and **Prepend to file** follow a symlink to a regular text file and update the target. A symlink whose target is binary is `error_kind: binary` and names the path you passed (`link.bin`). The file is not changed. A dangling link is `invalid_input` (`target is not a file`) and also names that path.
 
 **Numeric or negated doc selector**
 On CLI 0.30+, selectors accept `!=`, `>`, `>=`, `<`, `<=`, and `[!key]` (for example `servers[port>8000]`). A non-numeric compare reports `error_kind: invalid_input`. Use a number on the right-hand side, or a concrete index path.
@@ -243,6 +246,12 @@ On CLI 0.36+, a SEARCH/REPLACE document with CRLF line endings matches an LF fil
 **INI and properties values**
 On CLI 0.37+, `doc set` on `.properties` and `.ini` writes the value as text. It does not wrap the value in quotes. A leading space is escaped. `doc get` returns that text.
 
+**Properties separators and continuations**
+On CLI 0.37.10+, a `.properties` key ends at the first unescaped `=`, `:`, space, or tab. `port 8080` is the key `port` and the value `8080`. A name like `app.name` is still one key. On CLI 0.37.9+, a comment that ends in `\` does not hide the next setting (`# note\` then `port=1` keeps `port`). On CLI 0.37.8+, an odd trailing `\` on a value joins the next physical line and is removed, so `msg=hel\` followed by `lo` is `hello`.
+
+**INI delete and colliding names**
+On CLI 0.37.10+, **Delete structured value** on an `.ini` root key or a whole section removes that text from the file. A file that uses one name for both a root key and a section is `error_kind: parse_error` (exit 4). The message names the section and the line.
+
 **Replace a markdown section**
 On CLI 0.37+, `md replace-section` keeps a body line whose text matches the heading. A leading `# Title` in the replacement is still removed so the heading is not duplicated.
 
@@ -253,7 +262,7 @@ On CLI 0.37+, MCP `notebook_edit` replaces one Jupyter cell's source by `cell_id
 On CLI 0.37+, the published `execute_plan` schema lists `version` and `operations`. Fetch one operation's fields with `operation_schema`. The server still accepts `ops` in place of `operations`. The full inventory is 66 tools. The core pack is 12 and includes `operation_schema`.
 
 **Tidy a directory**
-On CLI 0.37+, plan `tidy.fix` on a directory includes dotfiles such as `.gitignore`. `.git` is still skipped.
+On CLI 0.37+, plan `tidy.fix` on a directory includes dotfiles such as `.gitignore`. `.git` is still skipped. On CLI 0.37.8+, `tidy fix` does not add a blank line when mixed line endings already end in a newline.
 
 **Formatter timeout**
 On CLI 0.37.1, a post-write formatter that exits non-zero, or that runs past its deadline (30 seconds unless you set another value), exits 1 with `error_kind: format_failed`. Closing stderr, or leaving a background process holding stderr, does not drop that deadline. The same deadline applies to `--format`, `[defaults] format`, `[format] command`, and `[format.by_extension]`. The file may already be written. The error names a backup session and says to run `patchloom undo`. **Patchloom: Undo last change** restores it. Quick Actions and Batch Apply wait 45 seconds so this error can come back. A format deadline longer than that can still be cut off. A per-extension formatter that exits non-zero still warns, and the write stays.
@@ -268,28 +277,34 @@ On CLI 0.37.1, the Replace text Quick Action keeps `$` as text. On the CLI, rege
 On CLI 0.37.1, a hunk that ends before its line counts are satisfied is `error_kind: parse_error` (exit 4). It is not applied as a shorter edit. A git copy that also has hunks keeps the source file and applies the hunks to the copy.
 
 **Path checked before it is read**
-On CLI 0.37.1, `--contain` checks these reads before loading bytes: git copy-from, Begin Patch check, patch merge check, markdown lint, markdown dedupe, and a batch `@path` payload (`ast.insert` content, `ast.wrap` wrapper or preamble, and `ast.group` preamble when the token is exactly `@path`). An outside path is still `guard_rejected`.
+On CLI 0.37.1, `--contain` checks these reads before loading bytes: git copy-from, Begin Patch check, patch merge check, markdown lint, markdown dedupe, and a batch `@path` payload (`ast.insert` content, `ast.wrap` wrapper or preamble, and `ast.group` preamble when the token is exactly `@path`). An outside path is still `guard_rejected`. On CLI 0.37.6+, a patch file outside the workspace is `guard_rejected` and nothing is written.
 
 **Structured and markdown edit edges**
-On CLI 0.37.1, a JSONC block comment between numbers stays a comment. A YAML comment after the last list entry stays after the list. Markdown section edits recognize setext headings, a leading BOM, closing hashes, and a blank line between sections. `md dedupe-headings` says `would remove` in the dry-run text. There is no Quick Action for dedupe.
+On CLI 0.37.1, a JSONC block comment between numbers stays a comment. A YAML comment after the last list entry stays after the list. Markdown section edits recognize setext headings, a leading BOM, closing hashes, and a blank line between sections. `md dedupe-headings` says `would remove duplicate` in the dry-run text (exit 2). On CLI 0.37.9+, `--apply` says `removed duplicate`. There is no Quick Action for dedupe.
 
 **Move onto an existing key**
 On CLI 0.37.3+, `doc move` onto a key that already has a value returns `error_kind: already_exists` and leaves the file unchanged. `[0]`, `0`, and `00` name the same array slot. Move to a free key, or delete the destination first. **Move/rename key** shows that error.
 
 **INI notes, env lines, and padded integers**
-On CLI 0.37.3+, `doc set` on `port = 8080 ; primary` keeps the spaces around `=` and the note. A value that a space before `;` or `#` would shorten on read-back is `invalid_input` and the file stays unchanged. On CLI 0.37.2+, an ini header that never closes (`[broken`) is `parse_error` (exit 4). A `.env` value that would split onto another line is `invalid_input`. On CLI 0.37.4+, `doc set` of unquoted `01` or `007` stores a decimal string (`id = "01"`). A single `0` stays the number zero. On CLI 0.37.2+, a TOML integer above 9223372036854775807 stays bare digits.
+On CLI 0.37.3+, `doc set` on `port = 8080 ; primary` keeps the spaces around `=` and the note. A value that a space before `;` or `#` would shorten on read-back is `invalid_input` and the file stays unchanged. On CLI 0.37.2+, an ini header that never closes (`[broken`) is `parse_error` (exit 4). On CLI 0.37.10+, `doc set` of a value that contains a newline writes a quoted multiline value, and `doc get` returns that string. A carriage return in the value is still `invalid_input` (`the written value would split onto another line`). On CLI 0.37.4+, `doc set` of unquoted `01` or `007` stores a decimal string (`id = "01"`). A single `0` stays the number zero. On CLI 0.37.2+, a TOML integer above 9223372036854775807 stays bare digits.
 
 **Upsert a bullet**
 On CLI 0.37.3+, **Upsert bullet** puts the item in that heading's own list, before the first child heading. A bullet that exists only under the child is not treated as already present. A second upsert of the same item does not add it again.
 
+**Append a table row**
+On CLI 0.37.10+, **Append table row** skips a table that appears only inside a fenced code block. The row is added to the table under the heading you named.
+
 **YAML yes, no, on, and off**
 On CLI 0.37.3+, unquoted `yes`, `no`, `on`, and `off` stay strings. Quote them only when you want a string that would otherwise be a number or a boolean (`true`, `false`, `null`).
+
+**YAML dates and base-2 tokens**
+On CLI 0.37.6+, `doc set` of the whole value `0b0` stores a quoted string (`flag: '0b0'`). `doc get` returns that string. On CLI 0.37.8+, a whole date value such as `2020-01-01` is quoted. A longer sentence that only contains that token (`meet on 2020-01-01`) stays as written. An edit that does not touch a plain date leaves that date unquoted.
 
 **HTTP MCP Host allowlist**
 The extension's MCP server is stdio. If you bind Streamable HTTP yourself (`patchloom mcp-server --http`), non-loopback binds keep the Host allowlist. Add extra names with `--allowed-host`. Loopback still starts without `--allow-unauthenticated`.
 
 **Patch apply formats**
-On CLI 0.30+, `patch apply` (and MCP `apply_patch`) accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE. Update and SEARCH matches must be unique unless you pass `--replace-all` (SEARCH/REPLACE only). On CLI 0.37.5, two exact SEARCH/REPLACE matches are `error_kind: ambiguous` and the file stays unchanged. The message names `--replace-all` for the CLI, `replace_all: true` for MCP `apply_patch`, and `unique: false` for a plan. The Quick Action **Apply patch (unified / Begin Patch / SEARCH-REPLACE)** builds `patch apply`. **Merge patch (three-way)** is still `patch merge` for stale unified diffs.
+On CLI 0.30+, `patch apply` (and MCP `apply_patch`) accepts unified diffs, Codex `*** Begin Patch`, and Aider SEARCH/REPLACE. Update and SEARCH matches must be unique unless you pass `--replace-all` (SEARCH/REPLACE only). On CLI 0.37.5+, two exact SEARCH/REPLACE matches are `error_kind: ambiguous` and the file stays unchanged. On CLI 0.37.10 the message names `--nth` for replace, `unique: false` for a plan or MCP, and `replace_all: true` for MCP `apply_patch`. It does not name the CLI flag. `patch apply --replace-all` still updates every exact match. The Quick Action **Apply patch (unified / Begin Patch / SEARCH-REPLACE)** builds `patch apply`. **Merge patch (three-way)** is still `patch merge` for stale unified diffs.
 
 **Batch replace shape**
 Batch lines use `replace PATH OLD NEW` (and optional flags such as `--fuzzy`). Do not paste CLI form `replace OLD --new NEW path` into a batch plan; CLI 0.18+ returns a clear parse error with the PATH OLD NEW hint. `--insert-after` is not a batch flag. The Quick Action **Insert text after match** uses it. In a batch plan that token is the new text, so the matched line is replaced. Prepend with `file.prepend PATH "text"`.
@@ -345,7 +360,7 @@ File bugs and feature requests at [patchloom/patchloom-vscode/issues](https://gi
 ## Requirements
 
 - VS Code 1.90 or newer (or compatible editors: Cursor, Windsurf, VSCodium)
-- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (**0.37.5+ recommended** for JSONC / `.env` / INI / `.properties` `doc` edits, directory `rename` with undo, `doc set --if-exists`, CLI `list-files`, MCP `explain_plan` / `tidy_check` / `notebook_edit` / `operation_schema` / `apply_patch` `apply=false`, HTTP MCP Host allowlist, 66 MCP tools, empty or whitespace-only edit payloads as `invalid_input`, AST `parse_timeout` (exit 4), dest/`--glob` mistakes as `invalid_input`, dest globs on search/replace/tidy (`*.txt` is cwd-only), `doc keys` / `doc len`, YAML merge-key edits that keep `<<:` and comments, Windows dest/`--cwd` rules, charset / EditorConfig `charset`, YAML alias-to-merge on `doc set`, create/rename `parent path is not a directory`, numeric selector compares (`servers[port>8000]`), `search -L` / `files_without_match`, Codex Begin Patch and Aider SEARCH/REPLACE on `patch apply`, `agent-rules --surface core` honoring `--mode`, empty-path fail-closed (`path must not be empty`), `suggested_op` on fail-closed doc navigation, `not_regular_file` soft peels, ambiguous markdown headings, `list_files` MCP inventory, `apply-fragment`, full `error_kind` peels (`binary` / `invalid_encoding` / `fuzzy_span_suspicious` / `already_exists` / `guard_rejected` / `ambiguous` / `parse_timeout` / `no_matches`), optional `PATCHLOOM_MCP_SURFACE=core` 12-tool pack, multi-doc `doc merge --selector`, line-oriented inserts, batch `replace PATH OLD NEW` hints, and agent-facing JSON envelopes, plus CLI 0.37.1 formatter timeouts as `format_failed` with Undo when the write already landed, parent format commands dropped outside a git repository, literal `$` in replacement text, incomplete hunks as `parse_error`, and setext or closing-hash markdown headings, plus CLI 0.37.2 through 0.37.5 exact TOML integers, padded integers stored as strings, ini notes kept, `doc move` onto an existing key as `already_exists`, YAML `yes`/`no`/`on`/`off` staying strings, upsert-bullet staying above a child heading, and a regex group the pattern does not contain refused with the file unchanged)
+- [Patchloom CLI](https://github.com/patchloom/patchloom) 0.3.0 or newer (**0.37.10+ recommended** for JSONC / `.env` / INI / `.properties` `doc` edits, directory `rename` with undo, `doc set --if-exists`, CLI `list-files`, MCP `explain_plan` / `tidy_check` / `notebook_edit` / `operation_schema` / `apply_patch` `apply=false`, HTTP MCP Host allowlist, 66 MCP tools, empty or whitespace-only edit payloads as `invalid_input`, AST `parse_timeout` (exit 4), dest/`--glob` mistakes as `invalid_input`, dest globs on search/replace/tidy (`*.txt` is cwd-only), `doc keys` / `doc len`, YAML merge-key edits that keep `<<:` and comments, Windows dest/`--cwd` rules, charset / EditorConfig `charset`, YAML alias-to-merge on `doc set`, create/rename `parent path is not a directory`, numeric selector compares (`servers[port>8000]`), `search -L` / `files_without_match`, Codex Begin Patch and Aider SEARCH/REPLACE on `patch apply`, `agent-rules --surface core` honoring `--mode`, empty-path fail-closed (`path must not be empty`), `suggested_op` on fail-closed doc navigation, `not_regular_file` soft peels, ambiguous markdown headings, `list_files` MCP inventory, `apply-fragment`, full `error_kind` peels (`binary` / `invalid_encoding` / `fuzzy_span_suspicious` / `already_exists` / `guard_rejected` / `ambiguous` / `parse_timeout` / `no_matches`), optional `PATCHLOOM_MCP_SURFACE=core` 12-tool pack, multi-doc `doc merge --selector`, line-oriented inserts, batch `replace PATH OLD NEW` hints, and agent-facing JSON envelopes, plus CLI 0.37.1 formatter timeouts as `format_failed` with Undo when the write already landed, parent format commands dropped outside a git repository, literal `$` in replacement text, incomplete hunks as `parse_error`, and setext or closing-hash markdown headings, plus CLI 0.37.2 through 0.37.5 exact TOML integers, padded integers stored as strings, ini notes kept, `doc move` onto an existing key as `already_exists`, YAML `yes`/`no`/`on`/`off` staying strings, upsert-bullet staying above a child heading, and a regex group the pattern does not contain refused with the file unchanged, plus CLI 0.37.6 through 0.37.10 append and prepend through a text symlink, a `../` that resolves inside `--contain`, properties keys split on a space or tab, ini delete removing the named key or section, a quoted multiline `.env` value, table rows skipping fenced examples, and `patch apply --replace-all` still writing every exact SEARCH/REPLACE match)
 
 ## Contributing
 
