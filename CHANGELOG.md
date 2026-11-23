@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.9.2...patchloom-v0.10.0) (2026-11-23)
+
+
+### Features
+
+* align the extension with Patchloom CLI 0.37.10 ([#331](https://github.com/patchloom/patchloom-vscode/issues/331)) ([1226a31](https://github.com/patchloom/patchloom-vscode/commit/1226a3151af04d47d4f061a3e2fb45e3a84b1ff0))
+
+
+### Bug Fixes
+
+* correct status and install messages when the CLI cannot be used ([#333](https://github.com/patchloom/patchloom-vscode/issues/333)) ([3996f6a](https://github.com/patchloom/patchloom-vscode/commit/3996f6ace89aa45ddf50bfd7947f9a6277819896))
+* drive the UI command palette through the visible quick input ([#334](https://github.com/patchloom/patchloom-vscode/issues/334)) ([2fdd02f](https://github.com/patchloom/patchloom-vscode/commit/2fdd02f92d72155d2fa5e26a7e30c41a56a11869))
+
 ## [0.9.2](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.9.1...patchloom-v0.9.2) (2026-10-22)
 
 
