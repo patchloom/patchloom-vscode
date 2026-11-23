@@ -14,8 +14,13 @@ export interface SetupAction {
 }
 
 export function buildStatusDetails(status: PatchloomStatus, workspaceReadiness?: WorkspaceReadiness): string {
+  const headline = !status.ready
+    ? "Patchloom is not ready."
+    : patchloomNeedsUpgrade(status)
+      ? "Patchloom CLI is older than this extension expects."
+      : "Patchloom is ready.";
   return [
-    status.ready ? "Patchloom is ready." : "Patchloom is not ready.",
+    headline,
     status.message,
     `Source: ${describePatchloomSource(status.source)}`,
     status.version ? `Version: ${status.version}` : undefined,

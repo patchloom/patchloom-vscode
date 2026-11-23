@@ -4,6 +4,7 @@ import { resolvePatchloomStatus, PATCHLOOM_RELEASES_URL, clearPatchloomStatusInf
 import { decideManagedUpdate, resolveManagedBinaryVersion } from "../binary/managedUpdate.js";
 import {
   detectManagedInstallTarget,
+  unsupportedManagedInstallNotice,
   fetchLatestReleaseVersion,
   getManagedInstallRoot,
   ManagedInstallStage,
@@ -61,9 +62,11 @@ export async function installPatchloom(): Promise<void> {
 
   const target = detectManagedInstallTarget();
   if (!target) {
-    await vscode.window.showErrorMessage(
-      `Managed install is not supported on this platform (${process.platform}/${process.arch}).`
-    );
+    const notice = unsupportedManagedInstallNotice(process.platform, process.arch);
+    const choice = await vscode.window.showErrorMessage(notice.message, notice.actionTitle);
+    if (choice === notice.actionTitle) {
+      await vscode.commands.executeCommand(notice.actionCommand);
+    }
     return;
   }
 
@@ -106,9 +109,11 @@ export async function updatePatchloom(): Promise<void> {
 
   const target = detectManagedInstallTarget();
   if (!target) {
-    await vscode.window.showErrorMessage(
-      `Managed install is not supported on this platform (${process.platform}/${process.arch}).`
-    );
+    const notice = unsupportedManagedInstallNotice(process.platform, process.arch);
+    const choice = await vscode.window.showErrorMessage(notice.message, notice.actionTitle);
+    if (choice === notice.actionTitle) {
+      await vscode.commands.executeCommand(notice.actionCommand);
+    }
     return;
   }
 
@@ -181,9 +186,11 @@ export async function reinstallPatchloom(): Promise<void> {
 
   const target = detectManagedInstallTarget();
   if (!target) {
-    await vscode.window.showErrorMessage(
-      `Managed install is not supported on this platform (${process.platform}/${process.arch}).`
-    );
+    const notice = unsupportedManagedInstallNotice(process.platform, process.arch);
+    const choice = await vscode.window.showErrorMessage(notice.message, notice.actionTitle);
+    if (choice === notice.actionTitle) {
+      await vscode.commands.executeCommand(notice.actionCommand);
+    }
     return;
   }
 

@@ -30,6 +30,7 @@ import {
   clearManagedInstallFailure,
   clearManagedInstallFailureRecord,
   detectManagedInstallTarget,
+  unsupportedManagedInstallNotice,
   inspectManagedInstallStatus,
   loadManagedInstallFailure,
   ManagedInstallVerificationError,
@@ -454,6 +455,17 @@ test("detectManagedInstallTarget maps supported platforms to release targets", (
     archiveFormat: ".zip"
   });
   assert.equal(detectManagedInstallTarget("linux", "arm"), undefined);
+});
+
+test("unsupportedManagedInstallNotice names linux/arm and opens settings", () => {
+  const notice = unsupportedManagedInstallNotice("linux", "arm");
+  assert.equal(
+    notice.message,
+    "Managed install is not supported on this platform (linux/arm). Set patchloom.path to a Patchloom binary you already have."
+  );
+  assert.match(notice.message, /linux\/arm/);
+  assert.equal(notice.actionTitle, "Open Settings");
+  assert.equal(notice.actionCommand, "patchloom.openPatchloomSettings");
 });
 
 test("detectManagedInstallTarget selects musl target when isMusl is true", () => {

@@ -3,7 +3,7 @@
 Patchloom needs the CLI binary to work. Prefer channels that track
 GitHub Releases promptly (same day as the tag).
 
-## Managed Install (Recommended on all platforms)
+## Managed Install (Recommended download when a build exists)
 
 Click **Install Patchloom** above to download and install the CLI
 automatically. The extension handles download, checksum verification,
