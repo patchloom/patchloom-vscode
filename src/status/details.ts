@@ -60,7 +60,9 @@ export function statusNotificationSummary(ready: boolean, needsUpgrade: boolean)
 }
 
 export function preferredStatusAction(status: PatchloomStatus, workspaceReadiness?: WorkspaceReadiness): SetupAction | undefined {
-  // Missing or outdated CLI: shared remediation (managed install preferred).
+  // Missing or outdated CLI. Install or Update only when the managed
+  // binary is the one in use. A setting or PATH binary opens Settings
+  // or Releases, because those still win resolution order.
   if (!status.ready || patchloomNeedsUpgrade(status)) {
     return preferredBinaryRemediationAction(status);
   }
