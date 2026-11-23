@@ -8,6 +8,7 @@
  * Run with: npm run test:ui
  */
 import assert from "node:assert/strict";
+import { By, Key, type WebElement } from "selenium-webdriver";
 import {
   VSBrowser,
   Workbench,
@@ -77,6 +78,67 @@ async function dismissNotifications(
   }
 }
 
+function commandModifier(): string {
+  return process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+}
+
+/**
+ * Type a command into the visible quick-input widget.
+ * Workbench.executeCommand types into the first input it finds. On VS Code
+ * 1.147 that input exists before it can take keystrokes, so setText throws
+ * "element not interactable" locally and can hang the suite in CI.
+ */
+async function visibleQuickInput(): Promise<WebElement | undefined> {
+  const driver = VSBrowser.instance.driver;
+  const widgets = await driver.findElements(By.css(".quick-input-widget"));
+  for (const widget of widgets) {
+    try {
+      if (!(await widget.isDisplayed())) {
+        continue;
+      }
+      const fields = await widget.findElements(By.css("textarea.input, input.input, [role='combobox']"));
+      for (const field of fields) {
+        if ((await field.isDisplayed()) && (await field.isEnabled())) {
+          return field;
+        }
+      }
+    } catch {
+      // The widget is replaced while the palette opens.
+    }
+  }
+  return undefined;
+}
+
+async function runCommand(title: string): Promise<void> {
+  const driver = VSBrowser.instance.driver;
+  const modifier = commandModifier();
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await driver.actions().sendKeys(Key.ESCAPE).perform();
+      await driver.actions()
+        .keyDown(modifier)
+        .keyDown(Key.SHIFT)
+        .sendKeys("p")
+        .keyUp(Key.SHIFT)
+        .keyUp(modifier)
+        .perform();
+      const input = await poll(visibleQuickInput, 8_000);
+      await input.click();
+      await input.sendKeys(Key.chord(modifier, "a"), Key.BACK_SPACE, `>${title}`, Key.ENTER);
+      return;
+    } catch (error) {
+      lastError = error;
+      try {
+        await driver.actions().sendKeys(Key.ESCAPE).perform();
+      } catch {
+        // The palette is already closed.
+      }
+    }
+  }
+  throw lastError;
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -93,7 +155,7 @@ describe("Patchloom Extension UI", function () {
     // Content-based activation (AGENTS.md / .patchloom.toml) may not fire in
     // the ExTester workspace. A Patchloom command loads the extension so the
     // status bar item exists before the suite runs.
-    await workbench.executeCommand("Patchloom: Show Status");
+    await runCommand("Patchloom: Show Status");
     await poll(findPatchloomStatus, 30_000);
     // Drain leftover Show Status toasts so later tests do not match them.
     await poll(() => findNotification(workbench, /[Pp]atchloom/), 10_000).catch(() => undefined);
@@ -109,7 +171,7 @@ describe("Patchloom Extension UI", function () {
 
   describe("Show Status command", function () {
     it("should display a notification when invoked", async function () {
-      await workbench.executeCommand("Patchloom: Show Status");
+      await runCommand("Patchloom: Show Status");
       const msg = await poll(
         () => findNotification(workbench, /ready|missing|version|AGENTS|status|not found/i),
       );
@@ -119,7 +181,7 @@ describe("Patchloom Extension UI", function () {
 
   describe("Open Settings command", function () {
     it("should open settings filtered to patchloom", async function () {
-      await workbench.executeCommand("Patchloom: Open Settings");
+      await runCommand("Patchloom: Open Settings");
       await poll(async () => {
         const titles = await new EditorView().getOpenEditorTitles();
         return titles.some((t) => t.toLowerCase().includes("settings")) || undefined;
@@ -133,7 +195,7 @@ describe("Patchloom Extension UI", function () {
   describe("Configure MCP command", function () {
     it("should show a notification or quick pick when invoked", async function () {
       await dismissNotifications(workbench, /[Pp]atchloom/);
-      await workbench.executeCommand("Patchloom: Configure MCP");
+      await runCommand("Patchloom: Configure MCP");
 
       // The command shows either a warning (missing binary / MCP targets)
       // or a multi-select quick pick. Do not treat leftover Show Status as success.
@@ -158,7 +220,7 @@ describe("Patchloom Extension UI", function () {
 
   describe("Quick Action command", function () {
     it("should show a notification or quick pick when invoked", async function () {
-      await workbench.executeCommand("Patchloom: Quick Action");
+      await runCommand("Patchloom: Quick Action");
 
       const result = await poll<{ kind: string; labels?: string[] }>(async () => {
         const msg = await findNotification(workbench, /upgrade|install|ready|not found/i);
@@ -191,10 +253,11 @@ describe("Patchloom Extension UI", function () {
   describe("Configuration changes", function () {
     it("should show Patchloom setting in the settings editor", async function () {
       await poll(findPatchloomStatus);
-      const settingsEditor = await workbench.openSettings();
+      await runCommand("Preferences: Open User Settings");
+      const settingsEditor = new SettingsEditor();
       const setting = await settingsEditor.findSetting("Show Status Bar", "Patchloom");
       assert.ok(setting, "should find the showStatusBar setting");
-      await workbench.executeCommand("workbench.action.closeActiveEditor");
+      await runCommand("View: Close Editor");
     });
   });
 
