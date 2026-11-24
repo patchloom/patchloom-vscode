@@ -68,6 +68,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Release merge guard
+        shell: bash
+        run: bash scripts/guard-no-release-merge.test.sh
+
       - name: Setup Node.js
         uses: ./.github/actions/setup-node
 
