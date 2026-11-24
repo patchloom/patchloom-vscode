@@ -1295,7 +1295,12 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    child.kill();
+    if (child.exitCode === null && child.signalCode === null) {
+      await new Promise<void>((resolve) => {
+        child.once("exit", () => resolve());
+        child.kill();
+      });
+    }
 
     // Verify the tool call succeeded
     const lines = stdout.trim().split("\n");
@@ -1314,7 +1319,25 @@ describe("managed install end-to-end MCP", { timeout: 120_000 }, async () => {
     const content = JSON.parse(await fs.readFile(path.join(workDir, "config.json"), "utf8")) as Record<string, unknown>;
     assert.equal(content.port, 8080, "doc_set should have changed port to 8080");
 
-    await fs.rm(workDir, { recursive: true, force: true });
+    // Windows keeps the MCP server's cwd locked for a moment after exit.
+    let removeError: unknown;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        await fs.rm(workDir, { recursive: true, force: true });
+        removeError = undefined;
+        break;
+      } catch (error) {
+        removeError = error;
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== "EBUSY" && code !== "EPERM") {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+    if (removeError) {
+      throw removeError;
+    }
   });
 
   // Cleanup

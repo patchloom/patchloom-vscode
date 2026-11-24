@@ -3,49 +3,75 @@
 #
 # Usage:
 #   bash scripts/guard-no-release-merge.sh [PR_NUMBER]
-#   # or with current branch context (will try to detect open PR)
 #
-# Exits 0 if safe to merge (non-release PR).
-# Exits 1 and prints guidance if release PR detected, unless ALLOW_RELEASE_MERGE=yes.
+# Exits 0 if the PR is not a release.
+# Exits 1 if it is a release, unless ALLOW_RELEASE_MERGE=yes.
+# Exits 2 if the PR title cannot be read. That is not permission to merge.
 #
-# This is a defense-in-depth guard for agents and humans.
-# See AGENTS.md for the full "Release PRs - Strong Guard" policy.
-# Per global rules: report the PR, ask user "Should I merge it?", only proceed after explicit "yes".
+# A failed `gh` lookup used to print "safe to merge". PR #332
+# (chore(main): release patchloom 0.10.0) was merged after that OK line.
 
 set -euo pipefail
 
 pr="${1:-}"
 
 if [[ -z "$pr" ]]; then
-  # Try to detect PR from current context (works if gh pr view succeeds for head)
   if pr=$(gh pr view --json number --jq '.number' 2>/dev/null); then
     :
   else
-    echo "ERROR: No PR number provided and could not auto-detect current PR."
+    echo "ERROR: No PR number provided and could not read the current PR."
+    echo "Refusing to treat that as safe to merge."
     echo "Usage: $0 <pr-number>"
     exit 2
   fi
 fi
 
+# An empty array expansion is an unbound variable under set -u on bash 3.2
+# (macOS /bin/bash). Pass --repo only when GH_REPO is set.
+gh_view() {
+  local json_field="$1"
+  local jq_expr="$2"
+  if [[ -n "${GH_REPO:-}" ]]; then
+    gh pr view "$pr" --repo "$GH_REPO" --json "$json_field" --jq "$jq_expr"
+  else
+    gh pr view "$pr" --json "$json_field" --jq "$jq_expr"
+  fi
+}
+
 echo "Guard: inspecting PR #$pr for release-please markers..."
 
-title=$(gh pr view "$pr" --json title --jq '.title' 2>/dev/null || echo "")
-labels=$(gh pr view "$pr" --json labels --jq '.labels[].name' 2>/dev/null || true)
-body=$(gh pr view "$pr" --json body --jq '.body' 2>/dev/null | head -c 500 || true)
+if ! title=$(gh_view title '.title' 2>/dev/null); then
+  echo "ERROR: could not read PR #$pr. Refusing to treat it as safe to merge."
+  exit 2
+fi
+if [[ -z "${title//[[:space:]]/}" ]]; then
+  echo "ERROR: PR #$pr has an empty title. Refusing to treat it as safe to merge."
+  exit 2
+fi
+
+labels=$(gh_view labels '.labels[].name' 2>/dev/null || true)
+body=$(gh_view body '.body' 2>/dev/null || true)
 
 is_release=false
 reason=""
 
-if echo "$labels" | grep -q 'autorelease: pending'; then
+shopt -s nocasematch
+release_title_re='^(chore|release)(\([^)]*\))?:[[:space:]]*release[[:space:]]'
+release_version_re='release[[:space:]]+v?[0-9]+\.[0-9]+'
+if [[ "$labels" == *autorelease:* ]]; then
   is_release=true
-  reason="has label 'autorelease: pending'"
-elif echo "$title" | grep -qiE '^(chore|release).*release |release v?[0-9]+\.[0-9]+'; then
+  reason="has an autorelease label"
+elif [[ "$title" =~ $release_title_re ]]; then
   is_release=true
   reason="title looks like release: '$title'"
-elif echo "$body" | grep -qi 'release-please'; then
+elif [[ "$title" =~ $release_version_re ]]; then
+  is_release=true
+  reason="title looks like release: '$title'"
+elif [[ "$body" == *release-please* ]]; then
   is_release=true
   reason="body mentions release-please"
 fi
+shopt -u nocasematch
 
 if [[ "$is_release" == "true" ]]; then
   echo ""

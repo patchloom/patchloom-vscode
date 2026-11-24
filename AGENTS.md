@@ -185,7 +185,7 @@ When you encounter a release PR (during triage, gate check, `gh pr list`, or sta
    ```
    bash scripts/guard-no-release-merge.sh <number>
    ```
-   The script will abort with guidance unless `ALLOW_RELEASE_MERGE=yes` is set (only after user yes).
+   The script will abort with guidance unless `ALLOW_RELEASE_MERGE=yes` is set (only after user yes). If it cannot read the PR, it exits 2. That is not permission to merge.
 5. If checks pass and user said yes: `gh pr merge <number> --squash` (or let auto if user directed).
 
 This rule was strengthened after an incident where `gh pr merge 144 --auto` (under a broad "merge everything" instruction) resulted in v0.0.5 being published without explicit per-release "yes".
