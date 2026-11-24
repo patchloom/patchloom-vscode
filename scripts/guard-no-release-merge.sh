@@ -26,14 +26,21 @@ if [[ -z "$pr" ]]; then
   fi
 fi
 
-repo_args=()
-if [[ -n "${GH_REPO:-}" ]]; then
-  repo_args=(--repo "$GH_REPO")
-fi
+# An empty array expansion is an unbound variable under set -u on bash 3.2
+# (macOS /bin/bash). Pass --repo only when GH_REPO is set.
+gh_view() {
+  local json_field="$1"
+  local jq_expr="$2"
+  if [[ -n "${GH_REPO:-}" ]]; then
+    gh pr view "$pr" --repo "$GH_REPO" --json "$json_field" --jq "$jq_expr"
+  else
+    gh pr view "$pr" --json "$json_field" --jq "$jq_expr"
+  fi
+}
 
 echo "Guard: inspecting PR #$pr for release-please markers..."
 
-if ! title=$(gh pr view "$pr" "${repo_args[@]}" --json title --jq '.title' 2>/dev/null); then
+if ! title=$(gh_view title '.title' 2>/dev/null); then
   echo "ERROR: could not read PR #$pr. Refusing to treat it as safe to merge."
   exit 2
 fi
@@ -42,8 +49,8 @@ if [[ -z "${title//[[:space:]]/}" ]]; then
   exit 2
 fi
 
-labels=$(gh pr view "$pr" "${repo_args[@]}" --json labels --jq '.labels[].name' 2>/dev/null || true)
-body=$(gh pr view "$pr" "${repo_args[@]}" --json body --jq '.body' 2>/dev/null || true)
+labels=$(gh_view labels '.labels[].name' 2>/dev/null || true)
+body=$(gh_view body '.body' 2>/dev/null || true)
 
 is_release=false
 reason=""
