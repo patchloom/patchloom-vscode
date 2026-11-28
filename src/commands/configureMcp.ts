@@ -55,12 +55,12 @@ export async function configureMcp(preset?: vscode.WorkspaceFolder): Promise<boo
     [
       {
         label: "Full tool inventory",
-        description: "Default (66 tools on CLI 0.37+; verified on 0.37.10)",
+        description: "Default (66 tools on CLI 0.37+; verified on 0.37.11)",
         surface: "full" as const
       },
       {
         label: "Core pack",
-        description: "Sets PATCHLOOM_MCP_SURFACE=core (12 tools on CLI 0.37+; verified on 0.37.10; 11 on 0.22-0.36)",
+        description: "Sets PATCHLOOM_MCP_SURFACE=core (12 tools on CLI 0.37+; verified on 0.37.11; 11 on 0.22-0.36)",
         surface: "core" as const
       }
     ],

@@ -582,7 +582,7 @@ test("performManagedInstall promotes patchloom.exe from a flat Windows zip", asy
         }
       },
       extractArchive: async (inputs) => {
-        // Windows cargo-dist zip (0.37.0 through 0.37.10): patchloom.exe at the archive root.
+        // Windows cargo-dist zip (0.37.0 through 0.37.11): patchloom.exe at the archive root.
         await fs.writeFile(path.join(inputs.destDir, "patchloom.exe"), "windows-binary", "utf8");
       },
       readFileContent: async (filePath) => fs.readFile(filePath, "utf8"),
