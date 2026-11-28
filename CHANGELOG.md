@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.10.0...patchloom-v0.11.0) (2026-11-28)
+
+
+### Features
+
+* align the extension with Patchloom CLI 0.37.11 ([#337](https://github.com/patchloom/patchloom-vscode/issues/337)) ([9e8c05a](https://github.com/patchloom/patchloom-vscode/commit/9e8c05a043a9075c093ab5967ba52482a40f0a3f))
+
+
+### Bug Fixes
+
+* refuse a release merge when the guard cannot read the PR ([#335](https://github.com/patchloom/patchloom-vscode/issues/335)) ([3c9156a](https://github.com/patchloom/patchloom-vscode/commit/3c9156aaf5e6ff737a077dc8cddf2912027c6ce2))
+
 ## [0.10.0](https://github.com/patchloom/patchloom-vscode/compare/patchloom-v0.9.2...patchloom-v0.10.0) (2026-11-23)
 
 
